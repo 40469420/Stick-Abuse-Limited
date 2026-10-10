@@ -11,6 +11,16 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api = {
+  quitRcDecision: (id: string, reset: boolean) => call<boolean>('rc:quitDecision', id, reset),
+  startMacroRecording: (id: string) => call<boolean>('macro:start', id),
+  stopMacroRecording: (id: string) => call<import('../shared/macros').MacroStep[]>('macro:stop', id),
+  cancelMacroRecording: (id: string) => call<boolean>('macro:cancel', id),
+  rcResetStatus: () => call<import('../main/rc-reset').RcResetStatus>('rc:resetStatus'),
+  setRcReset: (enabled: boolean) => call<import('../main/rc-reset').RcResetStatus>('rc:setReset', enabled),
+  listXInput: () => call<import('../main/xinput').XInputSlot[]>('diag:xinputSlots'),
+  adjustCenter: (side: number, direction: import('../shared/center').CenterDirection) => call<boolean>('device:adjustCenter', side, direction),
+  captureRc: (id: string, xinputSlot?: number) => call<import('../main/rc-capture').RcCaptureResult & { xinput?: import('../main/xinput').XInputCaptureResult }>('diag:rcCapture', id, xinputSlot),
+  cancelRc: (id: string) => call<boolean>('diag:rcCancel', id),
   discover: () =>
     call<Array<{ path: string; productId: number; preferred: boolean; product: string | undefined; manufacturer: string | undefined; live: boolean | null }>>('device:discover'),
   connect: (path: string) =>
@@ -21,7 +31,7 @@ const api = {
     call<{ verified: boolean; rolledBack: boolean }>('profile:write', profile, dataB64, length),
   switchProfile: (profile: number) => call<boolean>('profile:switch', profile),
   currentProfile: () => call<number>('profile:current'),
-  calibration: (state: number) => call<boolean>('device:calibration', state),
+  calibration: (state: number, partMask = 15) => call<boolean>('device:calibration', state, partMask),
   openExternal: (url: string) => call<boolean>('system:openExternal', url),
   version: () => call<string>('system:version'),
   steamInfo: () =>

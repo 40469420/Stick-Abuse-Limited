@@ -333,8 +333,9 @@ export const CalSub = {
  * offsets its fine-calibration session calls `statusTargetOffset` and
  * `statusStepOffset`. See PROTOCOL.md §12.6.
  */
-export function calibrateParts(calType: number, partMask: number): number[] {
-  return report(Cmd.CalibrateParts, calType, partMask)
+export function calibrateParts(calType: number, partMask: number, mode = 0): number[] {
+  if (![0, 1, 2].includes(calType) || ![3, 12, 15, 16].includes(partMask) || ![0, 1].includes(mode) || (mode === 1 && partMask !== 3)) throw new Error('Invalid calibration request')
+  return report(Cmd.CalibrateParts, calType, partMask, mode)
 }
 
 export function enterUpgradeMode(): number[] {

@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { TriggerTuning, GyroTuning } from './Tuning'
+import { CalibrationPanel } from './Calibration'
+import { RcFilters } from './RcFilters'
+import { CenterOffsets } from './CenterOffsets'
+import { Bindings } from './Bindings'
+import { Macros } from './Macros'
+import { QuitWarning } from './QuitWarning'
 import { api, b64ToBytes, bytesToB64, type Candidate, type DeviceInfo, type DeviceStats, type LiveSample, type PingResult } from './api'
 import { parseProfile, serializeProfile, fun, stick, LINEAR_CURVE, looksLikeCEProfile, Packet } from '@shared/profile'
 import { PROFILE_LENGTH, REPORT_RATE_OPTIONS, STICK_RESOLUTION_OPTIONS } from '@shared/protocol'
@@ -621,112 +628,6 @@ function LockedDump({ modelId, modelName, defaultLength }: { modelId: string; mo
   )
 }
 
-function CalibrationPanel(): JSX.Element {
-  const [live, setLive] = useState<LiveSample | null>(null)
-  const liveRef = useRef<LiveSample | null>(null)
-  const [before, setBefore] = useState<number[] | null>(null)
-  const [after, setAfter] = useState<number[] | null>(null)
-  const [note, setNote] = useState<string | null>(null)
-  const [err, setErr] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    const off = api().on('input:sample', (s) => {
-      const v = s as unknown as LiveSample
-      liveRef.current = v
-      setLive(v)
-    })
-    return off
-  }, [])
-
-  const rest = live ? [live.lx - 128, live.ly - 128, live.rx - 128, live.ry - 128] : null
-  const maxDev = rest ? Math.max(...rest.map((v) => Math.abs(v))) : 0
-  const centered = maxDev <= 4
-  const inCal = (live?.calTarget ?? 0) !== 0
-
-  async function enter(): Promise<void> {
-    setErr(null)
-    setAfter(null)
-    if (live) setBefore([live.lx, live.ly, live.rx, live.ry].map((v) => v - 128))
-    setBusy(true)
-    try {
-      await api().calibration(0)
-      setNote('Calibration open — hands off, sticks centered. Commit writes this rest position as the new centre.')
-    } catch (e) {
-      setErr((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function commit(): Promise<void> {
-    setErr(null)
-    if (!centered) {
-      setErr(`Sticks are ${maxDev} steps off centre — re-centre them first. Commit is blocked to protect your calibration.`)
-      return
-    }
-    if (!window.confirm('Commit calibration? The current rest position becomes the new centre. This cannot be undone from a file.')) return
-    setBusy(true)
-    try {
-      await api().calibration(1)
-      setNote('Committed — sampling the new rest position…')
-      window.setTimeout(() => {
-        const v = liveRef.current
-        if (v) setAfter([v.lx, v.ly, v.rx, v.ry].map((x) => x - 128))
-        setNote('Committed. Compare before/after below — both should sit near 0.')
-      }, 1500)
-    } catch (e) {
-      setErr((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function cancel(): Promise<void> {
-    setErr(null)
-    try {
-      await api().calibration(2)
-      setNote('Calibration cancelled — nothing was written.')
-    } catch (e) {
-      setErr((e as Error).message)
-    }
-  }
-
-  const names = ['LX', 'LY', 'RX', 'RY']
-  const verdict = !rest ? null : maxDev <= 2 ? 'Centered' : maxDev <= 6 ? 'Mild drift — deadzone covers it' : 'Drifting — calibrate'
-
-  return (
-    <div className="card" style={{ marginTop: 16 }}>
-      <h3>Calibration bench</h3>
-      <div className="hint">DualShock-style centering, verified live: the pad reports its own calibration state, and commit stays blocked until the sticks actually rest at centre.</div>
-      <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
-        <span className={`pill${inCal ? ' warn' : ''}`}>{inCal ? `calibrating (target ${live?.calTarget})` : 'idle'}</span>
-        {rest && <span className={`pill${maxDev <= 2 ? ' good' : maxDev <= 6 ? ' warn' : ' bad'}`}>{verdict} · ±{maxDev}</span>}
-        <div style={{ flex: 1 }} />
-        <button className="btn sm" disabled={busy || inCal} onClick={() => void enter()}>1 · Open</button>
-        <button className="btn sm primary" disabled={busy || !inCal} onClick={() => void commit()}>2 · Commit</button>
-        <button className="btn sm ghost" disabled={busy || !inCal} onClick={() => void cancel()}>Cancel</button>
-      </div>
-      {note && <div className="note" style={{ marginBottom: 8 }}>{note}</div>}
-      {err && <div className="note bad" style={{ marginBottom: 8 }}>{err}</div>}
-      <table className="tbl">
-        <thead><tr><th>Axis</th><th>Live</th><th>Before</th><th>After</th></tr></thead>
-        <tbody>
-          {names.map((n, i) => (
-            <tr key={n}>
-              <td className="mono">{n}</td>
-              <td className="mono">{rest ? (rest[i] > 0 ? `+${rest[i]}` : `${rest[i]}`) : '—'}</td>
-              <td className="mono">{before ? (before[i] > 0 ? `+${before[i]}` : `${before[i]}`) : '—'}</td>
-              <td className="mono">{after ? (after[i] > 0 ? `+${after[i]}` : `${after[i]}`) : '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="note" style={{ marginTop: 8 }}>Leave the pad untouched on a table while open. Values are steps off centre (128); ±2 is perfect.</div>
-    </div>
-  )
-}
-
 function ProfilesPanel({ connected, activeSlot, locked, modelId, modelLen, dumpLength, modelName }: { connected: boolean; activeSlot: number | null; locked: boolean; modelId: string; modelLen: number; dumpLength: number; modelName: string | null }): JSX.Element {
   const [entries, setEntries] = useState<SlotEntry[]>([1, 2, 3, 4].map((index) => ({ index, name: null, bytes: null, loading: false, error: null })))
   const [busy, setBusy] = useState(false)
@@ -1008,7 +909,7 @@ export default function App(): JSX.Element {
   const [loadId, setLoadId] = useState(0)
   const [bitCustom, setBitCustom] = useState('')
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
-  const [tab, setTab] = useState<'sticks' | 'device' | 'profiles' | 'lab' | 'steam' | 'calibrate'>('sticks')
+  const [tab, setTab] = useState<'sticks' | 'device' | 'triggers' | 'gyro' | 'rc' | 'center' | 'bindings' | 'macros' | 'profiles' | 'lab' | 'steam' | 'calibrate'>('sticks')
   // Virtual sticks for pad-less Steam shaping: real packets, never written
   // to hardware — the Steam exporter reads these when no profile is loaded.
   const [vSticks] = useState(() => {
@@ -1062,7 +963,11 @@ export default function App(): JSX.Element {
       setMsg('Pad restarted to apply the write — if the sidebar shows disconnected, hit Rescan USB + Connect again.')
     })
     const offReconnecting = api().on('device:reconnecting', () => {
-      setMsg('Pad rebooted to apply the change — reconnecting automatically…')
+      setMsg('Controller connection lost — waiting to reconnect automatically…')
+    })
+    const offReset = api().on('rc:resetStatus', (incoming) => {
+      const status = incoming as unknown as import('../main/rc-reset').RcResetStatus
+      setMsg(status.message)
     })
     const offReconnected = api().on('device:reconnected', (incoming) => {
       const info = incoming as unknown as DeviceInfo
@@ -1082,6 +987,7 @@ export default function App(): JSX.Element {
       offStale()
       offReconnecting()
       offReconnected()
+      offReset()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -1360,6 +1266,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="app">
+      <QuitWarning />
       <aside className="sidebar">
         <div className="brand">
           <h1>Stick <span>Labs</span></h1>
@@ -1373,9 +1280,19 @@ export default function App(): JSX.Element {
             <button type="button" className={`nav-item${tab === 'device' ? ' active' : ''}`} onClick={() => setTab('device')}>
               Device
             </button>
+            <button type="button" className={`nav-item${tab === 'triggers' ? ' active' : ''}`} onClick={() => setTab('triggers')}>Triggers</button>
+            <button type="button" className={`nav-item${tab === 'gyro' ? ' active' : ''}`} onClick={() => setTab('gyro')}>Gyro</button>
+            <button type="button" className={`nav-item${tab === 'rc' ? ' active' : ''}`} onClick={() => setTab('rc')}>
+              RC filters
+            </button>
             <button type="button" className={`nav-item${tab === 'calibrate' ? ' active' : ''}`} onClick={() => setTab('calibrate')}>
               Calibrate
             </button>
+            <button type="button" className={`nav-item${tab === 'center' ? ' active' : ''}`} onClick={() => setTab('center')}>
+              Center offsets
+            </button>
+            <button type="button" className={`nav-item${tab === 'bindings' ? ' active' : ''}`} onClick={() => setTab('bindings')}>Keybindings</button>
+            <button type="button" className={`nav-item${tab === 'macros' ? ' active' : ''}`} onClick={() => setTab('macros')}>Macros</button>
           </div>
           <div className="nav-group">
             <h4>Data</h4>
@@ -1400,7 +1317,7 @@ export default function App(): JSX.Element {
             title="Copy device + app details for support (nothing personal)"
             onClick={() => {
               const lines = [
-                `Stick Labs v${appVersion ?? '?'} ${new Date().toISOString()}`,
+                `Stick Labs (Unlimited) v${appVersion ?? '?'} ${new Date().toISOString()}`,
                 `connected=${connected} model=${model?.id ?? 'none'} pid=${pid !== null ? '0x' + pid.toString(16) : 'none'} fw=${info?.firmware ?? 'none'}`,
                 ...candidates.map(
                   (c) => `cand pid=0x${c.productId.toString(16)} live=${c.live} preferred=${c.preferred} product=${c.product ?? '?'}`
@@ -1476,7 +1393,7 @@ export default function App(): JSX.Element {
       <main className="main">
         <header className="topbar">
           <div className="row" style={{ gap: 12 }}>
-            <h2>Stick Labs</h2>
+            <h2>Stick Labs (Unlimited)</h2>
             <span className="sub">bit depth + raw unlock · curves · live sticks</span>
           </div>
           <div className="row" style={{ gap: 8 }}>
@@ -1615,7 +1532,7 @@ export default function App(): JSX.Element {
               </div>
             </div>
           )}
-          {dirty && <div className="note warn">Unsaved stick changes — write to apply. Writing the running slot reboots the pad (~1-2 s).</div>}
+          {dirty && <div className="note warn">Unsaved profile changes — write to apply. Writing the running slot reboots the pad (~1-2 s).</div>}
           {tab !== 'steam' && !connected && (
             <div className="msg"><h3>Connect a controller</h3><p>G7 Pro 8K · G7 Pro · Tarantula 8K (plus new 8K editions via auto-check). Rescan, then connect the vendor interface. Close GameSir Connect first — it holds the handle.</p></div>
           )}
@@ -1632,7 +1549,7 @@ export default function App(): JSX.Element {
           )}
           {connected && profile && pkt && dz && fd && (
             <>
-              <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+              {(tab === 'sticks' || tab === 'device') && <div className="row" style={{ gap: 8, marginBottom: 12 }}>
                 {(['Left', 'Right'] as const).map((n, i) => (
                   <button key={n} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
                     {n} stick
@@ -1640,7 +1557,7 @@ export default function App(): JSX.Element {
                 ))}
                 <div style={{ flex: 1 }} />
                 <span className="pill">{resBits}-bit · {bitsToLevels(resBits).toLocaleString()} levels</span>
-              </div>
+              </div>}
               {tab === 'sticks' && (
               <div className="two" style={{ alignItems: 'start' }}>
                 <div className="stack" style={{ gap: 16 }}>
@@ -1842,19 +1759,19 @@ export default function App(): JSX.Element {
 
                   <div className="card">
                     <h3>Shape</h3>
-                    <div className="hint">Three shapes for this stick — processing on for the first two, fully bypassed for raw. Round vs square only differs at full-tilt corners: hold a full diagonal and watch the crosshair — square pins the corner, round shaves it.</div>
+                    <div className="hint">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
                           { name: 'Round diagonals', hint: 'Uniform reach all directions (FPS aim)' },
                           { name: 'Square gate', hint: 'Diagonals reach full deflection (hotter corners)' },
-                          { name: 'Pure raw 1:1', hint: 'No processing — untouched magnetic signal' }
+                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' }
                         ] as const
                       ).map((s) => {
-                        const isRaw = !stick.enabled(pkt)
-                        const isSquare = stick.enabled(pkt) && stick.squareGate(pkt)
+                        const isRaw = stick.isRawLinear(pkt)
+                        const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
-                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Pure raw 1:1' && isRaw)
+                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw)
                         return (
                           <button
                             key={s.name}
@@ -1862,8 +1779,8 @@ export default function App(): JSX.Element {
                             title={s.hint}
                             onClick={() => {
                               edit(() => {
-                                if (s.name === 'Pure raw 1:1') {
-                                  stick.setEnabled(pkt, false)
+                                if (s.name === 'Linear full range (1:1)') {
+                                  stick.applyRawLinear(pkt)
                                 } else {
                                   stick.setEnabled(pkt, true)
                                   stick.setSquareGate(pkt, s.name === 'Square gate')
@@ -2049,19 +1966,19 @@ export default function App(): JSX.Element {
 
                   <div className="card">
                     <h3>Shape</h3>
-                    <div className="hint">Three shapes for this stick — processing on for the first two, fully bypassed for raw. Round vs square only differs at full-tilt corners: hold a full diagonal and watch the crosshair — square pins the corner, round shaves it.</div>
+                    <div className="hint">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
                           { name: 'Round diagonals', hint: 'Uniform reach all directions (FPS aim)' },
                           { name: 'Square gate', hint: 'Diagonals reach full deflection (hotter corners)' },
-                          { name: 'Pure raw 1:1', hint: 'No processing — untouched magnetic signal' }
+                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' }
                         ] as const
                       ).map((s) => {
-                        const isRaw = !stick.enabled(pkt)
-                        const isSquare = stick.enabled(pkt) && stick.squareGate(pkt)
+                        const isRaw = stick.isRawLinear(pkt)
+                        const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
-                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Pure raw 1:1' && isRaw)
+                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw)
                         return (
                           <button
                             key={s.name}
@@ -2069,8 +1986,8 @@ export default function App(): JSX.Element {
                             title={s.hint}
                             onClick={() => {
                               edit(() => {
-                                if (s.name === 'Pure raw 1:1') {
-                                  stick.setEnabled(pkt, false)
+                                if (s.name === 'Linear full range (1:1)') {
+                                  stick.applyRawLinear(pkt)
                                 } else {
                                   stick.setEnabled(pkt, true)
                                   stick.setSquareGate(pkt, s.name === 'Square gate')
@@ -2124,14 +2041,26 @@ export default function App(): JSX.Element {
               )}
             </>
           )}
+          {tab === 'center' && (
+            connected && modelId === 'G7ProCE' ? <CenterOffsets busy={busy} /> :
+              <div className="msg"><h3>Connect a G7 Pro 8K</h3><p>Center-offset commands are currently verified against the G7 Pro 8K software path only.</p></div>
+          )}
+          {(tab === 'triggers' || tab === 'gyro') && (connected && profile && modelId === 'G7ProCE' ? (tab === 'triggers' ? <TriggerTuning key={`triggers:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <GyroTuning key={`gyro:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} />) : <div className="note">Connect an identified G7 Pro 8K and load a profile to tune triggers and gyro.</div>)}
+          {tab === 'bindings' && (connected && profile && modelId === 'G7ProCE' ? <Bindings key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit bindings.</div>)}
+          {tab === 'macros' && (connected && profile && modelId === 'G7ProCE' ? <Macros key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit macros.</div>)}
+          {tab === 'rc' && (
+            connected && !locked && fd && blob ? (
+              <RcFilters key={modelId + ':' + slot + ':' + loadId} fd={fd} edit={edit} busy={busy} dirty={dirty} connected={connected} slot={slot} firmware={info?.firmware ?? ''} bytes={blob} />
+            ) : <div className="msg"><h3>Connect and load a supported controller</h3><p>RC filters need a loaded G7 Pro 8K, G7 Pro or Tarantula 8K profile.</p></div>
+          )}
           {tab === 'profiles' && (
             <ProfilesPanel connected={connected} activeSlot={info?.currentProfile ?? null} locked={locked} modelId={modelId} modelLen={modelLen} dumpLength={model?.dumpLength ?? 0} modelName={model?.marketingName ?? null} />
           )}
           {tab === 'calibrate' && (
-            connected && model?.support === 'full' ? (
+            connected && modelId === 'G7ProCE' ? (
               <CalibrationPanel />
             ) : (
-              <div className="msg"><h3>Connect a supported controller</h3><p>Calibration needs a live G7 Pro 8K, G7 Pro or Tarantula 8K.</p></div>
+              <div className="msg"><h3>Connect a supported controller</h3><p>Guided calibration currently supports the identified G7 Pro 8K.</p></div>
             )
           )}
           {tab === 'lab' && (

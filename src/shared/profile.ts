@@ -10,6 +10,7 @@
  * reads oddly — the profile on disk is never corrupted.
  */
 
+import { rcLevelToWire as rcWire, rcWireToLevel as rcLevel } from './rc'
 import {
   FUNCTION_KEYS,
   LIGHT_PROFILE_LENGTH,
@@ -298,17 +299,6 @@ export function serializeProfile(profile: Profile): Uint8Array {
 
 const FUN = PACKET.Name
 
-/** Wire byte → RC-filter level (−10…+10). Mirrors GameSir's `wn`/`Di`. */
-function rcLevel(wire: number): number {
-  const effective = wire === 0 ? 11 : wire
-  return Math.max(-10, Math.min(10, effective - 11))
-}
-
-/** RC-filter level → wire byte (1…21). Mirrors GameSir's `Fn`/`Li`. */
-function rcWire(level: number): number {
-  return Math.max(1, Math.min(21, Math.round(level) + 11))
-}
-
 export const fun = {
   motor: {
     left: (p: Packet): number => p.u8(FUN + 0),
@@ -548,6 +538,22 @@ export const trigger = {
 // ---------------------------------------------------------------------------
 
 export const stick = {
+  /** Linear full-range preset. Connect keeps stick_en enabled in raw mode. */
+  applyRawLinear(p: Packet): void {
+    p.setBit(0, 0, true)
+    p.setBit(1, 0, true)
+    p.setBit(2, 0, true)
+    writeDeadzone(p, { begin: 0, end: 1000, beginAnti: 0, endAnti: 1000 })
+    p.setBit(11, 0, true)
+    p.setU8(12, 0)
+    p.setU8(13, 50)
+    LINEAR_CURVE.forEach((point, i) => { p.setU8(14 + i * 2, point.x); p.setU8(15 + i * 2, point.y) })
+    p.setU8(27, 50)
+  },
+  isRawLinear(p: Packet): boolean {
+    const d = readDeadzone(p)
+    return p.bit(0, 0) && p.bit(1, 0) && p.bit(2, 0) && d.begin === 0 && d.end === 1000 && d.beginAnti === 0 && d.endAnti === 1000 && p.bit(11, 0) && p.u8(12) === 0 && p.u8(27) === 50 && LINEAR_CURVE.every((point, i) => p.u8(14 + i * 2) === point.x && p.u8(15 + i * 2) === point.y)
+  },
   enabled: (p: Packet): boolean => p.bit(0, 0),
   setEnabled: (p: Packet, on: boolean): void => p.setBit(0, 0, on),
   squareGate: (p: Packet): boolean => p.bit(1, 0),
@@ -636,29 +642,29 @@ export const LINEAR_CURVE: ReadonlyArray<{ x: number; y: number }> = [
 
 // ---------------------------------------------------------------------------
 // Motion accessors — 41 bytes
-// Orientation: 0 = X, 1 = Y, 2 = X+Y (stored in active_axis bits).
+// Orientation: 0 = yaw, 1 = roll, 2 = combined (active_axis byte 4).
 // ---------------------------------------------------------------------------
 
 export const motion = {
   orientation: (p: Packet): number => {
-    const axis = p.u8(2)
+    const axis = p.u8(4)
     if ((axis & 3) === 3) return 2
     if (axis & 1) return 1
     if (axis & 2) return 0
     return 0
   },
   setOrientation: (p: Packet, value: number): void => {
-    let axis = p.u8(2) & ~3
+    let axis = p.u8(4) & ~3
     if (value === 2) axis |= 3
     else if (value === 1) axis |= 1
     else if (value === 0) axis |= 2
-    p.setU8(2, axis)
+    p.setU8(4, axis)
   },
-  triggerKeys: (p: Packet): [number, number, number] => [p.u8(3), p.u8(4), p.u8(5)],
+  triggerKeys: (p: Packet): [number, number, number] => [p.u8(1), p.u8(2), p.u8(3)],
   setTriggerKeys: (p: Packet, keys: [number, number, number]): void => {
-    p.setU8(3, keys[0])
-    p.setU8(4, keys[1])
-    p.setU8(5, keys[2])
+    p.setU8(1, keys[0])
+    p.setU8(2, keys[1])
+    p.setU8(3, keys[2])
   }
 }
 

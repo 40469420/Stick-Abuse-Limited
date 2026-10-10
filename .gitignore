@@ -3,4 +3,13 @@ out/
 dist/
 .probe-tmp/
 .test-tmp/
+.lifecycle-tmp/
+*.log
+*.exe
+*.msi
+*.blockmap
+*.7z
+.env
+.env.*
+!.env.example
 .git/

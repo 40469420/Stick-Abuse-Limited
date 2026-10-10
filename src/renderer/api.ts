@@ -26,6 +26,7 @@ export interface PingResult {
   mean: number
 }
 export interface LiveSample {
+  centerRaw?: { lx: number; ly: number; rx: number; ry: number }
   lx: number
   ly: number
   rx: number
@@ -40,6 +41,16 @@ export interface LiveSample {
 }
 
 interface LabApi {
+  quitRcDecision(id: string, reset: boolean): Promise<boolean>
+  startMacroRecording(id: string): Promise<boolean>
+  stopMacroRecording(id: string): Promise<import('../shared/macros').MacroStep[]>
+  cancelMacroRecording(id: string): Promise<boolean>
+  rcResetStatus(): Promise<import('../main/rc-reset').RcResetStatus>
+  setRcReset(enabled: boolean): Promise<import('../main/rc-reset').RcResetStatus>
+  adjustCenter(side: number, direction: import('../shared/center').CenterDirection): Promise<boolean>
+  listXInput(): Promise<import('../main/xinput').XInputSlot[]>
+  captureRc(id: string, xinputSlot?: number): Promise<import('../main/rc-capture').RcCaptureResult & { xinput?: import('../main/xinput').XInputCaptureResult }>
+  cancelRc(id: string): Promise<boolean>
   discover(): Promise<Candidate[]>
   connect(path: string): Promise<DeviceInfo>
   disconnect(): Promise<boolean>
@@ -47,7 +58,7 @@ interface LabApi {
   writeProfile(profile: number, dataB64: string, length?: number): Promise<{ verified: boolean; rolledBack: boolean }>
   switchProfile(profile: number): Promise<boolean>
   currentProfile(): Promise<number>
-  calibration(state: number): Promise<boolean>
+  calibration(state: number, partMask?: number): Promise<boolean>
   ping(count: number): Promise<PingResult>
   openExternal(url: string): Promise<boolean>
   version(): Promise<string>

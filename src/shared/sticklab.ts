@@ -71,17 +71,8 @@ export function describeRawResolution(wire: number): RawResolutionInfo {
 // RC filter model
 // ---------------------------------------------------------------------------
 
-export const RC_MIN = -10
-export const RC_MAX = 10
-
-export function rcLevelToWire(level: number): number {
-  return Math.max(1, Math.min(21, Math.round(level) + 11))
-}
-
-export function rcWireToLevel(wire: number): number {
-  if ((wire & 0xff) === 0) return 0
-  return Math.max(RC_MIN, Math.min(RC_MAX, (wire & 0xff) - 11))
-}
+import { rcWireToLevel } from './rc'
+export { RC_MIN, RC_MAX, rcLevelToWire, rcWireToLevel } from './rc'
 
 export interface RawRcInfo {
   wire: number
@@ -96,34 +87,11 @@ export function describeRawRc(wire: number): RawRcInfo {
   const level = rcWireToLevel(w)
   const label =
     w === 0
-      ? 'wire 0 = never-written default (treated as 0/off)'
+      ? 'unset / factory byte (displayed as neutral)'
       : standard
-        ? `level ${level > 0 ? `+${level}` : `${level}`}${level === 0 ? ' (off)' : ''}`
+        ? `level ${level > 0 ? `+${level}` : `${level}`}${level === 0 ? ' (neutral)' : ''}`
         : `wire ${w} → level ${level} clamped (experimental, outside 1..21)`
   return { wire: w, level, standard, label }
-}
-
-/**
- * EMA smoothing factor for preview only. Maps level 0 → no smoothing
- * (alpha 1) and +10 → heavy (alpha ~0.15). Negative levels (sharpen) are
- * shown as alpha > 1 anticipation — visual aid, not firmware math.
- */
-export function rcAlpha(level: number): number {
-  if (level <= 0) return 1
-  return Math.max(0.12, 1 - level * 0.088)
-}
-
-/** Step response preview: raw step vs EMA-smoothed step over N frames. */
-export function rcStepResponse(level: number, frames = 60): number[] {
-  const alpha = rcAlpha(level)
-  const out: number[] = []
-  let y = 0
-  for (let i = 0; i < frames; i++) {
-    const target = i < 8 ? 0 : 1
-    y += alpha * (target - y)
-    out.push(y)
-  }
-  return out
 }
 
 /** X grid of the 5 firmware curve slots (bytes +14..+23). */
@@ -187,13 +155,11 @@ export function resampleCurve(
 }
 
 export const RC_PRESETS: ReadonlyArray<{ name: string; level: number; hint: string }> = [
-  { name: 'Raw −10', level: -10, hint: 'most jitter, sharpest' },
-  { name: 'Crisp −5', level: -5, hint: 'light jitter, fast' },
-  { name: 'Off 0', level: 0, hint: 'no filtering — the centre start point' },
-  { name: 'Light +3', level: 3, hint: 'tiny smoothing' },
-  { name: 'Balanced +5', level: 5, hint: 'default feel' },
-  { name: 'Heavy +8', level: 8, hint: 'calm, slight lag' },
-  { name: 'Max +10', level: 10, hint: 'smoothest, laggiest' }
+  { name: '−10', level: -10, hint: 'negative endpoint' },
+  { name: '−5', level: -5, hint: 'negative midpoint' },
+  { name: 'Neutral 0', level: 0, hint: 'neutral stored setting' },
+  { name: '+5', level: 5, hint: 'positive midpoint' },
+  { name: '+10', level: 10, hint: 'positive endpoint' }
 ]
 
 /**

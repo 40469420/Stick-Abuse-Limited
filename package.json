@@ -1,7 +1,7 @@
 {
   "name": "g7-stick-lab",
-  "version": "2.0.1",
-  "description": "GameSir G7 Pro 8K stick-only tuner — bit depth, curves, deadzone, polling",
+  "version": "2.1.0",
+  "description": "Stick Labs (Unlimited) — controller tuning, RC filters, bindings, macros, triggers, gyro and calibration",
   "main": "out/main/index.js",
   "author": "Kai",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node scripts/test.mjs",
+    "test": "node scripts/test.mjs && node tests/lifecycle.mjs",
     "dist": "electron-vite build && electron-builder --win",
     "dist:portable": "electron-vite build && electron-builder --win portable"
   },
@@ -33,13 +33,12 @@
   },
   "build": {
     "appId": "com.realkiyoshi.sticklabs",
-    "productName": "Stick Labs",
+    "productName": "Stick Labs (Unlimited)",
     "asar": false,
     "win": {
       "icon": "build/icon.ico",
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ]
     },
     "files": [
@@ -51,19 +50,20 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Stick-Labs-setup-${version}.${ext}",
+      "artifactName": "Stick-Labs-(Unlimited)-setup-${version}.${ext}",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "Stick-Labs-portable-${version}.${ext}"
+      "artifactName": "Stick-Labs-(Unlimited)-portable-${version}.${ext}"
     },
     "publish": [
       {
         "provider": "github",
-        "owner": "Realkiyoshii",
-        "repo": "stick-labs"
+        "owner": "40469420",
+        "repo": "stick-labs-unlimited"
       }
-    ]
+    ],
+    "npmRebuild": false
   }
 }

@@ -20,13 +20,16 @@ const entry =
   tests.length > 0
     ? tests
     : [
-        'tests/roundtrip.ts',
-        'tests/commands.ts',
-        'tests/sticks.ts',
-        'tests/writeguard.ts',
-        'tests/autoswitch.ts',
-        'tests/backup.ts',
-        'tests/foreground.ts'
+        'tests/rawbytes.ts',
+        'tests/models.ts',
+        'tests/t3ce.ts',
+        'tests/steamcfg.ts',
+        'tests/rc.ts',
+        'tests/rc-capture.ts',
+        'tests/xinput.ts',
+        'tests/center.ts',
+        'tests/custom-controls.ts',
+        'tests/tuning.ts'
       ]
 
 // Must live inside the project so node can resolve node_modules (ESM does not
@@ -51,7 +54,7 @@ try {
     absWorkingDir: root
   })
 
-  if (result.errors.length > 0) process.exit(1)
+  if (result.errors.length > 0) throw new Error('Test bundle failed')
 
   let failed = 0
   for (const file of result.outputFiles ?? []) {
@@ -64,10 +67,10 @@ try {
     if (run.status !== 0) failed++
   }
 
-  process.exit(failed > 0 ? 1 : 0)
+  process.exitCode = failed > 0 ? 1 : 0
 } catch (err) {
   console.error(err)
-  process.exit(1)
+  process.exitCode = 1
 } finally {
   try {
     rmSync(outDir, { recursive: true, force: true })
