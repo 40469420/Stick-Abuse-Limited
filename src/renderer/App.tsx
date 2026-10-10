@@ -1,4 +1,5 @@
 import { FirmwarePanel } from './Firmware'
+import { PerformanceBench } from './PerformanceBench'
 import { useEffect, useRef, useState } from 'react'
 import { TriggerTuning, GyroTuning } from './Tuning'
 import { CalibrationPanel } from './Calibration'
@@ -7,7 +8,7 @@ import { CenterOffsets } from './CenterOffsets'
 import { Bindings } from './Bindings'
 import { Macros } from './Macros'
 import { QuitWarning } from './QuitWarning'
-import { api, b64ToBytes, bytesToB64, type Candidate, type DeviceInfo, type DeviceStats, type LiveSample, type PingResult } from './api'
+import { api, b64ToBytes, bytesToB64, type Candidate, type DeviceInfo, type LiveSample } from './api'
 import { parseProfile, serializeProfile, fun, stick, LINEAR_CURVE, looksLikeCEProfile, Packet } from '@shared/profile'
 import { PROFILE_LENGTH, REPORT_RATE_OPTIONS, STICK_RESOLUTION_OPTIONS } from '@shared/protocol'
 import { identifyModel, MODELS, type ControllerModel } from '@shared/models'
@@ -398,145 +399,6 @@ function SteamCard({ left, right, mouseRate, fittedK }: { left: { begin: number;
   )
 }
 
-function AnalyticsPanel({ context }: { context: string }): JSX.Element {  const [rate, setRate] = useState(0)
-  const [frames, setFrames] = useState(0)
-  const [history, setHistory] = useState<number[]>([])
-  const [paused, setPaused] = useState(false)
-  const [ping, setPing] = useState<PingResult | null>(null)
-  const [pinging, setPinging] = useState(false)
-  const [pingError, setPingError] = useState<string | null>(null)
-  const [extents, setExtents] = useState<{ min: number[]; max: number[]; n: number } | null>(null)
-  const chartRef = useRef<HTMLCanvasElement | null>(null)
-
-  useEffect(() => {
-    if (paused) return
-    const off = api().on('device:stats', (s) => {
-      const stats = s as unknown as DeviceStats
-      setRate(stats.rateHz)
-      setFrames(stats.inputFrames)
-      setHistory((prev) => [...prev.slice(-59), stats.rateHz])
-    })
-    return off
-  }, [paused])
-
-  useEffect(() => {
-    const off = api().on('input:sample', (s) => {
-      const v = s as unknown as LiveSample
-      const axes = [v.lx, v.ly, v.rx, v.ry]
-      setExtents((prev) => {
-        if (!prev) return { min: [...axes], max: [...axes], n: 1 }
-        return {
-          min: prev.min.map((m, i) => Math.min(m, axes[i])),
-          max: prev.max.map((m, i) => Math.max(m, axes[i])),
-          n: prev.n + 1
-        }
-      })
-    })
-    return off
-  }, [])
-
-  useEffect(() => {
-    const c = chartRef.current
-    if (!c) return
-    let raf = 0
-    const draw = (): void => {
-      const dpr = window.devicePixelRatio || 1
-      const w = c.clientWidth
-      const h = 120
-      if (c.width !== w * dpr || c.height !== h * dpr) {
-        c.width = w * dpr
-        c.height = h * dpr
-      }
-      const ctx = c.getContext('2d')
-      if (ctx) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        ctx.clearRect(0, 0, w, h)
-        const max = Math.max(100, ...history) * 1.15
-        const bars = Math.max(history.length, 30)
-        const bw = w / bars
-        ctx.strokeStyle = '#3a2230'
-        for (let i = 1; i <= 3; i++) {
-          const y = h - (i / 3) * h
-          ctx.beginPath()
-          ctx.moveTo(0, y)
-          ctx.lineTo(w, y)
-          ctx.stroke()
-        }
-        history.forEach((v, i) => {
-          const bh = (v / max) * h
-          ctx.fillStyle = v >= 480 ? '#3ecf8e' : v >= 200 ? '#f43f52' : '#f5b544'
-          ctx.fillRect(i * bw + 1, h - bh, Math.max(1, bw - 2), bh)
-        })
-      }
-      raf = requestAnimationFrame(draw)
-    }
-    raf = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(raf)
-  }, [history])
-
-  async function runPing(): Promise<void> {
-    setPinging(true)
-    setPingError(null)
-    try {
-      setPing(await api().ping(15))
-    } catch (e) {
-      setPingError((e as Error).message)
-    } finally {
-      setPinging(false)
-    }
-  }
-
-  const avg = history.length ? Math.round(history.reduce((a, b) => a + b, 0) / history.length) : 0
-  const names = ['LX', 'LY', 'RX', 'RY']
-
-  return (
-    <div className="card" style={{ marginTop: 16 }}>
-      <h3>Analytics — polling, latency, stick range</h3>
-      <div className="hint">{context}</div>
-      <div className="two" style={{ alignItems: 'start', marginTop: 10 }}>
-        <div className="stack" style={{ gap: 10 }}>
-          <div className="row" style={{ gap: 8 }}>
-            <span className={`pill${rate >= 480 ? ' good' : rate > 0 ? ' warn' : ''}`}>{rate || '—'} Hz now</span>
-            <span className="pill">{avg || '—'} Hz avg</span>
-            <span className="pill">{frames.toLocaleString()} frames</span>
-            <div style={{ flex: 1 }} />
-            <button className="btn sm ghost" onClick={() => setPaused((p) => !p)}>{paused ? 'Resume' : 'Pause'}</button>
-          </div>
-          <canvas ref={chartRef} className="plot" style={{ height: 120 }} />
-          <div className="note">Measured from the 0x12 input stream. Gear 5 streams ~500/s; gears 0–4 ~250/s — the 1K–8K labels are the USB poll claim, not the state rate.</div>
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn sm primary" disabled={pinging} onClick={() => void runPing()}>{pinging ? 'Measuring…' : 'Run 15 pings'}</button>
-            {pingError && <span style={{ color: 'var(--bad)', fontSize: 12 }}>{pingError}</span>}
-            {ping && <span className="mono">median {ping.median.toFixed(1)} ms · mean {ping.mean.toFixed(1)} ms · min {ping.min.toFixed(1)} · max {ping.max.toFixed(1)}</span>}
-          </div>
-          <div className="note">Ping times ReadCurrentProfile end-to-end (USB + firmware). Under ~3 ms is healthy; near 100 ms means contention.</div>
-        </div>
-        <div className="stack" style={{ gap: 10 }}>
-          <div className="row spread">
-            <span className="label">Observed stick range (session)</span>
-            <button className="btn sm ghost" onClick={() => setExtents(null)}>Reset</button>
-          </div>
-          <table className="tbl">
-            <thead><tr><th>Axis</th><th>Min</th><th>Max</th><th>Span</th></tr></thead>
-            <tbody>
-              {names.map((n, i) => (
-                <tr key={n}>
-                  <td className="mono">{n}</td>
-                  <td className="mono">{extents ? extents.min[i] : '—'}</td>
-                  <td className="mono">{extents ? extents.max[i] : '—'}</td>
-                  <td className="mono">{extents ? extents.max[i] - extents.min[i] : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="note">
-            {extents ? `${extents.n.toLocaleString()} samples. Full span ≈ 255; rest should sit near 128 — a stuck min/max far from centre means drift or a bad calibration.` : 'Move both sticks through their full range to map it.'}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 interface SlotEntry {
   index: number
@@ -2254,11 +2116,17 @@ export default function App(): JSX.Element {
             <MariusPanel />
           )}
           {tab === 'lab' && (
-          <AnalyticsPanel
+          <PerformanceBench
+            targetHz={gearHz}
+            connection={pid === null ? 'Unknown' : [0x10c5, 0x10c7].includes(pid) ? 'USB wired' : [0x10c6, 0x10c8].includes(pid) ? '2.4 GHz receiver' : 'USB identity 0x' + pid.toString(16)}
+            profile={slot}
+            connected={connected}
+            device={model?.marketingName ?? 'Unknown controller'}
+            info={info}
             context={
               profile && fd
-                ? 'Now editing P' + slot + ': set ' + gearHz.toLocaleString() + ' Hz (gear ' + gear + ') · ' + resBits + '-bit (' + bitsToLevels(resBits).toLocaleString() + ' levels) — green chart is measured input, not the set rate.'
-                : 'Connect and load a slot — then switch gear or RC, write, and watch this chart.'
+                ? 'Now editing P' + slot + ': set ' + gearHz.toLocaleString() + ' Hz (gear ' + gear + ') · ' + resBits + '-bit (' + bitsToLevels(resBits).toLocaleString() + ' levels). This is the edited profile; it may differ from the running slot.'
+                : 'Connect and load a slot to record the target settings alongside your measurements.'
             }
           />
           )}

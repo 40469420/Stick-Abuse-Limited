@@ -4,6 +4,7 @@ dist/
 .probe-tmp/
 .test-tmp/
 .lifecycle-tmp/
+.bench-native-tmp/
 *.log
 *.exe
 *.msi

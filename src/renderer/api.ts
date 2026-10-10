@@ -43,6 +43,13 @@ export interface LiveSample {
 }
 
 interface LabApi {
+  benchStart(id: string): Promise<boolean>
+  benchRenew(id: string): Promise<boolean>
+  benchStop(id: string): Promise<boolean>
+  benchCancel(id: string): Promise<boolean>
+  benchCapture(id: string, mode: import('../shared/bench').BenchMode, seconds: number): Promise<import('../shared/bench').BenchCapture>
+  benchXInput(id: string, slot: number, seconds: number): Promise<import('../shared/bench').XInputBench>
+  benchPing(id: string): Promise<import('../shared/bench').Distribution>
   firmwareStatus(): Promise<import('../shared/firmware').FirmwareStatus>
   chooseFirmware(version?: string): Promise<import('../shared/firmware').FirmwareImage | null>
   flashFirmware(confirmation: string): Promise<import('../shared/firmware').FirmwareStatus>

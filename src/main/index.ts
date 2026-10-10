@@ -11,6 +11,9 @@ import { PROFILE_LENGTH } from '../shared/protocol'
 import { MariusReader, discoverMarius } from './marius'
 import { RcCapture, type RcCaptureResult } from './rc-capture'
 import { listXInput, captureXInput } from './xinput'
+import { BenchSession } from './bench-session'
+import { runXInputBench } from './bench-xinput'
+import { distribution, type BenchMode } from '../shared/bench'
 import { identifyModel } from '../shared/models'
 import type { CenterDirection } from '../shared/center'
 import { neutralRcProfile, type RcResetStatus } from './rc-reset'
@@ -23,6 +26,7 @@ let firmwareStatus: FirmwareStatus = { running: false, message: 'Choose an origi
 
 const controller = new Controller()
 const rcCapture = new RcCapture()
+const bench = new BenchSession(value => send('lab:live', value))
 /** MARIUS preview reader — read-only driver, no write path exists. */
 const mariusReader = new MariusReader()
 let window_: BrowserWindow | null = null
@@ -137,6 +141,7 @@ let lastSampleAt = 0
 let samplePending = false
 
 controller.onInput((input) => {
+  if (bench.active) bench.push(input)
   if (calibrationSession) {
     if (!input.live) calibrationSession = null
     else if (calibrationSession.fine ? input.calTarget === 3 && [0, 1, 2, 3, 4, 128].includes(input.calMask) : input.calTarget !== 1) calibrationSession.seen = true
@@ -228,6 +233,7 @@ async function autoReconnect(reason: string): Promise<void> {
 }
 
 controller.transport.on('disconnected', (err: Error) => {
+  bench.stop()
   if (recording) { recording.error = 'Controller disconnected; recording discarded.'; send('macro:recordError', recording.error) }
   if (resetEnabled) reportReset('Controller disconnected. RC reset is pending reconnection.')
   void autoReconnect(err?.message ?? 'disconnected')
@@ -246,7 +252,7 @@ function fromB64(text: string): Uint8Array {
 }
 function handle(channel: string, fn: (...args: any[]) => unknown): void {
   ipcMain.handle(channel, async (_event, ...args) => {
-    const usesDevice = (/^(profile:|device:|diag:|macro:)/.test(channel) || channel === 'firmware:flash') && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
+    const usesDevice = (/^(profile:|device:|diag:|macro:)/.test(channel) || channel === 'firmware:flash' || ['lab:vendor', 'lab:xinput', 'lab:ping'].includes(channel)) && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
     let acquired = false
     try {
       if (firmwareStatus.running && (usesDevice || channel.startsWith('firmware:') && channel !== 'firmware:status')) throw new Error('Wait for the firmware operation to finish. Do not disconnect or quit.')
@@ -372,6 +378,7 @@ handle('device:connect', async (path: string): Promise<DeviceInfo> => {
   return info
 })
 handle('device:disconnect', () => {
+  bench.stop()
   if (calibrationSession && controller.isOpen) controller.calibration(2, calibrationSession.mask, calibrationSession.fine ? 1 : 0)
   calibrationSession = null
   sessionEpoch++
@@ -529,6 +536,48 @@ handle('steam:exportAll', (left: { begin: number; end: number }, right: { begin:
   const games = listInstalledGames()
   return { games: listInstalledGames(), result: exportDeadzonesToGames(left, right, games, mouseRate ?? null, curveExp ?? null) }
 })
+handle('lab:start', (id: string) => {
+  if (!window_ || window_.isDestroyed() || firmwareStatus.running || window_?.isVisible && !window_.isVisible() || window_?.isMinimized && window_.isMinimized()) throw new Error('Open the Lab window after the current operation finishes.')
+  bench.start(id); return true
+})
+handle('lab:renew', (id: string) => { bench.renew(id); return true })
+handle('lab:stop', (id: string) => { bench.stop(id); return true })
+handle('lab:cancel', (id: string) => { bench.require(id); bench.cancelCapture(); bench.cancelJob?.(); return true })
+handle('lab:vendor', (id: string, mode: BenchMode, seconds: number) => {
+  bench.require(id)
+  const device = discover().find(d => d.path === controller.transport.currentPath)
+  if (!controller.isOpen || identifyModel(device?.product, device?.productId)?.id !== 'G7ProCE') throw new Error('Connect a G7 Pro 8K for original-axis captures.')
+  return bench.startCapture(id, mode, seconds)
+})
+handle('lab:xinput', async (id: string, slot: number, seconds: number) => {
+  bench.require(id)
+  if (bench.measuring) throw new Error('Finish or cancel the current test first.')
+  const job = runXInputBench(slot, seconds, () => { bench.require(id); send('lab:ready', { id }) })
+  bench.cancelJob = job.cancel
+  try { return await job.promise } finally { if (bench.cancelJob === job.cancel) bench.cancelJob = null }
+})
+handle('lab:ping', async (id: string) => {
+  bench.require(id)
+  if (!controller.isOpen || bench.measuring) throw new Error('Connect the controller and finish the current test first.')
+  let cancelled = false
+  const cancel = (): void => { cancelled = true }
+  bench.cancelJob = cancel
+  const samples: number[] = []
+  try {
+    for (let i = 0; i < 30; i++) {
+      bench.require(id)
+      if (cancelled) throw new Error('Round-trip test cancelled.')
+      const started = performance.now()
+      await controller.getCurrentProfile()
+      bench.require(id)
+      if (cancelled) throw new Error('Round-trip test cancelled.')
+      samples.push(performance.now() - started)
+      await sleepMs(10)
+    }
+    return distribution(samples)
+  } finally { if (bench.cancelJob === cancel) bench.cancelJob = null }
+})
+
 handle('diag:ping', async (count: number) => {
   const n = Math.max(1, Math.min(50, count))
   const samples: number[] = []
@@ -566,7 +615,11 @@ function createWindow(): void {
   })
   if (process.env.ELECTRON_RENDERER_URL) void window_.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void window_.loadFile(join(__dirname, '../renderer/index.html'))
+  window_.on('hide', () => bench.stop())
+  window_.on('minimize', () => bench.stop())
+  window_.webContents.on?.('render-process-gone', () => bench.stop())
   window_.on('closed', () => {
+    bench.stop()
     window_ = null
   })
   window_.on('close', (event) => {
@@ -612,7 +665,7 @@ app.whenReady().then(() => {
     receiverResetPending = false
     void resetRcAfterConnect().then(() => { if (!quitting && controller.isOpen && connectedInfo) send('device:reconnected', connectedInfo) })
   }, 500)
-  app.once('will-quit', () => clearInterval(receiverMonitor))
+  app.once('will-quit', () => { clearInterval(receiverMonitor); bench.stop() })
 
   // Self-update from GitHub Releases (packaged builds only — never in dev).
   if (app.isPackaged) {

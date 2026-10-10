@@ -15,7 +15,7 @@ if (!process.argv.includes('--child')) {
     export const app=new EventEmitter();app.isPackaged=false;app.requestSingleInstanceLock=()=>true;app.whenReady=()=>Promise.resolve();app.getPath=()=>${JSON.stringify(folder)}+'/'+process.argv[3];app.getVersion=()=> 'test';
     const m=globalThis.__m={app,handlers:new Map(),messages:[],quits:0,writes:0,profile:Uint8Array.from({length:1070},(_,i)=>i%256)};
     app.quit=()=>{let prevented=false;app.emit('before-quit',{preventDefault(){prevented=true}});if(!prevented){m.quits++;app.emit('will-quit')}};
-    export class BrowserWindow extends EventEmitter{constructor(){super();m.window=this;this.webContents={send:(channel,payload)=>m.messages.push({channel,payload})};}loadURL(){}loadFile(){}isDestroyed(){return false}hide(){m.hidden=true}show(){m.hidden=false}restore(){}focus(){}static getAllWindows(){return [m.window]}}
+    export class BrowserWindow extends EventEmitter{constructor(){super();m.window=this;this.webContents={send:(channel,payload)=>m.messages.push({channel,payload})};}loadURL(){}loadFile(){}isDestroyed(){return false}hide(){m.hidden=true;this.emit('hide')}show(){m.hidden=false}restore(){}focus(){}static getAllWindows(){return [m.window]}}
     export class Tray extends EventEmitter{constructor(){super();m.tray=this}setToolTip(){}setContextMenu(menu){m.menu=menu}destroy(){m.trayDestroyed=true}}
     export const Menu={buildFromTemplate:items=>items};export const nativeImage={createFromBitmap:()=>({})};export const dialog={showMessageBox:async()=>({response:1})};export const ipcMain={handle:(channel,fn)=>m.handlers.set(channel,fn)};export const session={defaultSession:{setPermissionRequestHandler(){}}};export const shell={openExternal(){}};
   `
@@ -32,11 +32,13 @@ if (!process.argv.includes('--child')) {
       b.onResolve({ filter: /^\.\/controller$/ }, () => ({ path: 'controller', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/hid$/ }, () => ({ path: 'hid', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/firmware$/ }, () => ({ path: 'firmware', namespace: 'fake' }))
+      b.onResolve({ filter: /^\.\/bench-xinput$/ }, () => ({ path: 'bench-xinput', namespace: 'fake' }))
+      b.onLoad({ filter: /^bench-xinput$/, namespace: 'fake' }, () => ({ contents: 'export function runXInputBench(slot,seconds,onReady){onReady();let reject;const promise=new Promise((a,b)=>reject=b);return {promise,cancel(){globalThis.__m.benchKilled=true;reject(new Error("cancelled"))}}}', loader: 'js' }))
       b.onResolve({ filter: /^\.\/marius$/ }, () => ({ path: 'marius', namespace: 'fake' }))
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -50,6 +52,28 @@ if (!process.argv.includes('--child')) {
   const call = async (channel, ...args) => m.handlers.get(channel)({}, ...args)
   const prompt = () => m.messages.filter((item) => item.channel === 'rc:quitPrompt').at(-1)?.payload
   assert.equal((await call('device:connect', 'test-pad')).ok, true)
+  if (scenario === 'bench') {
+    assert.equal((await call('lab:vendor','absent','rest',5)).ok,false,'closed Lab cannot collect');
+    assert.equal((await call('lab:start','visible-page')).ok,true);
+    const capture=call('lab:vendor','visible-page','rest',5);
+    await wait(5);
+    assert.equal((await call('profile:write',1,Buffer.from(m.profile).toString('base64'),1070)).ok,false,'measurement blocks conflicting writes');
+    assert.equal((await call('lab:cancel','visible-page')).ok,true);
+    assert.equal((await capture).ok,false,'capture cancellation settles the caller');
+    const native=call('lab:xinput','visible-page',0,5);
+    await wait(5);m.window.hide();
+    assert.equal((await native).ok,false,'hiding cancels native reader');
+    assert.equal(m.benchKilled,true);
+    assert.equal((await call('lab:renew','visible-page')).ok,false,'hidden session was disposed');
+    assert.equal((await call('lab:start','next-page')).ok,true);
+    assert.equal((await call('lab:stop','visible-page')).ok,true);
+    assert.equal((await call('lab:renew','next-page')).ok,true,'old renderer cleanup cannot stop new session');
+    m.window.emit('minimize');
+    assert.equal((await call('lab:renew','next-page')).ok,false);
+    assert.equal(m.writes,0,'all bench operations are read-only');
+    console.log('Bench integration: page-only collection, conflicting-write guard, cancellation, hide/minimize and stale cleanup passed.');
+    process.exit(0);
+  }
   if (scenario === 'firmware') {
     m.app.getAppPath = () => folder
     controller.readFirmware = async () => '2.2.9'

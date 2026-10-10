@@ -20,6 +20,7 @@ const entry =
   tests.length > 0
     ? tests
     : [
+        'tests/bench.ts',
         'tests/rawbytes.ts',
         'tests/models.ts',
         'tests/t3ce.ts',

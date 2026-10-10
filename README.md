@@ -8,6 +8,32 @@ The expanded controls target the **GameSir G7 Pro 8K**. Other detected models re
 
 Download the setup executable from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). The installer, application window and tray use **Stick Labs (Unlimited)**. Releases include the installer and updater files, with no portable executables. Installed copies check this fork for updates, download available versions and offer to restart.
 
+## In development: performance bench
+
+The Lab page now separates the edited profile's target polling rate from measured
+vendor report delivery and observed XInput state changes. Live vendor timing,
+guided 5/10/30-second captures, and read-only command round trips run only while
+Lab is visible. Page exit, pause, minimize, tray close, disconnection, renderer
+failure, and an expired page lease cancel measurements.
+
+- Median/P95/P99/worst report spacing, jitter, interval histograms, repeated
+  axis/trigger values, and motion timelines.
+- Original-axis center noise and offsets, range plots with angular coverage and
+  radial deviation, release/snapback traces with settling checks, trigger sweeps,
+  observed distinct values and smallest steps.
+- A separate native Windows XInput reader targets 40,000 queries/s without the
+  old 1 ms sleep. It reports achieved query rate, packet-counter changes, per-stick
+  vector changes, reader spacing, and API call duration. Identify the correct slot
+  explicitly; other devices may appear. This short test can use one CPU core.
+- Eight named local captures, compatible-test A/B comparisons, and JSON export
+  with firmware, connection, app version and edited-profile target context.
+
+These are host-observed measurements. XInput cached-state changes do not prove
+USB bus polling or physical sensor rate. API calls and profile-query round trips
+do not measure physical button-to-host/game latency. Distinct values and wire
+width do not establish ADC resolution. Instrumented hardware or a separate bus
+capture is needed for those claims. No controller settings are changed by tests.
+
 ## New in 2.2.1
 
 - Upstream experimental 13/14/16/20/24-bit quick picks, corrected highlighting, and the existing custom 8–12-bit input. These are raw firmware settings, not proof of increased hardware resolution.

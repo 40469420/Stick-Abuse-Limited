@@ -12,6 +12,13 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api = {
+  benchStart: (id: string) => call<boolean>('lab:start', id),
+  benchRenew: (id: string) => call<boolean>('lab:renew', id),
+  benchStop: (id: string) => call<boolean>('lab:stop', id),
+  benchCancel: (id: string) => call<boolean>('lab:cancel', id),
+  benchCapture: (id: string, mode: import('../shared/bench').BenchMode, seconds: number) => call<import('../shared/bench').BenchCapture>('lab:vendor', id, mode, seconds),
+  benchXInput: (id: string, slot: number, seconds: number) => call<import('../shared/bench').XInputBench>('lab:xinput', id, slot, seconds),
+  benchPing: (id: string) => call<import('../shared/bench').Distribution>('lab:ping', id),
   firmwareStatus: () => call<import('../shared/firmware').FirmwareStatus>('firmware:status'),
   chooseFirmware: (version?: string) => call<import('../shared/firmware').FirmwareImage | null>('firmware:choose', version),
   flashFirmware: (confirmation: string) => call<import('../shared/firmware').FirmwareStatus>('firmware:flash', confirmation),
