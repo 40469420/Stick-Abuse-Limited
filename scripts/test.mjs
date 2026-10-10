@@ -30,7 +30,8 @@ const entry =
         'tests/center.ts',
         'tests/custom-controls.ts',
         'tests/tuning.ts',
-        'tests/firmware.ts'
+        'tests/firmware.ts',
+        'tests/marius.ts'
       ]
 
 // Must live inside the project so node can resolve node_modules (ESM does not

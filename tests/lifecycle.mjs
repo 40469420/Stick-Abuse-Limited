@@ -32,6 +32,8 @@ if (!process.argv.includes('--child')) {
       b.onResolve({ filter: /^\.\/controller$/ }, () => ({ path: 'controller', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/hid$/ }, () => ({ path: 'hid', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/firmware$/ }, () => ({ path: 'firmware', namespace: 'fake' }))
+      b.onResolve({ filter: /^\.\/marius$/ }, () => ({ path: 'marius', namespace: 'fake' }))
+      b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
     for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware']) {

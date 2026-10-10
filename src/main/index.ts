@@ -8,6 +8,7 @@ import { Controller, type DeviceInfo } from './controller'
 import { discover, discoverLive } from './hid'
 import { steamInfo, exportApexDeadzones, listInstalledGames, exportDeadzonesToGames } from './steam'
 import { PROFILE_LENGTH } from '../shared/protocol'
+import { MariusReader, discoverMarius } from './marius'
 import { RcCapture, type RcCaptureResult } from './rc-capture'
 import { listXInput, captureXInput } from './xinput'
 import { identifyModel } from '../shared/models'
@@ -22,6 +23,8 @@ let firmwareStatus: FirmwareStatus = { running: false, message: 'Choose an origi
 
 const controller = new Controller()
 const rcCapture = new RcCapture()
+/** MARIUS preview reader — read-only driver, no write path exists. */
+const mariusReader = new MariusReader()
 let window_: BrowserWindow | null = null
 let connectedInfo: DeviceInfo | null = null
 const primaryInstance = app.requestSingleInstanceLock()
@@ -498,6 +501,18 @@ handle('device:calibration', async (state: number, selection = 15) => {
     if (input.timestamp > sentAt && (fine ? input.calTarget === 0 && input.calMask === 0 : input.calTarget === 1)) { calibrationSession = null; return true }
   }
   throw new Error('Controller did not confirm leaving calibration. Try Cancel; the save result is unknown.')
+})
+// MARIUS board preview — reads only. There is intentionally no write handler.
+handle('marius:discover', () => discoverMarius())
+handle('marius:connect', async (path: string) => mariusReader.connect(path))
+handle('marius:read', async () => {
+  const { bytes, parsed } = await mariusReader.readConfig()
+  return { bytes: b64(bytes), parsed }
+})
+handle('marius:raw', async () => mariusReader.readRawSticks())
+handle('marius:disconnect', () => {
+  mariusReader.close()
+  return true
 })
 handle('system:openExternal', (url: string) => {
   if (typeof url !== 'string' || !/^https:\/\//.test(url)) throw new Error('blocked URL')
