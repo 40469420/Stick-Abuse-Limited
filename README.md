@@ -8,7 +8,7 @@ The expanded controls target the **GameSir G7 Pro 8K**. Other detected models re
 
 Download the setup executable from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). The installer, application window and tray use **Stick Labs (Unlimited)**. Releases include the installer and updater files, with no portable executables. Installed copies check this fork for updates, download available versions and offer to restart.
 
-## In development: performance bench
+## New in 2.2.2: performance bench
 
 The Lab page now separates the edited profile's target polling rate from measured
 vendor report delivery and observed XInput state changes. Live vendor timing,
