@@ -4,7 +4,7 @@ The Unlimited fork expands Stick Labs with controller customization, trigger and
 
 ## Installation and updates
 
-Download **Stick-Labs-(Unlimited)-setup-2.1.0.exe** and run the installer. This release contains the setup installer and updater metadata only; no portable is included. Installed copies check `40469420/stick-labs-unlimited` for updates, download available updates and offer to restart. Automatic updates between two released Unlimited versions still need end-to-end verification. Original project attribution is retained.
+Download **Stick-Labs-Unlimited-setup-2.1.0.exe** and run the installer. This release contains the setup installer and updater metadata only; no portable is included. Installed copies check `40469420/stick-labs-unlimited` for updates, download available updates and offer to restart. Automatic updates between two released Unlimited versions still need end-to-end verification. Original project attribution is retained.
 
 ## Additions
 

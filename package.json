@@ -50,12 +50,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Stick-Labs-(Unlimited)-setup-${version}.${ext}",
+      "artifactName": "Stick-Labs-Unlimited-setup-${version}.${ext}",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "Stick-Labs-(Unlimited)-portable-${version}.${ext}"
+      "artifactName": "Stick-Labs-Unlimited-portable-${version}.${ext}"
     },
     "publish": [
       {
