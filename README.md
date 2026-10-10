@@ -4,6 +4,32 @@ A Windows controller companion forked from [Realkiyoshii/stick-labs](https://git
 
 The expanded controls target the **GameSir G7 Pro 8K**. Other detected models retain their existing support; detecting a controller does not mean every feature is supported.
 
+## Install
+
+Download the setup executable from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). The installer, application window and tray use **Stick Labs (Unlimited)**. Releases include the installer and updater files, with no portable executables. Installed copies check this fork for updates, download available versions and offer to restart.
+
+## New in 2.1.0
+
+- **RC filters:** separate -10 to +10 levels per stick, copy/reset controls, a warning acknowledgment gate, and three-second baseline/comparison captures. Optional XInput capture offers explicit slot selection and distinguishes polls from state changes.
+- **Connection handling:** optional RC reset on disconnect/reconnect, close to tray, and a mandatory reset choice when actually quitting with RC enabled. Requested resets must verify before quitting; failures are reported.
+- **Center adjustment:** directional nudges and mouse dragging, an original-axis preview, serialized commands and acknowledgment handling.
+- **Keybindings:** original/unbound behavior, up to three output keys, controller/keyboard/mouse mappings, toggle and turbo settings.
+- **Macros:** exact timings, step insertion/deletion/reordering/duplication, copying between function keys, JSON import/export, timeline preview and sequential keyboard/controller recording. Recording is limited to 32 steps and 30 seconds. Playback uses stored controller macros; available outputs depend on firmware.
+- **Triggers:** independent LT/RT input/output windows, adaptive/fixed hair triggers, custom curves and neutral tuning controls.
+- **Gyro:** Aim/Tilt activation combinations, yaw/roll orientation, inversion, output mapping, axis balance, sensitivity, precision/high-speed mode, ranges and curves.
+- **Calibration:** sticks and triggers together, sticks only, triggers only, motion sensor, and fine stick tuning. Fine tuning guides directional/circle stages; saves require ready status and controller confirmation.
+
+### Fixes
+
+- Corrected **Pure Raw 1:1**, which wrongly disabled stick processing. **Linear full range (1:1)** keeps the stick enabled and applies neutral ranges and linear response. Select it and write to correct an older stored setting.
+- Captures collect vendor reports before display throttling; original-axis and XInput measurements retain fractional precision.
+- Corrected gyro orientation and activation-key offsets to avoid overwriting unrelated fields.
+- Removed redundant Left/Right selectors from unrelated pages.
+- Calibration no longer requires already-centered mapped sticks, checks device progress and does not treat a sent save command as proof of success.
+- Added controller-operation guards, byte-preservation and simulated lifecycle tests, release checks and updater error handling.
+
+See [release notes](RELEASE-NOTES.md) for details and hardware-validation limits. Automatic updates between two released Unlimited versions still need an end-to-end test.
+
 ## Features
 
 - Stick deadzones, response curves, shape, resolution and polling controls.
@@ -46,7 +72,7 @@ npm run dist -- --publish never
 
 The release configuration builds an NSIS installer in `dist/`. Releases publish the setup executable, its blockmap and `latest.yml` update metadata; no portable is included. The installer/updater target is **40469420/stick-labs-unlimited**. Local portable test builds remain available through `npm run dist:portable -- --publish never`.
 
-The GitHub workflow runs for version tags such as `v2.0.1`, checks that the tag matches `package.json`, then runs checks and packaging. A normal source push is not a release. Installed builds contain GitHub updater support; portable copies are separate and should not be relied on for automatic updates. Release publication and an update between two installed versions still need end-to-end verification before announcing automatic updates as ready.
+The GitHub workflow runs for version tags such as `v2.1.0`, checks that the tag matches `package.json`, then runs checks and packaging. A normal source push is not a release. Installed builds contain GitHub updater support; portable copies are separate and should not be relied on for automatic updates. Release publication and an update between two installed versions still need end-to-end verification before announcing automatic updates as ready.
 
 ## Feature notes
 
