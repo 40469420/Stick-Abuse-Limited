@@ -1378,16 +1378,18 @@ export default function App(): JSX.Element {
             {appVersion && <span style={{ color: 'var(--text-3)' }}>v{appVersion}</span>}
           </div>
           <div className="status-row" style={{ marginTop: 8 }}>
-            <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Developed by RealKiyoshi</span>
+            <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Developed by RealKiyoshi · Forked by @Machixo</span>
           </div>
-          <button
+          <div className="row" style={{ gap: 6, marginTop: 6 }}><button
             type="button"
             className="btn ghost sm"
-            style={{ marginTop: 6 }}
+            aria-label="YouTube @realkiyoshi"
+            title="YouTube @realkiyoshi"
             onClick={() => void api().openExternal('https://www.youtube.com/@realkiyoshi').catch(() => undefined)}
           >
-            YouTube @realkiyoshi
+            YouTube
           </button>
+          <button type="button" className="btn ghost sm" onClick={() => void api().openExternal('https://x.com/Machixo').catch(() => undefined)}>X @Machixo</button></div>
         </div>
       </aside>
       <main className="main">
