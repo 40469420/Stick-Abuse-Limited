@@ -8,7 +8,14 @@ The expanded controls target the **GameSir G7 Pro 8K**. Other detected models re
 
 Download the setup executable from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). The installer, application window and tray use **Stick Labs (Unlimited)**. Releases include the installer and updater files, with no portable executables. Installed copies check this fork for updates, download available versions and offer to restart.
 
-## New in 2.2.0
+## New in 2.2.1
+
+- Upstream experimental 13/14/16/20/24-bit quick picks, corrected highlighting, and the existing custom 8–12-bit input. These are raw firmware settings, not proof of increased hardware resolution.
+- Read-only Marius board preview and clearer connection-timeout guidance.
+- Unlimited's calibration workflows and other additions are preserved; the upstream calibration bench is excluded.
+- The merged portable passed the user's local test. See [release notes](RELEASE-NOTES.md).
+
+## Added in 2.2.0
 
 - **Firmware:** G7 Pro 8K controller flashing with original 2.1.0 and 2.2.9 images included, profile backups, firmware validation, update-mode identity checks and live logs.
 - **Required acknowledgment:** the Firmware page uses the RC page's caution-tape disclaimer and keeps controls greyed out until **I understand Machi** is clicked. Each flash also requires risk acceptance and a typed version confirmation.
