@@ -2,7 +2,7 @@
  * Stick Labs (Unlimited) — controller session, background RC reset and profile editing.
  */
 import { app, BrowserWindow, dialog, ipcMain, session, shell, Tray, Menu, nativeImage } from 'electron'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { Controller, type DeviceInfo } from './controller'
 import { discover, discoverLive } from './hid'
@@ -14,6 +14,11 @@ import { identifyModel } from '../shared/models'
 import type { CenterDirection } from '../shared/center'
 import { neutralRcProfile, type RcResetStatus } from './rc-reset'
 import { SequenceRecorder } from '../shared/macros'
+import { validateFirmware, runFirmwareWorker } from './firmware'
+import type { FirmwareImage, FirmwareStatus } from '../shared/firmware'
+
+let firmwareImage: FirmwareImage | null = null
+let firmwareStatus: FirmwareStatus = { running: false, message: 'Choose an original firmware file to validate. Nothing has been flashed.', backup: null }
 
 const controller = new Controller()
 const rcCapture = new RcCapture()
@@ -238,9 +243,10 @@ function fromB64(text: string): Uint8Array {
 }
 function handle(channel: string, fn: (...args: any[]) => unknown): void {
   ipcMain.handle(channel, async (_event, ...args) => {
-    const usesDevice = /^(profile:|device:|diag:|macro:)/.test(channel) && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
+    const usesDevice = (/^(profile:|device:|diag:|macro:)/.test(channel) || channel === 'firmware:flash') && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
     let acquired = false
     try {
+      if (firmwareStatus.running && (usesDevice || channel.startsWith('firmware:') && channel !== 'firmware:status')) throw new Error('Wait for the firmware operation to finish. Do not disconnect or quit.')
       if (usesDevice && calibrationSession && !['device:calibration', 'device:disconnect'].includes(channel)) throw new Error('Finish or cancel calibration before changing controller settings.')
       if (usesDevice && (resetting || ioJobs)) throw new Error('Wait for the current controller operation to finish.')
       if (usesDevice && (closeChecking || closePrompt)) throw new Error('Finish the quit check before using the controller.')
@@ -257,6 +263,95 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
     }
   })
 }
+
+handle('firmware:status', () => firmwareStatus)
+handle('firmware:choose', async (version?: string) => {
+  firmwareImage = null
+  let path: string
+  if (version === '2.1.0' || version === '2.2.9') {
+    path = join(app.getAppPath(), 'build', 'firmware', `GS_G7_Pro_CE_DV_V${version === '2.1.0' ? '210' : '229'}_Key.ufw`)
+  } else {
+    if (version !== undefined) throw new Error('Unsupported firmware version')
+    const selected = await dialog.showOpenDialog({ title: 'Choose original G7 Pro 8K controller firmware', properties: ['openFile'], filters: [{ name: 'GameSir firmware', extensions: ['ufw'] }] })
+    if (selected.canceled) return null
+    path = selected.filePaths[0]
+  }
+  const image = validateFirmware(path)
+  firmwareImage = null
+  firmwareStatus = { ...firmwareStatus, running: true, message: 'Checking the image with GameSir’s original updater…' }
+  try {
+    await runFirmwareWorker(app.getAppPath(), join(app.getPath('userData'), 'firmware-tests'), image, 'inspect')
+    firmwareImage = image
+    firmwareStatus.message = `Original controller ${image.version} (${image.variant}) validated. No firmware written.`
+    return image
+  } finally { firmwareStatus.running = false }
+})
+handle('firmware:flash', async (confirmation: string) => {
+  const image = firmwareImage
+  if (!image || confirmation !== `FLASH ${image.version}`) throw new Error('Validate an image and type its exact confirmation first.')
+  validateFirmware(image.path)
+  const device = discover().find((d) => d.path === controller.transport.currentPath)
+  if (!controller.isOpen || !device || ![0x10c5, 0x10c6].includes(device.productId) || identifyModel(device.product, device.productId)?.id !== 'G7ProCE') throw new Error('Connect the G7 Pro 8K directly by USB and load it in Stick Labs first. Receiver flashing is not supported.')
+  firmwareStatus = { running: true, message: 'Saving all four controller profiles before flashing…', backup: null }
+  send('firmware:status', firmwareStatus)
+  const folder = join(app.getPath('userData'), 'firmware-tests', new Date().toISOString().replace(/[:.]/g, '-'))
+  try {
+    mkdirSync(folder, { recursive: true })
+    const current = await controller.getCurrentProfile()
+    const firmware = await controller.readFirmware()
+    for (let slot = 1; slot <= 4; slot++) {
+      const bytes = await controller.readProfile(slot, 1070)
+      if (bytes.length !== 1070) throw new Error(`P${slot} backup incomplete. Flash cancelled.`)
+      writeFileSync(join(folder, `profile-${slot}.bin`), bytes)
+    }
+    writeFileSync(join(folder, 'session.json'), JSON.stringify({ firmware, current, device, target: image, date: new Date().toISOString() }, null, 2))
+    firmwareStatus.backup = folder
+    const recovery = validateFirmware(join(app.getAppPath(), 'build', 'firmware', 'GS_G7_Pro_CE_DV_V229_Key.ufw'))
+    await runFirmwareWorker(app.getAppPath(), folder, recovery, 'inspect')
+    await runFirmwareWorker(app.getAppPath(), folder, image, 'ready')
+    firmwareStatus.message = 'Entering update mode. Keep USB connected and wait; do not quit.'
+    send('firmware:status', firmwareStatus)
+    sessionEpoch++
+    reconnectPath = null
+    receiverResetPending = false
+    // Connect's active G7 Pro 8K update button uses QuickUpdate, not the
+    // generic HID DFU command 0F FC. Confirmed in Connect 1.11.1 and 1.16.7.
+      // A reset can invalidate the HID handle before Windows reports the write
+      // complete. Do not equate that with a successful command: the worker must
+      // independently find exactly one matching update-mode device before writing.
+      let handoffError: string | null = null
+      try { controller.transport.write([0x0f, 0x17, 0x55, 0x88]) }
+      catch (error) { handoffError = (error as Error).message ?? String(error) }
+    controller.disconnect()
+    connectedInfo = null
+      try { writeFileSync(join(folder, 'handoff.json'), JSON.stringify({ command: '0F175588', error: handoffError, date: new Date().toISOString() }, null, 2)) }
+      catch { /* Logging must not interrupt an update-mode handoff. */ }
+      if (handoffError) {
+        firmwareStatus.message = `Update command returned: ${handoffError}. Checking update-mode identity before any firmware write.`
+        send('firmware:status', firmwareStatus)
+      }
+    send('device:reconnecting', 'Firmware update mode')
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    const result = await runFirmwareWorker(app.getAppPath(), folder, image, 'flash', {
+      devicePath: device.path,
+      onProgress: (progress) => {
+        firmwareStatus.message = progress.event === 'writeStarted' ? progress.message : `GameSir update ${progress.progress}% · ${progress.message}${(progress.ret ?? 0) < 0 ? ` (error ${progress.ret})` : ''}`
+        send('firmware:status', firmwareStatus)
+      }
+    })
+    firmwareStatus.message = result.message ?? 'Updater completed. Reconnect and verify the running firmware version before testing RC.'
+    return firmwareStatus
+  } catch (error) {
+    firmwareStatus.message = `Firmware test stopped: ${(error as Error).message}`
+    throw error
+  } finally { firmwareStatus.running = false; send('firmware:status', firmwareStatus) }
+})
+handle('firmware:openBackup', async () => {
+  if (!firmwareStatus.backup) throw new Error('No firmware-test backup has been saved yet.')
+  const error = await shell.openPath(firmwareStatus.backup)
+  if (error) throw new Error(error)
+  return true
+})
 
 handle('device:discover', () => discoverLive())
 handle('device:connect', async (path: string): Promise<DeviceInfo> => {

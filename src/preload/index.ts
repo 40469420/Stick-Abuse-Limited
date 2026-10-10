@@ -11,6 +11,10 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api = {
+  firmwareStatus: () => call<import('../shared/firmware').FirmwareStatus>('firmware:status'),
+  chooseFirmware: (version?: string) => call<import('../shared/firmware').FirmwareImage | null>('firmware:choose', version),
+  flashFirmware: (confirmation: string) => call<import('../shared/firmware').FirmwareStatus>('firmware:flash', confirmation),
+  openFirmwareBackup: () => call<boolean>('firmware:openBackup'),
   quitRcDecision: (id: string, reset: boolean) => call<boolean>('rc:quitDecision', id, reset),
   startMacroRecording: (id: string) => call<boolean>('macro:start', id),
   stopMacroRecording: (id: string) => call<import('../shared/macros').MacroStep[]>('macro:stop', id),

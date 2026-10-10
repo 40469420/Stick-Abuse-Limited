@@ -29,7 +29,8 @@ const entry =
         'tests/xinput.ts',
         'tests/center.ts',
         'tests/custom-controls.ts',
-        'tests/tuning.ts'
+        'tests/tuning.ts',
+        'tests/firmware.ts'
       ]
 
 // Must live inside the project so node can resolve node_modules (ESM does not

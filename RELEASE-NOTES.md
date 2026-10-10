@@ -1,11 +1,11 @@
-# Stick Labs (Unlimited) 2.1.1
+# Stick Labs (Unlimited) 2.2.0
 
-- Added **Forked by @Machixo** after the original developer credit.
-- Added **X @Machixo** beside the original developer's YouTube link, opening https://x.com/Machixo.
-- Original developer attribution and YouTube link are retained.
+- Added the **Firmware** page for G7 Pro 8K controller updates, with original controller firmware **2.1.0** and **2.2.9** included in the repository and installer.
+- Added a large caution-tape **DISCLAIMER** with the requested risk/recovery wording. Controls remain greyed out until **I understand Machi** is clicked. A separate risk checkbox and exact typed version confirmation are required for each flash.
+- Save all four profiles before updating; validate firmware hashes and controller identity; retain live updater logs and block competing operations and quitting during a flash.
+- Fixed the Quick Update disconnect I/O handoff and the native worker stack overflow. A native self-check now runs before entering update mode.
+- Installed copies continue updating from this GitHub fork. This release includes a setup installer and updater metadata; no portable builds or personal backups are published.
 
-This setup-only patch also provides the next version for testing GitHub automatic updates from installed 2.1.0 copies. Start or restart 2.1.0 while connected to the internet; it checks for updates at startup, downloads the newer installer and offers to restart. Closing the window only hides the app in the tray, so fully quit and reopen it to trigger the startup check. If RC is enabled, the existing quit/reset prompt still applies.
+GameSir Connect must be installed for its updater library and fully quit during flashing. Firmware updates can destroy a controller. Profile backups and dual-backup mode do not guarantee recovery. Connect restored the test controller after a failed attempt, and the corrected test controller subsequently reported 2.1.0. This does not establish compatibility or RC behavior on every device. Opening Connect with downgraded firmware can upgrade it again.
 
-After updating, the sidebar should show **v2.1.1**, the fork credit and the X link. Actual installation through the updater remains to be confirmed on the user's machine. Portable copies are not part of this release or the update test.
-
-Controller features and hardware-validation limitations are unchanged from 2.1.0.
+Validation: TypeScript checks, application/fake-controller regression tests, x86 host success/error checks, packaged firmware hashes and native parser/preflight checks. The stack overflow was reproduced and resolved using a fixed invalid-drive target without calling the flash API.

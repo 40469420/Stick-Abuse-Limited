@@ -41,6 +41,10 @@ export interface LiveSample {
 }
 
 interface LabApi {
+  firmwareStatus(): Promise<import('../shared/firmware').FirmwareStatus>
+  chooseFirmware(version?: string): Promise<import('../shared/firmware').FirmwareImage | null>
+  flashFirmware(confirmation: string): Promise<import('../shared/firmware').FirmwareStatus>
+  openFirmwareBackup(): Promise<boolean>
   quitRcDecision(id: string, reset: boolean): Promise<boolean>
   startMacroRecording(id: string): Promise<boolean>
   stopMacroRecording(id: string): Promise<import('../shared/macros').MacroStep[]>

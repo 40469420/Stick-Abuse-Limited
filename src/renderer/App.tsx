@@ -1,3 +1,4 @@
+import { FirmwarePanel } from './Firmware'
 import { useEffect, useRef, useState } from 'react'
 import { TriggerTuning, GyroTuning } from './Tuning'
 import { CalibrationPanel } from './Calibration'
@@ -909,7 +910,7 @@ export default function App(): JSX.Element {
   const [loadId, setLoadId] = useState(0)
   const [bitCustom, setBitCustom] = useState('')
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
-  const [tab, setTab] = useState<'sticks' | 'device' | 'triggers' | 'gyro' | 'rc' | 'center' | 'bindings' | 'macros' | 'profiles' | 'lab' | 'steam' | 'calibrate'>('sticks')
+  const [tab, setTab] = useState<'sticks' | 'device' | 'triggers' | 'gyro' | 'rc' | 'center' | 'bindings' | 'macros' | 'profiles' | 'lab' | 'steam' | 'calibrate' | 'firmware'>('sticks')
   // Virtual sticks for pad-less Steam shaping: real packets, never written
   // to hardware — the Steam exporter reads these when no profile is loaded.
   const [vSticks] = useState(() => {
@@ -1309,6 +1310,7 @@ export default function App(): JSX.Element {
               Steam
             </button>
           </div>
+          <div className="nav-group"><h4>Firmware</h4><button type="button" className={`nav-item${tab === 'firmware' ? ' active' : ''}`} onClick={() => setTab('firmware')}>Firmware</button></div>
         </nav>
         <div className="stack" style={{ gap: 10 }}>
           <button className="btn ghost sm" onClick={() => void refresh()}>Rescan USB</button>
@@ -2047,6 +2049,7 @@ export default function App(): JSX.Element {
             connected && modelId === 'G7ProCE' ? <CenterOffsets busy={busy} /> :
               <div className="msg"><h3>Connect a G7 Pro 8K</h3><p>Center-offset commands are currently verified against the G7 Pro 8K software path only.</p></div>
           )}
+          {tab === 'firmware' && <FirmwarePanel hasUnsavedEdits={dirty} />}
           {(tab === 'triggers' || tab === 'gyro') && (connected && profile && modelId === 'G7ProCE' ? (tab === 'triggers' ? <TriggerTuning key={`triggers:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <GyroTuning key={`gyro:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} />) : <div className="note">Connect an identified G7 Pro 8K and load a profile to tune triggers and gyro.</div>)}
           {tab === 'bindings' && (connected && profile && modelId === 'G7ProCE' ? <Bindings key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit bindings.</div>)}
           {tab === 'macros' && (connected && profile && modelId === 'G7ProCE' ? <Macros key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit macros.</div>)}

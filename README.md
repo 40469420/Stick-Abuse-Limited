@@ -8,7 +8,15 @@ The expanded controls target the **GameSir G7 Pro 8K**. Other detected models re
 
 Download the setup executable from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). The installer, application window and tray use **Stick Labs (Unlimited)**. Releases include the installer and updater files, with no portable executables. Installed copies check this fork for updates, download available versions and offer to restart.
 
-## New in 2.1.0
+## New in 2.2.0
+
+- **Firmware:** G7 Pro 8K controller flashing with original 2.1.0 and 2.2.9 images included, profile backups, firmware validation, update-mode identity checks and live logs.
+- **Required acknowledgment:** the Firmware page uses the RC page's caution-tape disclaimer and keeps controls greyed out until **I understand Machi** is clicked. Each flash also requires risk acceptance and a typed version confirmation.
+- **Updater fixes:** corrected the Quick Update disconnect handoff and replaced the native worker host to resolve the reproduced stack overflow. A native self-check runs before switching controller mode.
+
+Read [Firmware instructions and recovery limits](FIRMWARE.md) before use. Firmware flashing can destroy a controller; recovery is not guaranteed. GameSir Connect must be installed but fully quit during flashing.
+
+## Added in 2.1.0
 
 - **RC filters:** separate -10 to +10 levels per stick, copy/reset controls, a warning acknowledgment gate, and three-second baseline/comparison captures. Optional XInput capture offers explicit slot selection and distinguishes polls from state changes.
 - **Connection handling:** optional RC reset on disconnect/reconnect, close to tray, and a mandatory reset choice when actually quitting with RC enabled. Requested resets must verify before quitting; failures are reported.
@@ -28,7 +36,7 @@ Download the setup executable from [GitHub Releases](https://github.com/40469420
 - Calibration no longer requires already-centered mapped sticks, checks device progress and does not treat a sent save command as proof of success.
 - Added controller-operation guards, byte-preservation and simulated lifecycle tests, release checks and updater error handling.
 
-See [release notes](RELEASE-NOTES.md) for details and hardware-validation limits. Automatic updates between two released Unlimited versions still need an end-to-end test.
+See [release notes](RELEASE-NOTES.md) for details and hardware-validation limits. Automatic updating from 2.1.0 to 2.1.1 was confirmed on the test installation.
 
 ## Features
 
@@ -72,7 +80,7 @@ npm run dist -- --publish never
 
 The release configuration builds an NSIS installer in `dist/`. Releases publish the setup executable, its blockmap and `latest.yml` update metadata; no portable is included. The installer/updater target is **40469420/stick-labs-unlimited**. Local portable test builds remain available through `npm run dist:portable -- --publish never`.
 
-The GitHub workflow runs for version tags such as `v2.1.0`, checks that the tag matches `package.json`, then runs checks and packaging. A normal source push is not a release. Installed builds contain GitHub updater support; portable copies are separate and should not be relied on for automatic updates. Release publication and an update between two installed versions still need end-to-end verification before announcing automatic updates as ready.
+The GitHub workflow runs for version tags such as `v2.1.0`, checks that the tag matches `package.json`, then runs checks and packaging. A normal source push is not a release. Installed builds contain GitHub updater support; portable copies are separate and should not be relied on for automatic updates. Automatic updates from this fork are enabled in installed builds.
 
 ## Feature notes
 
@@ -83,4 +91,4 @@ The GitHub workflow runs for version tags such as `v2.1.0`, checks that the tag 
 
 Some settings depend on firmware and connection mode. RC filtering effects, expanded outputs and calibration behavior require hardware verification. Raw resolution bytes do not prove physical sensor bit depth. Automated actions may violate a game's rules; the app does not promise permission or protection from bans.
 
-No vendor software, firmware, personal controller dumps or local research bundles belong in this repository. Temporary probes, dependencies and generated packages are ignored. Original project attribution is retained.
+The two documented original controller firmware images are included under build/firmware/. Vendor updater libraries, personal controller dumps and local research bundles are excluded. Temporary probes, dependencies and generated packages are ignored. Original project attribution is retained.

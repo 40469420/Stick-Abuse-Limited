@@ -25,14 +25,16 @@ if (!process.argv.includes('--child')) {
     get isOpen(){return this.transport.isOpen}onInput(fn){this.input=fn}attachInputDecoder(){}async connect(path){this.transport.isOpen=true;this.transport.currentPath=path;this.state='ready';return {firmware:'2.2.9',dongle:'1.3.5',currentProfile:1}}disconnect(){this.transport.isOpen=false;this.transport.currentPath=null}calibration(state,mask,mode=0){this.transport.write([15,254,state,mask,mode]);if(state!==0&&!globalThis.__m.suppressTerminal)setTimeout(()=>this.emitSample(mode?0:1,0),5)}emitSample(target,status){this.latestInput={live:true,recordKeys:[],calTarget:target,calMask:status,timestamp:Date.now()};this.input(this.latestInput)}async getCurrentProfile(){return 1}async readProfile(){if(globalThis.__m.waitRead)await globalThis.__m.waitRead;return globalThis.__m.profile.slice()}async writeProfileVerified(slot,bytes){globalThis.__m.writes++;if(globalThis.__m.failWrite)throw new Error('simulated verification failure');globalThis.__m.profile=bytes.slice();return {verified:true,rolledBack:false}}}
   `
   const hid = `export function discover(){return [{path:'test-pad',product:'G7 Pro 8K',productId:0x10c5,preferred:true}]}export const discoverLive=discover;`
+  const firmware = `export function validateFirmware(path){return {path,version:path.includes('210')?'2.1.0':'2.2.9',variant:'Key',sha256:'test'}}export async function runFirmwareWorker(app,folder,image,action){const m=globalThis.__m;m.firmwareCalls??=[];m.firmwareCalls.push(action);if(m.rejectFirmware)throw Error('simulated firmware rejection');if(action==='flash'){if(m.flashWait)await m.flashWait;return {message:'Updater completed; reconnect to verify'}}return {product:'GS_G7_Pro_CE_DV',version:image.version}}`
   try {
     await build({ entryPoints: ['src/main/index.ts'], outfile: join(folder, 'main.cjs'), bundle: true, platform: 'node', format: 'cjs', plugins: [{ name: 'fake-hardware', setup(b) {
       b.onResolve({ filter: /^electron$/ }, () => ({ path: 'electron', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/controller$/ }, () => ({ path: 'controller', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/hid$/ }, () => ({ path: 'hid', namespace: 'fake' }))
-      b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid }[path], loader: 'js' }))
+      b.onResolve({ filter: /^\.\/firmware$/ }, () => ({ path: 'firmware', namespace: 'fake' }))
+      b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -46,6 +48,48 @@ if (!process.argv.includes('--child')) {
   const call = async (channel, ...args) => m.handlers.get(channel)({}, ...args)
   const prompt = () => m.messages.filter((item) => item.channel === 'rc:quitPrompt').at(-1)?.payload
   assert.equal((await call('device:connect', 'test-pad')).ok, true)
+  if (scenario === 'firmware') {
+    m.app.getAppPath = () => folder
+    controller.readFirmware = async () => '2.2.9'
+    assert.equal((await call('firmware:flash', 'FLASH 2.1.0')).ok, false, 'unvalidated firmware is blocked')
+    assert.equal((await call('firmware:choose', '2.1.0')).ok, true)
+    assert.equal((await call('firmware:flash', 'FLASH 2.2.9')).ok, false, 'wrong confirmation is blocked')
+    const readProfile = controller.readProfile.bind(controller)
+    controller.readProfile = async () => new Uint8Array(100)
+    assert.equal((await call('firmware:flash', 'FLASH 2.1.0')).ok, false, 'incomplete backup aborts the attempt')
+    assert.equal((m.calPackets ?? []).length, 0, 'backup failure sends no controller command')
+    controller.readProfile = readProfile
+    m.rejectFirmware = true
+    assert.equal((await call('firmware:flash', 'FLASH 2.1.0')).ok, false)
+    assert.equal((m.calPackets ?? []).some(p => p[1] === 23 || p[1] === 252), false, 'failed validation never enters update mode')
+    m.rejectFirmware = false
+    const transportWrite = controller.transport.write.bind(controller.transport)
+    controller.transport.write = packet => { transportWrite(packet); throw Error('simulated disconnect I/O error') }
+    let finishFlash
+    m.flashWait = new Promise(resolve => { finishFlash = resolve })
+    const pending = call('firmware:flash', 'FLASH 2.1.0')
+    await wait(30)
+    assert.equal((await call('firmware:flash', 'FLASH 2.1.0')).ok, false, 'overlapping firmware attempt blocked')
+    assert.equal((await call('profile:read', 1)).ok, false, 'profile writes and reads blocked during flashing')
+    assert.equal((await call('device:disconnect')).ok, false, 'disconnect blocked during flashing')
+    m.menu.find(entry => entry.label === 'Quit Stick Labs (Unlimited)').click()
+    await wait(10)
+    assert.equal(m.quits, 0, 'quit blocked during flashing')
+    const state = (await call('firmware:status')).data
+    assert.ok(state.backup)
+    for (let slot = 1; slot <= 4; slot++) assert.equal(readFileSync(join(state.backup, `profile-${slot}.bin`)).length, 1070)
+    await wait(2600)
+    finishFlash()
+    assert.equal((await pending).ok, true)
+    assert.equal(m.firmwareCalls.includes('flash'), true, 'handoff I/O error still reaches independent update-mode detection')
+    assert.match(JSON.parse(readFileSync(join(state.backup, 'handoff.json'), 'utf8')).error, /I\/O error/, 'handoff error is recorded')
+    assert.equal(m.writes, 0, 'no automatic profile restoration')
+    assert.equal((await call('firmware:status')).data.running, false)
+    assert.deepEqual(m.calPackets.filter(p => p[1] === 23), [[15,23,85,136]], 'observed Connect G7 quick-update command is used exactly once')
+    assert.equal(m.calPackets.some(p => p[1] === 252), false, 'generic HID DFU command is never sent')
+    console.log('Firmware: unvalidated images, confirmation, preflight failure, backup, operation locks and quit protection passed with fake hardware.')
+    process.exit(0)
+  }
   assert.equal(m.writes, 0, 'off by default')
   if (scenario === 'yes') {
     controller.emitSample(1, 0)
