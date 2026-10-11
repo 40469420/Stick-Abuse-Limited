@@ -20,6 +20,7 @@ import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
 import { flyTransport, type FlyIdentity } from './flydigiUsb'
 import { flyTypeName } from '@shared/flydigi'
+import { axisToByte, useFlyLive } from './flydigiLive'
 
 /** Stick deadzone packet → whole percent for the Steam exporter. */
 function deadzonePct(pkt: import('@shared/profile').Packet): { begin: number; end: number; anti: number } {
@@ -1167,6 +1168,40 @@ function MariusPanel(): JSX.Element {
   )
 }
 
+function ApexCalibrate(): JSX.Element {
+  const feed = useFlyLive(true)
+  const [peak, setPeak] = useState(0)
+  const dev = feed.present ? Math.max(Math.abs(feed.lx), Math.abs(feed.ly), Math.abs(feed.rx), Math.abs(feed.ry)) : 0
+  const steps = Math.round(dev * 128)
+  useEffect(() => {
+    if (feed.present) setPeak((p) => Math.max(p, steps))
+  }, [feed.present, steps])
+  const verdict = !feed.present ? null : steps <= 2 ? 'Centered' : steps <= 6 ? 'Mild drift — deadzone covers it' : 'Drifting'
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h3>Calibration bench — Apex 5 (read-only)</h3>
+      <div className="hint">Live center check off the standard gamepad stream. Firmware center-write is unmapped for this pad — tune the curve heads in Sticks instead. Leave the pad untouched on a table.</div>
+      <div className="row" style={{ gap: 20, justifyContent: 'center', margin: '12px 0' }}>
+        {feed.present ? (
+          <>
+            <StickDial x={axisToByte(feed.lx)} y={axisToByte(feed.ly)} label="Left" />
+            <StickDial x={axisToByte(feed.rx)} y={axisToByte(feed.ry)} label="Right" />
+          </>
+        ) : (
+          <div className="hint">Waiting for live input — press a button on the pad.</div>
+        )}
+      </div>
+      <div className="row wrap" style={{ gap: 8, margin: '10px 0', alignItems: 'center' }}>
+        {verdict && <span className={`pill${steps <= 2 ? ' good' : steps <= 6 ? ' warn' : ' bad'}`}>{verdict} · ±{steps}</span>}
+        <span className="pill">peak ±{peak}</span>
+        <div style={{ flex: 1 }} />
+        <button className="btn sm ghost" onClick={() => setPeak(0)}>Reset peak</button>
+      </div>
+      <div className="note warn" style={{ marginTop: 8 }}>This bench re-centers GameSir sticks — it cannot fix drift, and it cannot write to the Apex. Drift is worn hardware; replace the sticks, then calibrate.</div>
+    </div>
+  )
+}
+
 function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   const [ptype, setPtype] = useState(2)
   const [left, setLeft] = useState<number[]>([50, 56, 63, 69, 75, 94, 113, 131, 150])
@@ -1176,6 +1211,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [stamp, setStamp] = useState<string | null>(null)
+  const liveFeed = useFlyLive(true)
 
   async function load(): Promise<void> {
     setErr(null)
@@ -1276,6 +1312,21 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
 
   return (
     <div className="stack" style={{ gap: 16 }}>
+      <div className="card">
+        <h3>Live sticks</h3>
+        <div className="hint">Standard gamepad stream (XInput side), -1..1. Move the sticks.</div>
+        {liveFeed.present ? (
+          <>
+            <StickCross lx={axisToByte(liveFeed.lx)} ly={axisToByte(liveFeed.ly)} rx={axisToByte(liveFeed.rx)} ry={axisToByte(liveFeed.ry)} />
+            <div className="row spread">
+              <span className="mono">L {liveFeed.lx.toFixed(2)},{liveFeed.ly.toFixed(2)}</span>
+              <span className="mono">R {liveFeed.rx.toFixed(2)},{liveFeed.ry.toFixed(2)}</span>
+            </div>
+          </>
+        ) : (
+          <div className="hint">No live gamepad stream — press a button on the pad (the browser needs input to see it).</div>
+        )}
+      </div>
       <div className="card" style={{ borderColor: 'var(--warn)' }}>
         <h3>Flydigi Apex 5 — stick curves</h3>
         <div className="hint">Same tab, native protocol (WebHID interrupt reports, mirrored byte-exact from live captures + full store reads). Deadzone lives in the curve shape on this pad — there is no separate field. Right-curve encoding verified against captures. Close Space Station first.</div>
@@ -2260,7 +2311,7 @@ export default function App(): JSX.Element {
                 <div className="msg"><h3>Not mapped yet</h3><p>Profile slots and analytics are GameSir-layout only. Apex curve tuning lives in Sticks.</p></div>
               )}
               {tab === 'calibrate' && (
-                <div className="msg"><h3>Not mapped yet</h3><p>Stick-center calibration needs live input decoding, not mapped for the Apex 5. Curves live in Sticks.</p></div>
+                <ApexCalibrate />
               )}
             </>
           )}
