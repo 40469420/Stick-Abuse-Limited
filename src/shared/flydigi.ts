@@ -125,12 +125,73 @@ export function flyCurveChecksum(type: number, points: ArrayLike<number>): numbe
   return sum
 }
 
+/**
+ * Right-curve checksum: (0xB6 + type + Σpoints) & 0xFF.
+ * Same additive rule, different covered constants — verified across
+ * 4 captured right packs (0xB6 every time).
+ */
+export function flyRightChecksum(type: number, points: ArrayLike<number>): number {
+  let sum = 0xb6 + (type & 0xff)
+  for (let i = 0; i < points.length; i++) sum = (sum + (points[i] & 0xff)) & 0xff
+  return sum
+}
+
 /** Build the 26 B left-curve window: [10×FF][type][9 pts][cksum][5×00]. */
 export function flyCurveWindow(type: number, points: ArrayLike<number>): number[] {
   const pts = Array.from(points).slice(0, FLY_CURVE_POINTS)
   while (pts.length < FLY_CURVE_POINTS) pts.push(150)
   const clean = pts.map((p) => Math.max(0, Math.min(250, Math.round(p))))
   return [...new Array<number>(10).fill(0xff), type & 0xff, ...clean, flyCurveChecksum(type, clean), 0, 0, 0, 0, 0]
+}
+
+/**
+ * Build the 26 B right-curve window:
+ * [00,00][type][9 pts][00,00][FF×6][cksum][00×5].
+ */
+export function flyRightWindow(type: number, points: ArrayLike<number>): number[] {
+  const pts = Array.from(points).slice(0, FLY_CURVE_POINTS)
+  while (pts.length < FLY_CURVE_POINTS) pts.push(150)
+  const clean = pts.map((p) => Math.max(0, Math.min(250, Math.round(p))))
+  return [0, 0, type & 0xff, ...clean, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, flyRightChecksum(type, clean), 0, 0, 0, 0, 0]
+}
+
+/** Store-read announce: section byte 0x14 streams the full 1092 B store. */
+export const FLY_STORE_SECTION = 0x14
+export const FLY_STORE_CHUNKS = 42
+export const FLY_STORE_LEN = 1092
+
+/** True store offsets (E-stripped) of the curve blocks. */
+export const FLY_STORE_LEFT_TYPE = 985
+export const FLY_STORE_LEFT_PTS = 986
+export const FLY_STORE_RIGHT_TYPE = 1002
+export const FLY_STORE_RIGHT_PTS = 1003
+
+export interface FlyStore {
+  leftType: number
+  leftPoints: number[]
+  rightType: number
+  rightPoints: number[]
+}
+
+/**
+ * Parse the 1092 B store (E-stripped). Validates the FF run + point
+ * sanity; returns null when the layout is unrecognized.
+ */
+export function parseFlyStore(store: Uint8Array): FlyStore | null {
+  const need = FLY_STORE_RIGHT_PTS + FLY_CURVE_POINTS
+  if (store.length < need) return null
+  for (let i = FLY_STORE_LEFT_TYPE - 10; i < FLY_STORE_LEFT_TYPE; i++) {
+    if ((store[i] ?? -1) !== 0xff) return null
+  }
+  const leftPoints = Array.from(store.subarray(FLY_STORE_LEFT_PTS, FLY_STORE_LEFT_PTS + FLY_CURVE_POINTS))
+  const rightPoints = Array.from(store.subarray(FLY_STORE_RIGHT_PTS, FLY_STORE_RIGHT_PTS + FLY_CURVE_POINTS))
+  if ([...leftPoints, ...rightPoints].some((p) => p > 250)) return null
+  return {
+    leftType: store[FLY_STORE_LEFT_TYPE] ?? 0,
+    leftPoints,
+    rightType: store[FLY_STORE_RIGHT_TYPE] ?? 0,
+    rightPoints,
+  }
 }
 
 /** Build a 32 B output report: [rid=3, 5A, A5, cmd, ...args]. */

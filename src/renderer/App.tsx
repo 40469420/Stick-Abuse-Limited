@@ -19,6 +19,7 @@ import { fitCurveExponent } from '@shared/steamcfg'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
 import { flyTransport, type FlyIdentity } from './flydigiUsb'
+import { flyTypeName } from '@shared/flydigi'
 
 /** Stick deadzone packet → whole percent for the Steam exporter. */
 function deadzonePct(pkt: import('@shared/profile').Packet): { begin: number; end: number; anti: number } {
@@ -1168,22 +1169,52 @@ function MariusPanel(): JSX.Element {
 
 function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   const [ptype, setPtype] = useState(2)
-  const [points, setPoints] = useState<number[]>([50, 56, 63, 69, 75, 94, 113, 131, 150])
+  const [left, setLeft] = useState<number[]>([50, 56, 63, 69, 75, 94, 113, 131, 150])
+  const [right, setRight] = useState<number[]>([50, 62, 75, 87, 100, 112, 125, 137, 150])
+  const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [stamp, setStamp] = useState<string | null>(null)
 
-  const setPt = (i: number, v: number): void => {
-    setPoints((prev) => {
+  async function load(): Promise<void> {
+    setErr(null)
+    if (!flyTransport.connected) {
+      setErr('Apex 5 not connected — connect it from the sidebar first, and close Space Station.')
+      return
+    }
+    setBusy(true)
+    try {
+      const store = await flyTransport.readStore()
+      setPtype(store.leftType)
+      setLeft([...store.leftPoints])
+      setRight([...store.rightPoints])
+      setLoaded(true)
+      setMsg(`Store read — left ${flyTypeName(store.leftType)}, right type ${store.rightType}. Editing writes both sticks, verified by re-read.`)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (flyTransport.connected && !loaded) void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const setPt = (which: 'left' | 'right', i: number, v: number): void => {
+    const apply = (prev: number[]): number[] => {
       const n = [...prev]
       n[i] = Math.max(0, Math.min(150, Math.round(v)))
       return n
-    })
+    }
+    if (which === 'left') setLeft(apply)
+    else setRight(apply)
   }
-  const fill = (t: number, p: number[]): void => {
+  const fillLeft = (t: number, p: number[]): void => {
     setPtype(t)
-    setPoints([...p])
+    setLeft([...p])
   }
 
   async function write(): Promise<void> {
@@ -1193,40 +1224,83 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
       setErr('Apex 5 not connected — connect it from the sidebar first, and close Space Station.')
       return
     }
-    if (!window.confirm('Write left curve to the Apex 5? Right stick, polling and precision are untouched. Space Station can restore.')) return
+    if (!window.confirm('Write both stick curves to the Apex 5? Polling and precision are untouched. Space Station can restore.')) return
     setBusy(true)
+    // Snapshot for best-effort restore.
+    let snapshot: { leftType: number; leftPoints: number[]; rightType: number; rightPoints: number[] } | null = null
     try {
-      const res = await flyTransport.writeLeftCurve(ptype, points)
+      const store = await flyTransport.readStore()
+      snapshot = { leftType: store.leftType, leftPoints: [...store.leftPoints], rightType: store.rightType, rightPoints: [...store.rightPoints] }
+    } catch {
+      /* proceed without a snapshot — user confirmed */
+    }
+    try {
+      const res = await flyTransport.writeCurves(
+        { type: ptype, points: left },
+        { type: ptype, points: right },
+        () => flyTransport.readStore().catch(() => null)
+      )
       setStamp(res.stamp)
-      setMsg(`Left curve written + save committed (stamp ${res.stamp}). Test feel in game — right curve is unmapped and untouched.`)
+      setMsg(`Both curves written + save committed (stamp ${res.stamp}), read-back matches. Test feel in game.`)
+      await load()
     } catch (e) {
-      setErr((e as Error).message)
+      const message = (e as Error).message
+      if (snapshot) {
+        try {
+          await flyTransport.writeCurves(
+            { type: snapshot.leftType, points: snapshot.leftPoints },
+            { type: snapshot.rightType, points: snapshot.rightPoints },
+            () => flyTransport.readStore().catch(() => null)
+          )
+          setErr(`${message} — original curves restored.`)
+          await load()
+          return
+        } catch {
+          /* restore failed too */
+        }
+      }
+      setErr(`${message} — restore in Space Station if feel changed.`)
     } finally {
       setBusy(false)
     }
   }
 
+  const curveEditor = (which: 'left' | 'right', points: number[], fixedType?: number): JSX.Element => (
+    <div className="stack" style={{ gap: 8 }}>
+      {points.map((p, i) => (
+        <Slider key={i} label={`${which === 'left' ? 'L' : 'R'}${i + 1}`} value={p} min={0} max={150} step={1} onChange={(v) => setPt(which, i, v)} format={(v) => `${v.toFixed(0)}`} />
+      ))}
+      {fixedType !== undefined && <div className="hint">Type byte reads {fixedType} — writes mirror the left type, like Space Station.</div>}
+    </div>
+  )
+
   return (
     <div className="stack" style={{ gap: 16 }}>
       <div className="card" style={{ borderColor: 'var(--warn)' }}>
-        <h3>Flydigi Apex 5 — left stick curve</h3>
-        <div className="hint">Same tab, native protocol (WebHID interrupt reports, mirrored byte-exact from live captures). The pad has no curve read-back, so the editor starts from the Slow preset — not from the pad. Right-stick curve encoding is unmapped and never written. Close Space Station first.</div>
+        <h3>Flydigi Apex 5 — stick curves</h3>
+        <div className="hint">Same tab, native protocol (WebHID interrupt reports, mirrored byte-exact from live captures + full store reads). Deadzone lives in the curve shape on this pad — there is no separate field. Right-curve encoding verified against captures. Close Space Station first.</div>
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}{stamp ? ` · last write ${stamp}` : ''}</div>}
         <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
+          <button className="btn sm" disabled={busy} onClick={() => void load()}>{loaded ? 'Reload from pad' : 'Load from pad'}</button>
           {[{ t: 3, label: 'Custom' }, { t: 1, label: 'Quick' }, { t: 2, label: 'Slow' }].map((o) => (
             <button key={o.t} className={`btn sm${ptype === o.t ? ' primary' : ' ghost'}`} onClick={() => setPtype(o.t)}>{o.label}</button>
           ))}
           <div style={{ flex: 1 }} />
-          <button className="btn sm ghost" onClick={() => fill(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}>Slow</button>
-          <button className="btn sm ghost" onClick={() => fill(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}>Quick</button>
+          <button className="btn sm ghost" onClick={() => fillLeft(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}>Slow</button>
+          <button className="btn sm ghost" onClick={() => fillLeft(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}>Quick</button>
         </div>
-        <div className="stack" style={{ gap: 8 }}>
-          {points.map((p, i) => (
-            <Slider key={i} label={`Point ${i + 1}`} value={p} min={0} max={150} step={1} onChange={(v) => setPt(i, v)} format={(v) => `${v.toFixed(0)}`} />
-          ))}
+        <div className="two" style={{ alignItems: 'start', gap: 16 }}>
+          <div>
+            <div className="label" style={{ marginBottom: 6 }}>Left — 9 points</div>
+            {curveEditor('left', left)}
+          </div>
+          <div>
+            <div className="label" style={{ marginBottom: 6 }}>Right — 9 points</div>
+            {curveEditor('right', right, 0)}
+          </div>
         </div>
         <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
-          <button className="btn sm primary" disabled={busy} onClick={() => void write()}>{busy ? 'Writing…' : 'Write left curve'}</button>
+          <button className="btn sm primary" disabled={busy} onClick={() => void write()}>{busy ? 'Writing…' : 'Write both curves'}</button>
         </div>
         {msg && <div className="note" style={{ marginTop: 8 }}>{msg}</div>}
         {err && <div className="note bad" style={{ marginTop: 8 }}>{err}</div>}

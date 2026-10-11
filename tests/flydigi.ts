@@ -15,6 +15,9 @@ import {
   flyCurveChecksum,
   flyCurveWindow,
   flyFrame,
+  flyRightChecksum,
+  flyRightWindow,
+  parseFlyStore,
   flyNonce,
   flyPackPadOk,
   flyReadAnnounce,
@@ -119,6 +122,43 @@ check(
   'window builder byte-exact (slow preset)',
   JSON.stringify(built) === JSON.stringify([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 2, 50, 56, 63, 69, 75, 94, 113, 131, 150, 0xd5, 0, 0, 0, 0, 0])
 )
+
+// --- right packs: (0xB6 + type + pts) & FF across 4 captures ---------------
+const capR: Array<[number, number[], number]> = [
+  [3, [50, 102, 113, 119, 126, 132, 138, 144, 150], 0xeb],
+  [3, [50, 102, 113, 119, 126, 132, 138, 144, 150], 0xeb],
+  [3, [50, 58, 66, 74, 82, 89, 100, 125, 150], 0xd3],
+  [3, [50, 62, 73, 85, 96, 108, 119, 134, 150], 0x26],
+]
+check(
+  'right checksum rule exact',
+  capR.every(([t, p, c]) => flyRightChecksum(t, p) === c)
+)
+const builtR = flyRightWindow(3, [50, 58, 66, 74, 82, 89, 100, 125, 150])
+check(
+  'right window byte-exact',
+  JSON.stringify(builtR) === JSON.stringify([0, 0, 3, 50, 58, 66, 74, 82, 89, 100, 125, 150, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xd3, 0, 0, 0, 0, 0])
+)
+
+// --- store parse (E-stripped layout) -----------------------------------------
+const store = new Uint8Array(1050)
+store.fill(0, 0, 975)
+store.fill(0xff, 975, 985)
+store[985] = 2
+store.set([50, 56, 63, 69, 75, 94, 113, 131, 150], 986)
+store[1002] = 0
+store.set([50, 62, 75, 87, 100, 112, 125, 137, 150], 1003)
+const parsed = parseFlyStore(store)
+check(
+  'store parse',
+  !!parsed && parsed.leftType === 2 && parsed.leftPoints[8] === 150 && parsed.rightType === 0 && parsed.rightPoints[1] === 62
+)
+check('store rejects short', parseFlyStore(new Uint8Array(100)) === null)
+check('store rejects missing FF run', (() => {
+  const bad = new Uint8Array(store)
+  bad[980] = 0
+  return parseFlyStore(bad) === null
+})())
 
 if (failures > 0) {
   console.error(`${failures} FAILURES`)
