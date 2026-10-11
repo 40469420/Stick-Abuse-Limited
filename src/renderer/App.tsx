@@ -1202,7 +1202,7 @@ function ApexCalibrate(): JSX.Element {
   )
 }
 
-function ApexDevice({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
+function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: ReadonlyArray<{ gear: number; hz: number; confirmed: boolean }> }): JSX.Element {
   const [bright, setBright] = useState(40)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -1235,6 +1235,65 @@ function ApexDevice({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
       </div>
       <div className="card">
+        <h3>Polling rate — {rates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
+        <div className="hint">Report-rate gears. Rate switching is unmapped on this pad — 1000 Hz max.</div>
+        <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
+          {rates.map((o) => (
+            <button
+              key={o.gear}
+              className="btn sm ghost"
+              disabled
+              title="Rate switching is unmapped on this pad"
+            >
+              {o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz} Hz`}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="card">
+        <h3>Bit depth — 8–24</h3>
+        <div className="hint">Precision switching is unmapped on this pad — the sensor runs its stock resolution.</div>
+        <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
+          {STICK_RESOLUTION_OPTIONS.map((o) => (
+            <button
+              key={o.bits}
+              className="btn sm ghost"
+              disabled
+              title="Precision switching is unmapped on this pad"
+            >
+              {o.bits}-bit
+            </button>
+          ))}
+          {EXTENDED_BITS.map((bits) => (
+            <button
+              key={bits}
+              className="btn sm ghost"
+              disabled
+              title="Precision switching is unmapped on this pad"
+            >
+              {bits}-bit*
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="card">
+        <h3>Controller Rate</h3>
+        <div className="hint">How fast this stick answers in Mouse mode on GameSir pads. No equivalent on this pad.</div>
+      </div>
+      <div className="card">
+        <h3>Shape</h3>
+        <div className="hint">Round/square/raw processing flags. This pad has no shape flags: output always follows the curve.</div>
+        <div className="stack" style={{ gap: 8 }}>
+          {['Round diagonals', 'Square gate', 'Pure raw 1:1'].map((name) => (
+            <button key={name} className="btn sm ghost" disabled title="No processing-flag equivalent on this pad">{name}</button>
+          ))}
+        </div>
+      </div>
+      <div className="card" style={{ borderColor: 'var(--bad)' }}>
+        <h3>Reset everything</h3>
+        <div className="hint">Curve reset lives in the Sticks tab for this pad (designs state is shared there).</div>
+      </div>
+      <div className="card">
         <h3>LED brightness</h3>
         <div className="hint">Mirrored from live captures (checksum rule proven). Brightness-only — the write carries Default-mode constants, so another active LED mode resets to Default.</div>
         <div className="stack" style={{ gap: 8, marginTop: 8 }}>
@@ -1256,6 +1315,25 @@ const FLY_SLOTX = (i: number): number => Math.round((i * 255) / 8)
 const flyToDesign = (pts: number[]): Array<{ x: number; y: number }> =>
   pts.map((v, i) => ({ x: FLY_SLOTX(i), y: FLY_P2D(v) }))
 const flyFromDesign = (d: Array<{ x: number; y: number }>): number[] => d.map((p) => FLY_D2P(p.y))
+/** Resample an 8K-style free polyline (0–255) to 9 even outputs (0–150). */
+const flyResampleAim = (pts: Array<{ x: number; y: number }>): number[] => {
+  const sorted = [...pts].sort((a, b) => a.x - b.x)
+  const at = (x: number): number => {
+    if (x <= sorted[0].x) return sorted[0].y
+    for (let i = 1; i < sorted.length; i++) {
+      if (x <= sorted[i].x) {
+        const a = sorted[i - 1]
+        const b = sorted[i]
+        const t = b.x === a.x ? 0 : (x - a.x) / (b.x - a.x)
+        return a.y + t * (b.y - a.y)
+      }
+    }
+    return sorted[sorted.length - 1].y
+  }
+  const out: number[] = []
+  for (let i = 0; i < 9; i++) out.push(Math.max(0, Math.min(150, Math.round((at((i * 255) / 8) * 150) / 255))))
+  return out
+}
 
 function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   const [ptype, setPtype] = useState(2)
@@ -1272,6 +1350,27 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   const [err, setErr] = useState<string | null>(null)
   const [stamp, setStamp] = useState<string | null>(null)
   const liveFeed = useFlyLive(true)
+  const [measuring, setMeasuring] = useState<null | { left: number; suggestion: { dev: number; pct: number } | null }>(null)
+  const peakRef = useRef(0)
+
+  useEffect(() => {
+    if (measuring && liveFeed.present) {
+      const dev = Math.max(Math.abs(liveFeed.lx), Math.abs(liveFeed.ly), Math.abs(liveFeed.rx), Math.abs(liveFeed.ry))
+      peakRef.current = Math.max(peakRef.current, dev)
+    }
+  })
+
+  useEffect(() => {
+    if (!measuring) return
+    if (measuring.left <= 0) {
+      const devSteps = Math.round(peakRef.current * 128)
+      const pct = Math.round(peakRef.current * 1000) / 10
+      setMeasuring({ left: 0, suggestion: { dev: devSteps, pct } })
+      return
+    }
+    const t = window.setTimeout(() => setMeasuring((m) => (m ? { ...m, left: m.left - 1 } : m)), 1000)
+    return () => window.clearTimeout(t)
+  }, [measuring])
 
   async function load(): Promise<void> {
     setErr(null)
@@ -1301,6 +1400,15 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
     if (flyTransport.connected && !loaded) void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const resetAll = (): void => {
+    if (!window.confirm('Reset both curves to the Slow baseline? Writes nothing until you Send.')) return
+    setLeftDesign(flyToDesign([50, 56, 63, 69, 75, 94, 113, 131, 150]))
+    setRightDesign(flyToDesign([50, 62, 75, 87, 100, 112, 125, 137, 150]))
+    setPtype(2)
+    setDeadStart(10)
+    setMsg('Reset to the Slow baseline — Send to apply it to the pad.')
+  }
 
   const design = which === 0 ? leftDesign : rightDesign
   const padDesign = which === 0 ? padLeft : padRight
@@ -1377,7 +1485,8 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   }
 
   return (
-    <div className="stack" style={{ gap: 16 }}>
+    <div className="two" style={{ alignItems: 'start' }}>
+      <div className="stack" style={{ gap: 16 }}>
       <div className="card">
         <h3>Live sticks</h3>
         <div className="hint">Standard gamepad stream (XInput side), -1..1. Move the sticks.</div>
@@ -1394,16 +1503,105 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
         )}
       </div>
       <div className="card">
-        <h3>Dead zone</h3>
-        <div className="hint">No separate field on this pad — deadzone lives in the curve head, full range always (nothing clipped at the rim). <strong>Start</strong> reshapes the first 4 points of the viewed stick, mirroring Space Station's coupling (single observation — verify feel).</div>
+        <h3>Dead zone + anti-deadzone — 0.1% steps</h3>
+        <div className="hint">No separate window on this pad — deadzone lives in the curve head, full range always. <strong>Start</strong> reshapes the first 4 points of the viewed stick, mirroring Space Station's coupling (single observation — verify feel). End and anti stay neutral.</div>
         <div className="stack" style={{ gap: 12, marginTop: 8 }}>
-          <Slider label="Start (head lift)" value={deadStart} min={0} max={30} step={1} unit="%" onChange={(v) => nudgeHead(v)} format={(v) => `${v.toFixed(0)}%`} />
+          <Slider label="Start (head lift)" value={deadStart} min={0} max={20} step={0.1} unit="%" onChange={(v) => nudgeHead(v)} format={(v) => `${v.toFixed(1)}%`} />
+          <div style={{ opacity: 0.45, pointerEvents: 'none' }}>
+            <Slider label="End (input above = full)" value={100} min={10} max={100} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+          </div>
+          <div style={{ opacity: 0.45, pointerEvents: 'none' }}>
+            <Slider label="Anti-deadzone start (output floor — snap)" value={0} min={0} max={50} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+          </div>
+          <div style={{ opacity: 0.45, pointerEvents: 'none' }}>
+            <Slider label="Anti-deadzone end (output ceiling)" value={100} min={50} max={100} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+          </div>
         </div>
-        <div className="row spread" style={{ marginTop: 8 }}>
-          <span className="label">End (input above = full)</span>
-          <span className="mono">100% fixed</span>
+        <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
+          {(
+            [
+              { label: 'Start', key: 'start', value: deadStart, locked: false },
+              { label: 'End', key: 'end', value: 100, locked: true },
+              { label: 'Anti-start', key: 'beginAnti', value: 0, locked: true },
+              { label: 'Anti-end', key: 'endAnti', value: 100, locked: true }
+            ] as const
+          ).map((f) => (
+            <label key={f.key} className="row" style={{ gap: 6, fontSize: 12 }}>
+              <span className="label">{f.label}</span>
+              <input
+                className="input"
+                style={{ width: 76 }}
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                disabled={f.locked}
+                value={Number(f.value.toFixed(1))}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(100, Number(e.target.value)))
+                  if (!Number.isFinite(v)) return
+                  if (!f.locked) nudgeHead(v)
+                }}
+              />
+              <span style={{ color: 'var(--text-3)' }}>%</span>
+            </label>
+          ))}
+        </div>
+        <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
+          <button className="btn sm ghost" title="Reshape the curve head to a 5% start" onClick={() => nudgeHead(5)}>Factory 5%</button>
+          <button
+            className="btn sm ghost"
+            title="Watch this stick untouched for 10 s, then recommend the Start % that swallows its wander"
+            disabled={!liveFeed.present || measuring !== null}
+            onClick={() => {
+              peakRef.current = 0
+              setMeasuring({ left: 10, suggestion: null })
+            }}
+          >
+            {measuring ? `Measuring… ${measuring.left}s — don't touch` : 'Center guard: measure wander'}
+          </button>
+        </div>
+        {measuring?.suggestion !== null && measuring?.suggestion !== undefined && (
+          <div className="note warn" style={{ marginTop: 8 }}>
+            Max wander {measuring.suggestion.dev} steps off centre.{' '}
+            <button
+              className="btn sm primary"
+              style={{ marginLeft: 8 }}
+              onClick={() => {
+                nudgeHead(measuring.suggestion!.pct)
+                setMeasuring(null)
+              }}
+            >
+              Set Start {measuring.suggestion.pct}%
+            </button>{' '}
+            <button className="btn sm ghost" onClick={() => setMeasuring(null)}>Dismiss</button>
+          </div>
+        )}
+      </div>
+      <div className="card">
+        <h3>Outer Threshold — ∞ no limit</h3>
+        <div className="hint">The boundary of max stick input. This pad is full range, always.</div>
+        <div className="row spread" style={{ margin: '10px 0' }}>
+          <div>
+            <div style={{ fontSize: 13.5 }}>∞ No limit (neutral 0)</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              Active — full physical range
+            </div>
+          </div>
+          <button
+            className="btn sm primary"
+            disabled
+            title="Fixed full range on this pad"
+          >
+            ∞ On
+          </button>
+        </div>
+        <div className="note">
+          <strong>What this does.</strong> The outer threshold is the deflection where the stick hits maximum output. Neutral removes the boundary entirely: full physical range with nothing clipped or boosted at the rim.
         </div>
       </div>
+      </div>
+      <div className="stack" style={{ gap: 16 }}>
       <div className="card" style={{ borderColor: 'var(--warn)' }}>
         <h3>Custom curve designer — 9 points</h3>
         <div className="hint">The pad stores exactly <strong>9 points</strong> per stick, so this canvas is exact — no quantization. <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the pad bytes</span>. Same tab, native protocol mirrored byte-exact from live captures. Close Space Station first.</div>
@@ -1428,16 +1626,43 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
             <button key={o.t} className={`btn sm${ptype === o.t ? ' primary' : ' ghost'}`} onClick={() => setPtype(o.t)}>{o.label}</button>
           ))}
         </div>
+        <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
+          {Object.entries(AIM_CURVES).map(([key, c]) => (
+            <button
+              key={key}
+              className="btn sm ghost"
+              title={`${c.hint} (resampled to 9 points)`}
+              onClick={() => {
+                setDesign(flyToDesign(flyResampleAim(c.pts)))
+                setPtype(3)
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
         <div className="row wrap" style={{ gap: 8 }}>
           <button className="btn sm ghost" onClick={() => fillPreset(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}>Slow</button>
           <button className="btn sm ghost" onClick={() => fillPreset(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}>Quick</button>
+          <button
+            className="btn sm ghost"
+            title="Copy this stick's pad curve to the other stick"
+            onClick={() => {
+              const src = which === 0 ? padRight : padLeft
+              setDesign(src.map((p) => ({ ...p })))
+            }}
+          >
+            Copy pad curve → other stick
+          </button>
         </div>
+        <div className="note" style={{ marginTop: 8 }}>Fixed 9 points per stick — no add/remove. X positions are hardware slots.</div>
         <table className="tbl" style={{ marginTop: 8 }}>
-          <thead><tr><th>#</th><th>Value (0–150)</th></tr></thead>
+          <thead><tr><th>#</th><th>X</th><th>Y</th></tr></thead>
           <tbody>
             {design.map((p, i) => (
               <tr key={i}>
                 <td className="mono">{i + 1}</td>
+                <td><input className="input" type="number" min={0} max={255} value={p.x} disabled /></td>
                 <td><input className="input" type="number" min={0} max={150} value={FLY_D2P(p.y)} onChange={(e) => {
                   const v = Math.max(0, Math.min(150, Number(e.target.value)))
                   if (!Number.isFinite(v)) return
@@ -1447,8 +1672,32 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
             ))}
           </tbody>
         </table>
+        <div className="note" style={{ marginTop: 8 }}>
+          Pad bytes (exact, no quantization): <span className="mono">{padDesign.map((q) => `${FLY_D2P(q.y)}`).join(' · ')}</span>
+        </div>
         {msg && <div className="note" style={{ marginTop: 8 }}>{msg}</div>}
         {err && <div className="note bad" style={{ marginTop: 8 }}>{err}</div>}
+      </div>
+        <div className="card">
+          <h3>Shape</h3>
+          <div className="hint">Three shapes for this stick — processing on for the first two, fully bypassed for raw. This pad has no shape flags: output always follows the curve.</div>
+          <div className="stack" style={{ gap: 8 }}>
+            {['Round diagonals', 'Square gate', 'Pure raw 1:1'].map((name) => (
+              <button key={name} className="btn sm ghost" disabled title="No processing-flag equivalent on this pad">{name}</button>
+            ))}
+          </div>
+        </div>
+        <div className="card" style={{ borderColor: 'var(--bad)' }}>
+          <h3>Reset everything</h3>
+          <div className="hint">Returns both curves to the Slow baseline. Polling, precision and names are untouched. Then Send to apply.</div>
+          <button
+            className="btn danger"
+            style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
+            onClick={() => resetAll()}
+          >
+            RESET EVERYTHING
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -2395,7 +2644,7 @@ export default function App(): JSX.Element {
             <>
               {tab === 'sticks' && (<ApexSticks flyId={flyId} />)}
               {tab === 'device' && (
-                <ApexDevice flyId={flyId} />
+                <ApexDevice flyId={flyId} rates={rates} />
               )}
               {(tab === 'profiles' || tab === 'lab') && (
                 <div className="msg"><h3>Not mapped yet</h3><p>Profile slots and analytics are GameSir-layout only. Apex curve tuning lives in Sticks.</p></div>
