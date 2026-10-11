@@ -1,3 +1,4 @@
+import { TermsGate } from './TermsGate'
 import { Help, SectionTitle } from './Help'
 import { FirmwarePanel } from './Firmware'
 import { PerformanceBench } from './PerformanceBench'
@@ -921,6 +922,10 @@ function StickCross({ lx, ly, rx, ry }: { lx: number; ly: number; rx: number; ry
 }
 
 export default function App(): JSX.Element {
+  return <><QuitWarning /><TermsGate><AppContent /></TermsGate></>
+}
+
+function AppContent(): JSX.Element {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [connPath, setConnPath] = useState<string | null>(null)
   // Idle receivers (all-zero frames) are hidden; the open handle and
@@ -1312,7 +1317,6 @@ export default function App(): JSX.Element {
 
   return (
     <div className="app">
-      <QuitWarning />
       <aside className="sidebar">
         <div className="brand">
           <h1>Stick <span>Labs</span></h1><small className="brand-edition">Unlimited</small>

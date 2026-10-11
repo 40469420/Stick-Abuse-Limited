@@ -989,3 +989,25 @@ table.tbl tbody tr:hover {
 .rc-acknowledge:hover:not(:disabled) { background: #ffe477; color: #111; }
 .rc-controls { border: 0; padding: 0; margin: 0; min-width: 0; }
 .rc-controls-locked { opacity: .38; filter: grayscale(1); pointer-events: none; user-select: none; }
+
+/* First-run terms: blocks controls until explicit acceptance. */
+.terms-backdrop { position: fixed; inset: 0; z-index: 1000; background: #10090def; padding: 24px; display: grid; place-items: center; overflow: auto; }
+.terms-dialog { width: min(1120px, 100%); height: min(820px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); display: grid; grid-template-columns: minmax(0, 1fr) 250px; background: var(--bg-1); border: 1px solid var(--line-2); border-top: 5px solid var(--warn); border-radius: var(--radius); overflow: hidden; }
+.terms-main { height: 100%; min-height: 0; display: flex; flex-direction: column; padding: 24px; gap: 16px; overflow: hidden; }
+.terms-main header, .terms-main footer { flex-shrink: 0; }
+.terms-main header h1 { font-size: 24px; line-height: 1.25; margin: 6px 0 10px; }
+.terms-main header p { margin: 0; color: var(--text-2); }
+.terms-eyebrow { color: var(--warn); font-size: 12px; font-weight: 700; }
+.terms-copy { overflow-y: auto; min-height: 100px; padding-right: 14px; line-height: 1.65; font-size: 13px; }
+.terms-copy h2, .terms-official h2 { font-size: 15px; margin: 18px 0 8px; }
+.terms-copy h2:first-child { margin-top: 0; }
+.terms-copy p { color: var(--text-2); margin: 0 0 12px; }
+.terms-main footer { border-top: 1px solid var(--line); padding-top: 16px; }
+.terms-check { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; margin-bottom: 14px; }
+.terms-check input { flex-shrink: 0; margin-top: 4px; }
+.terms-main footer .row { gap: 12px; }
+.terms-main footer .hint { max-width: 240px; }
+.terms-official { padding: 24px; background: var(--bg-2); border-left: 1px solid var(--line); font-size: 13px; line-height: 1.6; }
+.terms-official h2 { margin-top: 0; }
+.terms-official span { display: block; margin-top: 12px; font-size: 11px; overflow-wrap: anywhere; color: var(--text-2); }
+@media (max-width: 800px) { .terms-backdrop { padding: 12px; } .terms-dialog { height: auto; max-height: calc(100dvh - 24px); grid-template-columns: minmax(0, 1fr); overflow-y: auto; } .terms-main { overflow: visible; padding: 18px; } .terms-copy { max-height: 45dvh; } .terms-official { padding: 18px; border-left: 0; border-top: 1px solid var(--line); } }
