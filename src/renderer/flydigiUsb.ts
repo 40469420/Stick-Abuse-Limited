@@ -139,35 +139,21 @@ class FlyTransport {
     } catch {
       picked = []
     }
-    let dev: HidDeviceLike | null = null
-    for (const p of picked) {
-      if (p.vendorId === FLY_VID && (await openOk(p))) {
-        dev = p
-        break
-      }
-      try {
-        if (p.opened) await p.close()
-      } catch {
-        /* ignore */
-      }
+    const granted = await h.getDevices().catch(() => [] as HidDeviceLike[])
+    // Never nuke the live session until a replacement is open: a cancelled
+    // re-click used to disconnect first and strand the UI as connected.
+    for (const c of [...picked, ...granted]) {
+      if (c.vendorId !== FLY_VID) continue
+      if (!(await openOk(c))) continue
+      if (c !== this.device) this.disconnect()
+      this.device = c
+      c.addEventListener('inputreport', this.onReport as EventListener)
+      return c
     }
-    if (!dev) {
-      const granted = await h.getDevices().catch(() => [] as HidDeviceLike[])
-      for (const g of granted) {
-        if (g.vendorId === FLY_VID && (await openOk(g))) {
-          dev = g
-          break
-        }
-      }
-    }
-    if (!dev) {
+    if (!this.device?.opened) {
       throw new Error('No Flydigi device selected — if the list was empty, quit Space Station fully (window + service: it locks the pad) and retry')
     }
-    if (!dev.opened) await dev.open()
-    this.disconnect()
-    this.device = dev
-    dev.addEventListener('inputreport', this.onReport as EventListener)
-    return dev
+    return this.device
   }
 
   disconnect(): void {
