@@ -14,9 +14,7 @@ Stick-only Electron companion. No remap / macros / lighting / motion code.
 | Calibration | `0F FE <calType> <mask>` | Enter / Commit / Cancel |
 
 Hardware truth: the ADC maxes at **12-bit (4096 levels)**. Raw wires outside
-`0–4` (resolution) / `1–21` (RC) are stored byte-exact and flagged red — the
-firmware may clamp or ignore them.
-
+`0–4` (resolution) / `1–21` 
 ## Run
 
 ```powershell
