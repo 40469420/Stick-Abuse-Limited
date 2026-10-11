@@ -1,3 +1,4 @@
+import { Help } from './Help'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { api, type LiveSample } from './api'
 import type { CenterDirection } from '@shared/center'
@@ -78,10 +79,7 @@ export function CenterOffsets({ busy }: { busy: boolean }): JSX.Element {
   }
   return <div className="stack" style={{ gap: 16 }}>
     <div className="card">
-      <h3>Center offsets</h3>
-      <p className="hint">Fine-tune the resting center of each stick with the same directional nudges as GameSir Connect 1.16.7.</p>
-      <div className="note">Each arrow applies immediately to the controller across all profiles. These offsets are separate from exported profiles. GameSir restores the default through stick recalibration; there is no verified reset or absolute-offset readback here.</div>
-      <p className="hint">Leave the sticks untouched. Drag inside a preview to nudge its center in the direction you move, or use the arrows for individual steps. Release the mouse to stop; one command already sent may still finish. The dot shows live original-axis values, not a simulated offset.</p>
+      <div className="section-title"><h3>Center offsets</h3><Help title="Center offsets">Fine-tune the resting center of each stick with the same directional nudges as GameSir Connect 1.16.7. Each arrow applies immediately to the controller across all profiles. These offsets are separate from exported profiles. GameSir restores the default through stick recalibration; there is no verified reset or absolute-offset readback here. Leave the sticks untouched. Drag inside a preview to nudge its center in the direction you move, or use the arrows for individual steps. Release the mouse to stop; one command already sent may still finish. The dot shows live original-axis values, not a simulated offset. Display zoom: ±30%. Positive Y points down.</Help></div><p className="hint">Leave sticks untouched. Drag the preview or use the arrows; changes apply immediately.</p>
     </div>
     <div className="two">
       {[0, 1].map((side) => {
@@ -113,7 +111,7 @@ export function CenterOffsets({ busy }: { busy: boolean }): JSX.Element {
             <button className="btn" aria-label={`${side === 0 ? 'Left' : 'Right'} center left`} disabled={disabled} onClick={() => void adjust(side, 'left')}>←</button><span className="hint" style={{ alignSelf: 'center', textAlign: 'center' }}>Nudge</span><button className="btn" aria-label={`${side === 0 ? 'Left' : 'Right'} center right`} disabled={disabled} onClick={() => void adjust(side, 'right')}>→</button>
             <span /><button className="btn" aria-label={`${side === 0 ? 'Left' : 'Right'} center down`} disabled={disabled} onClick={() => void adjust(side, 'down')}>↓</button><span />
           </div>
-          <p className="hint">{steps[side]} acknowledged nudges this session. {fresh && raw && !ready ? 'Release the stick near its center before adjusting.' : 'Display zoom: ±30%. Positive Y points down.'}</p>
+          <p className="hint">{steps[side]} acknowledged nudges this session. {fresh && raw && !ready ? 'Release the stick near its center before adjusting.' : ''}</p>
         </div>
       })}
     </div>

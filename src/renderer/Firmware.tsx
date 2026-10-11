@@ -1,3 +1,4 @@
+import { Help } from './Help'
 import { useEffect, useState } from 'react'
 import { api } from './api'
 import type { FirmwareImage, FirmwareStatus } from '../shared/firmware'
@@ -34,15 +35,11 @@ export function FirmwarePanel({ hasUnsavedEdits = false }: { hasUnsavedEdits?: b
       <button className="btn rc-acknowledge" disabled={acknowledged} onClick={() => setAcknowledged(true)}>{acknowledged ? 'Acknowledged' : 'I understand Machi'}</button>
     </section>
     <fieldset disabled={!acknowledged} className={`rc-controls${acknowledged ? '' : ' rc-controls-locked'}`} aria-label="Firmware controls">
-    <section className="card"><h2>Firmware</h2>
-      <p>Only open Connect after the Stick Labs updater has finished or stopped. Connect restored our test controller, but recovery is not guaranteed on every failure or device.</p>
-      <p>A failed flash may require hardware repair. GameSir’s dual-backup setting does not guarantee recovery. RC behavior and compatibility depend on the controller hardware and firmware.</p>
-      <p>Controller only · G7 Pro 8K · original 2.1.0 or 2.2.9 images. GameSir Connect must be installed for its updater library, but close its window and tray process before testing. Use a direct USB connection and a stable cable.</p>
-      <p>All four profiles are saved before entering update mode. This saves settings, not a full flash dump or guaranteed recovery image. Original controller 2.1.0 and 2.2.9 images are included.</p>
+    <section className="card"><div className="section-title"><h2>Firmware</h2><Help title="Firmware preparation and recovery">Only open Connect after the Stick Labs updater has finished or stopped. Connect restored our test controller, but recovery is not guaranteed on every failure or device. A failed flash may require hardware repair. GameSir’s dual-backup setting does not guarantee recovery. RC behavior and compatibility depend on the controller hardware and firmware. Controller only · G7 Pro 8K · original 2.1.0 or 2.2.9 images. GameSir Connect must be installed for its updater library, but close its window and tray process before testing. Use a direct USB connection and a stable cable.</Help></div><p className="hint">Close GameSir Connect before flashing. Use a stable cable and direct USB connection.</p>
       <div className="row"><button className="btn" disabled={locked} onClick={() => void choose('2.1.0')}>Validate bundled 2.1.0</button><button className="btn" disabled={locked} onClick={() => void choose('2.2.9')}>Validate bundled 2.2.9</button></div>
       <button className="btn" disabled={locked} onClick={() => void choose()}>Choose and validate .ufw file</button>
-      {image && <><p><strong>Target: controller {image.version} · {image.variant}</strong><br />{image.path}</p>
-        <p className="hint">SHA-256: {image.sha256}</p>
+      {image && <><p><strong>Target: controller {image.version} · {image.variant}</strong></p>
+        <Help title="Validated firmware details">File: {image.path}<br />SHA-256: {image.sha256}</Help>
         <label><input type="checkbox" checked={accepted} disabled={locked} onChange={(event) => setAccepted(event.target.checked)} /> I accept the risk of losing controller functionality. This writes firmware.</label>
         <p>Type <strong>FLASH {image.version}</strong> to enable the flash button.</p>
         <input aria-label="Firmware flash confirmation" value={confirmation} disabled={locked} onChange={(event) => setConfirmation(event.target.value)} />
@@ -52,7 +49,7 @@ export function FirmwarePanel({ hasUnsavedEdits = false }: { hasUnsavedEdits?: b
       {hasUnsavedEdits && <p>Save or discard your unsaved profile edits before flashing. The backup reads the settings stored on the controller.</p>}
       {locked && <p><strong>Wait for the operation to finish. Do not unplug USB or quit. Any percentage shown comes from GameSir’s updater; wait for its final result even at 100%.</strong></p>}
       {status.backup && <button className="btn ghost" disabled={locked} onClick={() => void api().openFirmwareBackup()}>Open saved profiles and flash log</button>}
-      <p className="hint">After a completed update, rescan USB, reconnect, and verify the reported firmware version. The updater finishing does not prove the controller booted the target version. No profiles are restored automatically.</p>
+      <div className="context-help"><Help title="How this works">After a completed update, rescan USB, reconnect, and verify the reported firmware version. The updater finishing does not prove the controller booted the target version. All four profiles are saved before entering update mode. This saves settings, not a full flash dump or guaranteed recovery image. Original controller 2.1.0 and 2.2.9 images are included. No profiles are restored automatically.</Help></div>
     </section>
     </fieldset>
   </div>

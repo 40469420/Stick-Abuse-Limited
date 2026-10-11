@@ -37,6 +37,10 @@ assert.deepEqual(validateXInputBench(valid), valid)
 assert.throws(() => validateXInputBench({ ...valid, changeHz: 8000 }), 'never accept a fabricated target rate')
 assert.throws(() => validateXInputBench({ ...valid, packetChanges: 5 }))
 assert.throws(() => validateXInputBench({ ...valid, intervals: { ...valid.intervals, p95: NaN } }))
+const codes = validateXInputBench({ ...valid, axisCodes: [[0,16],[-16,0],[0],[0]], axisRms: [8,8,0,0] }).codes!
+assert.equal(codes[0].lattice, 16); assert.equal(codes[0].count, 4); assert.equal(codes[0].rms, 8)
+assert.throws(() => validateXInputBench({ ...valid, axisCodes: [[32768],[0],[0],[0]], axisRms: [0,0,0,0] }))
+assert.throws(() => validateXInputBench({ ...valid, axisCodes: [[0],[0],[0],[0]], axisRms: [NaN,0,0,0] }))
 
 let now = 0
 const snapshots: unknown[] = []

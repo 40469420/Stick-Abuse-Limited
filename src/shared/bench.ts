@@ -1,3 +1,4 @@
+import { axisCode, codeEvidence, type CodeEvidence } from './precision'
 /** Host-observed measurements. None of these statistics establishes physical input latency. */
 export interface Distribution {
   count: number; min: number; median: number; p95: number; p99: number; max: number; mean: number; stdDev: number
@@ -26,11 +27,13 @@ export interface StickMetrics {
   oppositePeak: number | null; settleMs: number | null; releases: number
 }
 export interface BenchCapture {
+  codes?: CodeEvidence[]
   source: 'vendor'; mode: BenchMode; durationMs: number; reports: number; reportHz: number; changedReports: number
   changedHz: number; repeatedPercent: number; intervals: Distribution | null; axes: AxisMetrics[]; sticks: StickMetrics[]
   triggers: AxisMetrics[]; triggerTransitions: number[]; trace: BenchSample[]; limited: boolean
 }
 export interface XInputBench {
+  codes?: CodeEvidence[]
   slot: number; durationMs: number; polls: number; packetChanges: number; stickChanges: number[]
   pollHz: number; changeHz: number; intervals: Distribution | null; calls: Distribution | null; pollIntervals: Distribution | null
 }
@@ -53,6 +56,7 @@ export function analyzeCapture(samples: readonly BenchSample[], durationMs: numb
       s.axes.some(v => Math.abs(v) > 1.01) || s.triggers.some(v => v < 0 || v > 1)) throw new Error('Invalid capture samples.')
   }
   const axes = [0, 1, 2, 3].map(i => axisMetrics(samples.map(s => s.axes[i])))
+  const codes = [0, 1, 2, 3].map(i => codeEvidence(samples.map(s => axisCode(s.axes[i]))))
   const triggers = [0, 1].map(i => axisMetrics(samples.map(s => s.triggers[i])))
   const gaps: number[] = []; let changed = 0
   for (let i = 1; i < samples.length; i++) {
@@ -101,5 +105,5 @@ export function analyzeCapture(samples: readonly BenchSample[], durationMs: numb
   const stride = Math.max(1, Math.ceil(samples.length / 2000))
   return { source: 'vendor', mode, durationMs, reports: samples.length, reportHz: samples.length * 1000 / durationMs,
     changedReports: changed, changedHz: changed * 1000 / durationMs, repeatedPercent: 100 * (1 - changed / (samples.length - 1)),
-    intervals: distribution(gaps), axes, sticks, triggers, triggerTransitions, trace: samples.filter((_, i) => i % stride === 0), limited }
+    intervals: distribution(gaps), axes, codes, sticks, triggers, triggerTransitions, trace: samples.filter((_, i) => i % stride === 0), limited }
 }

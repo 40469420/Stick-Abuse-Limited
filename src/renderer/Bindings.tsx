@@ -1,3 +1,4 @@
+import { Help } from './Help'
 import { useState } from 'react'
 import { button, trigger, macro, type Profile } from '@shared/profile'
 import { BINDING_KEYS, BUTTON_LABELS, FUNCTION_LABELS, bindingLabel, setBinding } from '@shared/bindings'
@@ -26,9 +27,7 @@ export function Bindings({ profile, edit, busy }: { profile: Profile; edit: (fn:
   const hasMacro = target.functionKey && macro.macroEnabled(target.packet)
   return <div className="stack" style={{ gap: 16 }}>
     <div className="card">
-      <h3>Keybindings</h3>
-      <p className="hint">Map a controller button to another button, keyboard key, mouse action, or up to three simultaneous outputs. Changes are staged in this profile; use Write to controller to apply.</p>
-      <p className="note">Keyboard and mouse outputs depend on controller mode and firmware. Macros, turbo and automated actions may violate a game’s rules. Their presence in Connect does not establish permission to use them in a game.</p>
+      <div className="section-title"><h3>Keybindings</h3><Help title="Keybindings">Map a controller button to another button, keyboard key, mouse action, or up to three simultaneous outputs. Changes are staged in this profile; use Write to controller to apply. Keyboard and mouse outputs depend on controller mode and firmware. Macros, turbo and automated actions may violate a game’s rules. Their presence in Connect does not establish permission to use them in a game.</Help></div>
     </div>
     <fieldset className="card control-fieldset" disabled={busy}>
       <label className="stack">Physical button
@@ -36,7 +35,7 @@ export function Bindings({ profile, edit, busy }: { profile: Profile; edit: (fn:
           {targets.map((t, i) => <option key={i} value={i}>{t.label}</option>)}
         </select>
       </label>
-      <p className="hint">{hasMacro ? 'A macro currently overrides this button. Changing its binding disables that macro but keeps the stored steps.' : mapped ? `Current outputs: ${values.filter(Boolean).map(bindingLabel).join(' + ')}` : 'Original button behavior.'}</p>
+      <p className="hint">{hasMacro ? 'Macro overrides this button.' : mapped ? `Current outputs: ${values.filter(Boolean).map(bindingLabel).join(' + ')}` : 'Original button behavior.'}</p>
       <div className="control-grid">
         {values.map((value, i) => <label className="stack" key={i}>Output {i + 1}
           <KeyPicker label={`Output ${i + 1}`} value={value} onChange={(next) => edit(() => { const outputs = [...values]; outputs[i] = next; setBinding(target.packet, outputs, target.isTrigger, target.functionKey) })} />
@@ -56,16 +55,15 @@ export function Bindings({ profile, edit, busy }: { profile: Profile; edit: (fn:
           }} />
         </label>
       </div>
-      <p className="hint">Empty slots leave the original behavior when all three are empty. Unbound explicitly disables output. Turbo uses the controller’s stored speed scale; firmware may limit the usable range.</p>
+      <div className="context-help"><Help title="How this works">Changing a binding disables its macro but keeps the stored steps. Empty slots leave the original behavior when all three are empty. Unbound explicitly disables output. Turbo uses the controller’s stored speed scale; firmware may limit the usable range.</Help></div>
     </fieldset>
-    <div className="card">
-      <h3>Binding overview</h3>
+    <details className="card"><summary>All button bindings</summary>
       <div className="control-overview">{targets.map((t, i) => {
         const a = t.isTrigger ? trigger : button
         return <button className={`btn ghost${selected === i ? ' active' : ''}`} key={i} onClick={() => setSelected(i)}>
           <strong>{t.label}</strong><span className="hint">{t.functionKey && macro.macroEnabled(t.packet) ? 'Macro' : a.mapped(t.packet) ? a.mapValues(t.packet).filter(Boolean).map(bindingLabel).join(' + ') : 'Original'}</span>
         </button>
       })}</div>
-    </div>
+    </details>
   </div>
 }

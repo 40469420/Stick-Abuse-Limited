@@ -6,7 +6,35 @@ The expanded controls target the **GameSir G7 Pro 8K**. Other detected models re
 
 ## Install
 
-Download the setup executable from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). The installer, application window and tray use **Stick Labs (Unlimited)**. Releases include the installer and updater files, with no portable executables. Installed copies check this fork for updates, download available versions and offer to restart.
+Download the setup executable from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). The installer, application window and tray use **Stick Labs (Unlimited)**. Releases include the installer and updater files. Version 2.2.3 also offers an optional portable executable. Installed copies check this fork for updates, download available versions and offer to restart.
+
+## New in 2.2.3: interface cleanup and bit-depth verification
+
+All sections use consistent headings, spacing and click-to-open question-mark
+help. Gyro and triggers group activation, output, range and response controls;
+gyro shows destination-specific sensitivity and combination keys when applicable.
+Exact stick curve points and reset tools remain available in expandable panels.
+Steam exports appear only on Steam, and profile-edit controls are hidden on pages
+that do not edit profiles. Required RC/firmware acknowledgements remain visible.
+
+Lab has separate timing, bit-depth and saved-comparison views. Bit-depth verification
+compares rest and slow-sweep captures at 12-bit against 13/14/16/20/24-bit experimental
+requests, using either vendor original axes or an explicitly selected XInput slot.
+It checks the active profile and stored setting before/after captures, rejects
+changes to other profile bytes, and uses all samples for output-code evidence.
+Results distinguish finer reported output, additional noise, unchanged observed
+spacing and inconclusive movement. These are heuristic comparisons, not ADC proofs.
+
+Apply changes only the resolution field of a freshly read active profile using
+the existing verified write path. It can reboot the controller. Save/discard edits
+first. The original resolution byte is saved locally before writing and can be
+restored after reopening the page/app on the same connection/profile. Leaving the
+page does **not** restore it automatically. Other settings are read fresh during
+restore. Use the explicit read check after reconnect to check stored-setting
+retention. If background RC reset changes other profile bytes during a write, the
+comparison stops; restart with consistent settings. Exports include context and
+evidence. XInput axes are signed 16-bit output fields, not proof of sensor precision
+([Microsoft documentation](https://learn.microsoft.com/en-us/windows/win32/api/xinput/ns-xinput-xinput_gamepad)).
 
 ## New in 2.2.2: performance bench
 
@@ -32,7 +60,7 @@ These are host-observed measurements. XInput cached-state changes do not prove
 USB bus polling or physical sensor rate. API calls and profile-query round trips
 do not measure physical button-to-host/game latency. Distinct values and wire
 width do not establish ADC resolution. Instrumented hardware or a separate bus
-capture is needed for those claims. No controller settings are changed by tests.
+capture is needed for those claims. Timing and motion captures do not change controller settings. The separate bit-depth workflow changes resolution only when you click Apply.
 
 ## New in 2.2.1
 

@@ -21,6 +21,7 @@ const entry =
     ? tests
     : [
         'tests/bench.ts',
+        'tests/precision.ts',
         'tests/rawbytes.ts',
         'tests/models.ts',
         'tests/t3ce.ts',

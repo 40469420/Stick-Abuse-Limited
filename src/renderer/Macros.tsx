@@ -1,3 +1,4 @@
+import { Help } from './Help'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { Profile } from '@shared/profile'
 import { bindingLabel, FUNCTION_LABELS, keyboardCode } from '@shared/bindings'
@@ -109,9 +110,7 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
   let timelineAt = 0
   return <div className="stack" style={{ gap: 16 }}>
     <div className="card">
-      <h3>Macros</h3>
-      <p className="hint">Build a sequence for FL1, FR1, FL2 or FR2. Record controller buttons or keyboard keys, edit timings, reorder or duplicate steps, and save reusable files. Up to 32 sequential steps; each hold and delay is 0–65,535 ms.</p>
-      <p className="note">Playback on the controller starts from its assigned physical button after you write the profile. Timeline preview only animates this page. Automated gameplay may break game rules; no ban-safe claim is made.</p>
+      <div className="section-title"><h3>Macros</h3><Help title="Macros">Build a sequence for FL1, FR1, FL2 or FR2. Record controller buttons or keyboard keys, edit timings, reorder or duplicate steps, and save reusable files. Up to 32 sequential steps; each hold and delay is 0–65,535 ms. Playback on the controller starts from its assigned physical button after you write the profile. Timeline preview only animates this page. Automated gameplay may break game rules; no ban-safe claim is made. Enabling a macro clears this button’s normal mapping, turbo and toggle to avoid conflicting outputs. Disabling it keeps the steps for later editing.</Help></div>
     </div>
     <div className="card">
       <label className="stack">Macro button
@@ -127,7 +126,6 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
           <label><input type="checkbox" checked={doc.cycle} onChange={(e) => apply({ ...doc, cycle: e.target.checked })} /> Loop</label>
           <label>Loop delay (ms) <input className="input compact" type="number" min={0} max={65535} value={doc.cycleTime} onChange={(e) => apply({ ...doc, cycleTime: Number(e.target.value) })} /></label>
         </div>
-        <p className="hint">Enabling a macro clears this button’s normal mapping, turbo and toggle to avoid conflicting outputs. Disabling it keeps the steps for later editing.</p>
         <div className="row wrap" style={{ gap: 8 }}>
           <button className="btn" onClick={() => void startRecording('controller')}>Record controller</button>
           <button className="btn" onClick={() => void startRecording('keyboard')}>Record keyboard</button>
@@ -198,7 +196,7 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
           <label>Delay <input className="input compact" type="number" min={0} max={65535} value={bulkDelay} onChange={(e) => setBulkDelay(Number(e.target.value))} /></label>
           <button className="btn sm ghost" onClick={() => steps(doc.steps.map((s, i) => ({ ...s, delay: i === 31 ? 0 : bulkDelay })))}>Apply delay to all</button>
         </div>
-        <p className="hint">Step 32 has no trailing-delay field in the controller format. Use Loop delay for the gap between repeated sequences. Reordering that would lose a delay is rejected.</p>
+        <div className="context-help"><Help title="How this works">Step 32 has no trailing-delay field in the controller format. Use Loop delay for the gap between repeated sequences. Reordering that would lose a delay is rejected.</Help></div>
         <div className="row wrap" style={{ gap: 8 }}>
           <label>Copy to <select className="input" value={copyTarget} onChange={(e) => setCopyTarget(Number(e.target.value))}>{FUNCTION_LABELS.map((name, i) => <option value={i} key={name}>{name}</option>)}</select></label>
           <button className="btn ghost" disabled={selected === copyTarget} onClick={() => {

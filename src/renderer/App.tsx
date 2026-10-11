@@ -1,3 +1,4 @@
+import { Help, SectionTitle } from './Help'
 import { FirmwarePanel } from './Firmware'
 import { PerformanceBench } from './PerformanceBench'
 import { useEffect, useRef, useState } from 'react'
@@ -28,6 +29,23 @@ import { fitCurveExponent } from '@shared/steamcfg'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
 
+const PAGE_INFO = {
+  sticks: ['Sticks', 'Choose a stick, tune its response, then write to apply.'],
+  device: ['Device', 'Report rate, resolution and controller output settings.'],
+  triggers: ['Triggers', 'Tune left and right trigger travel independently.'],
+  gyro: ['Gyro', 'Configure activation, output and motion response.'],
+  rc: ['RC filters', 'Filter controls, background resets and measured comparisons.'],
+  center: ['Center offsets', 'Drag or nudge the resting center of each stick.'],
+  bindings: ['Keybindings', 'Choose a physical button and assign its outputs.'],
+  macros: ['Macros', 'Record, arrange and time a button sequence.'],
+  profiles: ['Profiles', 'Back up, restore and transfer controller profiles.'],
+  lab: ['Performance bench', 'Measure input timing, stick behavior and bit-depth changes.'],
+  steam: ['Steam export', 'Design settings and export them to installed Steam games.'],
+  calibrate: ['Calibration', 'Choose a workflow and follow the controller’s progress.'],
+  firmware: ['Firmware', 'Firmware selection, flashing and recovery information.'],
+  marius: ['Marius board', 'Read-only identity, configuration and live stick preview.']
+} as const
+
 /** Stick deadzone packet → whole percent for the Steam exporter. */
 function deadzonePct(pkt: import('@shared/profile').Packet): { begin: number; end: number; anti: number } {
   const d = stick.deadzone(pkt)
@@ -44,13 +62,14 @@ function Slider(props: {  label: string
   format?: (v: number) => string
 }): JSX.Element {
   return (
-    <label style={{ display: 'block' }}>
+    <div className="slider-field">
       <div className="row spread">
-        <span className="label">{props.label}</span>
+        <span className="row" style={{ gap: 6 }}><span className="label">{props.label.split(' (')[0]}</span>{props.label.includes(' (') && <Help title={props.label.split(' (')[0]}>{props.label}</Help>}</span>
         <span className="mono">{props.format ? props.format(props.value) : `${props.value}${props.unit ?? ''}`}</span>
       </div>
       <input
         type="range"
+        aria-label={props.label}
         className="input"
         style={{ width: '100%' }}
         min={props.min}
@@ -59,7 +78,7 @@ function Slider(props: {  label: string
         value={props.value}
         onChange={(e) => props.onChange(Number(e.target.value))}
       />
-    </label>
+    </div>
   )
 }
 
@@ -340,8 +359,7 @@ function SteamCard({ left, right, mouseRate, fittedK }: { left: { begin: number;
 
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <h3>Export to Steam — any controller</h3>
-      <div className="hint">Writes your deadzones + Controller Rate pick into Steam's files so any Steam pad plays them.</div>
+      <div className="section-title"><h3>Export to Steam — any controller</h3><Help title="Export to Steam — any controller">Writes your deadzones + Controller Rate pick into Steam's files so any Steam pad plays them.</Help></div>
       <label className="row" style={{ gap: 8, marginTop: 8, fontSize: 12.5 }}>
         <input
           type="checkbox"
@@ -467,8 +485,7 @@ function LockedDump({ modelId, modelName, defaultLength }: { modelId: string; mo
 
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <h3>Locked — {modelName ?? 'unknown model'}</h3>
-      <div className="hint">Profile backup is disabled for this model — its profile layout is unverified, so reads and writes stay off. A read-only dump helps unlock it.</div>
+      <div className="section-title"><h3>Locked — {modelName ?? 'unknown model'}</h3><Help title="Control details">Profile backup is disabled for this model — its profile layout is unverified, so reads and writes stay off. A read-only dump helps unlock it.</Help></div>
       <div className="row" style={{ gap: 8, marginTop: 10 }}>
         <input
           className="input"
@@ -577,8 +594,7 @@ function MariusPanel(): JSX.Element {
   return (
     <div className="stack" style={{ gap: 16 }}>
       <div className="card" style={{ borderColor: 'var(--warn)' }}>
-        <h3>Marius board — read-only preview</h3>
-        <div className="hint">Reverse-engineered from the public setup web app — <strong>unverified against hardware</strong>. This build has no write path: connect, identity and config reads only. Setup mode: hold PS while plugging USB.</div>
+        <div className="section-title"><h3>Marius board — read-only preview</h3><Help title="Marius board — read-only preview">Reverse-engineered from the public setup web app — <strong>unverified against hardware</strong>. This build has no write path: connect, identity and config reads only. Setup mode: hold PS while plugging USB.</Help></div>
         <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
           <button className="btn sm" disabled={busy} onClick={() => void scan()}>Scan USB</button>
           {session && (
@@ -621,8 +637,8 @@ function MariusPanel(): JSX.Element {
         </div>
       )}
       {config && (
-        <div className="card">
-          <h3>Config — 256 B</h3>
+        <details className="card"><summary>Technical board configuration</summary>
+
           <div className="row wrap" style={{ gap: 6, margin: '8px 0' }}>
             <span className={`pill${config.valid ? ' good' : ' bad'}`}>{config.valid ? 'valid (v2 + marker)' : 'INVALID — do not trust'}</span>
             {config.curvesPresent && <span className="pill">curves blob ({config.curvesLength} B)</span>}
@@ -640,7 +656,7 @@ function MariusPanel(): JSX.Element {
               <tr><td className="mono">invert</td><td className="mono">LX{config.invert.lx ? '±' : ''} LY{config.invert.ly ? '±' : ''} RX{config.invert.rx ? '±' : ''} RY{config.invert.ry ? '±' : ''}</td></tr>
             </tbody>
           </table>
-        </div>
+        </details>
       )}
       {raw && (
         <div className="card">
@@ -826,8 +842,7 @@ function ProfilesPanel({ connected, activeSlot, locked, modelId, modelLen, dumpL
 
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <h3>Stick profiles — backup &amp; transfer</h3>
-      <div className="hint">Each slot is a 1070-byte blob; this card only reads/writes whole slots, so stick bytes are never half-merged.</div>
+      <div className="section-title"><h3>Stick profiles — backup &amp; transfer</h3><Help title="Stick profiles — backup &amp; transfer">Each slot is a 1070-byte blob; this card only reads/writes whole slots, so stick bytes are never half-merged.</Help></div>
       <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
         <button className="btn sm" disabled={busy} onClick={() => void refreshAll()}>{busy ? 'Working…' : 'Read all from controller'}</button>
         <button className="btn sm" disabled={busy} onClick={() => void backupAll()}>Backup all → JSON</button>
@@ -1227,6 +1242,8 @@ export default function App(): JSX.Element {
   const gearHz = rates.find((o) => o.gear === gear)?.hz ?? 0
   const resWire = fd ? fun.extend.stickResolution(fd) : 0
   const resInfo = describeRawResolution(fd ? fun.extend.stickResolution(fd) : 0)
+  const experimentalBits = EXTENDED_BITS.find(b => bitsToWireRaw(b) === resWire)
+  const resolutionLabel = experimentalBits ? experimentalBits + '-bit request · experimental' : resInfo.standard ? resBits + '-bit · ' + bitsToLevels(resBits).toLocaleString() + ' levels' : 'Resolution wire ' + resWire + ' · unrecognized'
 
   // Center guard: while measuring, track the worst rest deviation of the
   // current stick; the countdown then proposes a Start % that covers it.
@@ -1298,7 +1315,7 @@ export default function App(): JSX.Element {
       <QuitWarning />
       <aside className="sidebar">
         <div className="brand">
-          <h1>Stick <span>Labs</span></h1>
+          <h1>Stick <span>Labs</span></h1><small className="brand-edition">Unlimited</small>
         </div>
         <nav className="nav">
           <div className="nav-group">
@@ -1431,10 +1448,11 @@ export default function App(): JSX.Element {
       <main className="main">
         <header className="topbar">
           <div className="row" style={{ gap: 12 }}>
-            <h2>Stick Labs (Unlimited)</h2>
-            <span className="sub">bit depth + raw unlock · curves · live sticks</span>
+            <h2>{PAGE_INFO[tab][0]}</h2>
+            <span className="sub">{PAGE_INFO[tab][1]}</span>
           </div>
-          <div className="row" style={{ gap: 8 }}>
+          {!['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles'].includes(tab) && <div className="row profile-toolbar" style={{ gap: 8 }}>
+            <span className="label">Editing profile</span>
             {[1, 2, 3, 4].map((s) => (
               <button
                 key={s}
@@ -1454,7 +1472,7 @@ export default function App(): JSX.Element {
                 Saved ✓ {new Date(savedAt.at).toLocaleTimeString()}
               </span>
             )}
-          </div>
+          </div>}
         </header>
         <div className="content">
           {showSafety && (
@@ -1488,8 +1506,7 @@ export default function App(): JSX.Element {
           {msg && <div className="note">{msg}</div>}
           {tab === 'steam' && (
             <div className="card" style={{ marginBottom: 16 }}>
-              <h3>Steam — no pad needed</h3>
-              <div className="hint">Tune deadzones here for export to Steam. Outer reach rides along inside Full power. Anti snap exports as Steam's on/off flag.</div>
+              <div className="section-title"><h3>Steam — no pad needed</h3><Help title="Steam — no pad needed">Tune deadzones here for export to Steam. Outer reach rides along inside Full power. Anti snap exports as Steam's on/off flag.</Help></div>
               <div className="two" style={{ alignItems: 'start', marginTop: 10 }}>
                 {(['Left', 'Right'] as const).map((name, i) => {
                   const vp = vSticks[i]
@@ -1525,8 +1542,7 @@ export default function App(): JSX.Element {
                 ))}
               </div>
               <div className="card" style={{ marginTop: 16 }}>
-                <h3>Aim response — custom curve for Steam</h3>
-                <div className="hint">Design freely (drag, add up to 10 points). On export this is fitted to Steam's single-exponent language — the closest thing possible, not 1:1. Current fit: <span className="mono">k ≈ {fitCurveExponent(vDesign)}</span></div>
+                <div className="section-title"><h3>Aim response — custom curve for Steam</h3><Help title="Control details">Design freely (drag, add up to 10 points). On export this is fitted to Steam's single-exponent language — the closest thing possible, not 1:1. Current fit: <span className="mono">k ≈ {fitCurveExponent(vDesign)}</span></Help></div>
                 <CurvePlot points={vDesign} onChange={setVDesign} />
                 <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
                   {Object.entries(AIM_CURVES).map(([key, c]) => (
@@ -1570,7 +1586,7 @@ export default function App(): JSX.Element {
               </div>
             </div>
           )}
-          {dirty && <div className="note warn">Unsaved profile changes — write to apply. Writing the running slot reboots the pad (~1-2 s).</div>}
+          {dirty && <div className="note warn">Unsaved profile changes — write to apply.</div>}
           {tab !== 'steam' && !connected && (
             <div className="msg"><h3>Connect a controller</h3><p>G7 Pro 8K · G7 Pro · Tarantula 8K (plus new 8K editions via auto-check). Rescan, then connect the vendor interface. Close GameSir Connect first — it holds the handle.</p></div>
           )}
@@ -1594,14 +1610,13 @@ export default function App(): JSX.Element {
                   </button>
                 ))}
                 <div style={{ flex: 1 }} />
-                <span className="pill">{resBits}-bit · {bitsToLevels(resBits).toLocaleString()} levels</span>
+                <span className="pill">{resolutionLabel}</span>
               </div>}
               {tab === 'sticks' && (
               <div className="two" style={{ alignItems: 'start' }}>
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
-                    <h3>Live sticks</h3>
-                    <div className="hint">0x12 vendor report, 0–255, centre 128. Move the sticks.</div>
+                    <div className="section-title"><h3>Live sticks</h3><Help title="Live sticks">0x12 vendor report, 0–255, centre 128. Move the sticks.</Help></div>
                     <StickCross lx={live?.lx ?? 128} ly={live?.ly ?? 128} rx={live?.rx ?? 128} ry={live?.ry ?? 128} />
                     <div className="row spread">
                       <span className="mono">L {live?.lx ?? '—'},{live?.ly ?? '—'}</span>
@@ -1611,15 +1626,14 @@ export default function App(): JSX.Element {
 
 
                   <div className="card">
-                    <h3>Dead zone + anti-deadzone — 0.1% steps</h3>
-                    <div className="hint">Stored ×10 (50 = 5%). <strong>Start/End</strong> bound the input: below Start = no output, past End = already full. <strong>Anti-deadzone</strong> is the output floor/ceiling: raising Anti-start lifts the minimum output so small deflections bite sooner — the snap setting for FPS.</div>
+                    <div className="section-title"><h3>Dead zone + anti-deadzone — 0.1% steps</h3><Help title="Dead zone + anti-deadzone — 0.1% steps">Stored ×10 (50 = 5%). <strong>Start/End</strong> bound the input: below Start = no output, past End = already full. <strong>Anti-deadzone</strong> is the output floor/ceiling: raising Anti-start lifts the minimum output so small deflections bite sooner — the snap setting for FPS.</Help></div>
                     <div className="stack" style={{ gap: 12, marginTop: 8 }}>
                       <Slider label="Start (input below = 0)" value={dz.begin / 10} min={0} max={20} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
                       <Slider label="End (input above = full)" value={dz.end / 10} min={10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
                       <Slider label="Anti-deadzone start (output floor — snap)" value={dz.beginAnti / 10} min={0} max={50} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
                       <Slider label="Anti-deadzone end (output ceiling)" value={dz.endAnti / 10} min={50} max={100} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), endAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
                     </div>
-                    <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
+                    <details className="disclosure"><summary>Enter exact deadzone values</summary><div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
                       {(
                         [
                           { label: 'Start', key: 'begin', value: dz.begin / 10 },
@@ -1647,7 +1661,7 @@ export default function App(): JSX.Element {
                           <span style={{ color: 'var(--text-3)' }}>%</span>
                         </label>
                       ))}
-                    </div>
+                    </div></details>
                     <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
                       <button className="btn sm" onClick={() => edit(() => stick.applyPhysics(pkt))}>Physics: 0% + linear</button>
                       <button className="btn sm ghost" onClick={() => edit(() => stick.setDeadzone(pkt, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 }))}>Factory 5%</button>
@@ -1689,8 +1703,19 @@ export default function App(): JSX.Element {
 
 
                   <div className="card">
-                    <h3>Outer Threshold — {outerUnlimited ? '∞ no limit' : 'custom'}</h3>
-                    <div className="hint">The boundary of max stick input. This app offers one setting: <strong>no limit</strong>.</div>
+                    <div className="section-title"><h3>Outer Threshold — {outerUnlimited ? '∞ no limit' : 'custom'}</h3><Help title="Outer Threshold">                    <p>
+                      <strong>What this does.</strong> The outer threshold is the deflection where the stick hits maximum output.
+                      A positive buffer pulls that boundary inward, so max arrives earlier (hotter rim); a negative buffer
+                      soft-caps output below max instead (tamer rim — the zone where extra yaw/pitch-style effects bite).
+                      Neutral <strong>0 / ∞</strong> removes the boundary entirely: End 100%, output ceiling 100%, the pad's
+                      full physical range with nothing clipped or boosted at the rim.
+                    </p>
+                    <p>
+                      <strong>Same bytes, other names.</strong> Steam's Outer Threshold and the deadzone End / output-ceiling
+                      sliders all write the same two firmware fields (input-saturation End, output ceiling). They are just
+                      different labels for this boundary — setting ∞ here is identical to End 100% + ceiling 100% over there.
+                    </p>
+</Help></div>
                     <div className="row spread" style={{ margin: '10px 0' }}>
                       <div>
                         <div style={{ fontSize: 13.5 }}>∞ No limit (neutral 0)</div>
@@ -1711,18 +1736,6 @@ export default function App(): JSX.Element {
                         {outerUnlimited ? '∞ On' : 'Set ∞'}
                       </button>
                     </div>
-                    <div className="note">
-                      <strong>What this does.</strong> The outer threshold is the deflection where the stick hits maximum output.
-                      A positive buffer pulls that boundary inward, so max arrives earlier (hotter rim); a negative buffer
-                      soft-caps output below max instead (tamer rim — the zone where extra yaw/pitch-style effects bite).
-                      Neutral <strong>0 / ∞</strong> removes the boundary entirely: End 100%, output ceiling 100%, the pad's
-                      full physical range with nothing clipped or boosted at the rim.
-                    </div>
-                    <div className="note" style={{ marginTop: 8 }}>
-                      <strong>Same bytes, other names.</strong> Steam's Outer Threshold and the deadzone End / output-ceiling
-                      sliders all write the same two firmware fields (input-saturation End, output ceiling). They are just
-                      different labels for this boundary — setting ∞ here is identical to End 100% + ceiling 100% over there.
-                    </div>
                     {!outerUnlimited && (
                       <div className="note warn" style={{ marginTop: 8 }}>
                         This stick currently carries a custom boundary: <span className="mono">{outerBuffer >= 0 ? `max at ${(100 - outerBuffer).toFixed(0)}% deflection` : `output tops at ${(100 + outerBuffer).toFixed(0)}%`}</span>.
@@ -1733,8 +1746,7 @@ export default function App(): JSX.Element {
                 </div>
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
-                    <h3>Custom curve designer — {design.length} points</h3>
-                    <div className="hint">The pad stores exactly <strong>5 points</strong>, so this is a free-point canvas (2–10): <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the 5 bytes that will be written</span>. Dual-zone presets mimic a dynamic response — the pad has no speed sensing, so this is the static LUT a dynamic curve averages to.</div>
+                    <div className="section-title"><h3>Custom curve designer — {design.length} points</h3><Help title="Control details">The pad stores exactly <strong>5 points</strong>, so this is a free-point canvas (2–10): <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the 5 bytes that will be written</span>. Dual-zone presets mimic a dynamic response — the pad has no speed sensing, so this is the static LUT a dynamic curve averages to.</Help></div>
                     <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => setDesign(next)} overlay={quantized} />
                     <div className="row" style={{ gap: 8, margin: '8px 0' }}>
                       <span className={curvePending ? 'pill warn' : 'pill good'}>{curvePending ? 'design ≠ pad — send it' : 'pad matches design'}</span>
@@ -1774,7 +1786,7 @@ export default function App(): JSX.Element {
                         Copy pad curve → other stick
                       </button>
                     </div>
-                    <table className="tbl" style={{ marginTop: 8 }}>
+                    <details className="disclosure"><summary>Edit exact curve points</summary><table className="tbl" style={{ marginTop: 8 }}>
                       <thead><tr><th>#</th><th>X</th><th>Y</th><th /></tr></thead>
                       <tbody>
                         {design.map((p, i) => (
@@ -1788,16 +1800,14 @@ export default function App(): JSX.Element {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
-                    <div className="note" style={{ marginTop: 8 }}>
-                      Hardware bytes (quantized preview): <span className="mono">{quantized.map((q) => `${q.x}/${q.y}`).join(' · ')}</span>
-                    </div>
+                    </table><div className="note" style={{ marginTop: 8 }}>
+                      <Help title="Hardware curve preview">The five quantized points written to the controller: <span className="mono">{quantized.map((q) => `${q.x}/${q.y}`).join(' · ')}</span></Help>
+                    </div></details>
                   </div>
 
 
                   <div className="card">
-                    <h3>Shape</h3>
-                    <div className="hint">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
@@ -1834,8 +1844,7 @@ export default function App(): JSX.Element {
                   </div>
 
                   <div className="card" style={{ borderColor: 'var(--bad)' }}>
-                    <h3>Reset everything</h3>
-                    <div className="hint">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, mouse rate, outputs), outer unlimited, 12-bit, 8K polling, RC off. Names, triggers, buttons and macros are untouched. Then Write to apply.</div>
+                    <div className="section-title"><h3>Reset everything</h3><Help title="Reset everything">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, mouse rate, outputs), outer unlimited, 12-bit, 8K polling, RC off. Names, triggers, buttons and macros are untouched. Then Write to apply.</Help></div>
                     <button
                       className="btn danger"
                       style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
@@ -1874,8 +1883,7 @@ export default function App(): JSX.Element {
               <div className="two" style={{ alignItems: 'start' }}>
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
-                    <h3>Polling rate — {rates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
-                    <div className="hint">Report-rate gear (Fun_Data +14){model ? ` · ${model.marketingName} offers ${rates.length} gears` : ''}. Hz labels are the vendor's claim; measured input stays ~250–500/s.</div>
+                    <SectionTitle title="Polling rate">Select the controller's report-rate gear. Rate labels are vendor claims; use Lab to measure reports received by the computer. The 2K option is inferred and has no confirmed vendor label.</SectionTitle>
                     <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
                       {rates.filter((o) => o.hz >= 1000).map((o) => (
                         <button
@@ -1890,7 +1898,6 @@ export default function App(): JSX.Element {
                     </div>
                     <div className="row spread">
                       <span className="label">Gear: {fun.extend.reportRateGear(fd)}</span>
-                      <span className="mono">*2K inferred — completes the 250/500/1000/…/4000/8000 ladder</span>
                     </div>
                     <div className="row wrap" style={{ gap: 8, marginTop: 8 }}>
                       {rates.filter((o) => o.hz < 1000).map((o) => (
@@ -1908,8 +1915,7 @@ export default function App(): JSX.Element {
 
 
                   <div className="card">
-                    <h3>Bit depth — 8–24</h3>
-                    <div className="hint">Hardware tops at 12-bit. The USB report is 8-bit per axis, so games see 256 steps.</div>
+                    <SectionTitle title="Bit depth — 8–24">8–12 are standard settings. Higher values are experimental firmware requests and may be ignored or produce unusual quantisation. A setting label does not prove sensor resolution. Use Lab → Bit-depth verification to compare vendor original-axis data and XInput output.</SectionTitle>
                     <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
                       {STICK_RESOLUTION_OPTIONS.map((o) => (
                         <button
@@ -1924,7 +1930,7 @@ export default function App(): JSX.Element {
                         <button
                           key={bits}
                           className={`btn sm${resWire === bitsToWireRaw(bits) ? ' primary' : ' ghost'}`}
-                          title="Beyond silicon — writes the implied raw wire, expect clamp/ignore"
+                          title="Experimental firmware request. Measure output in Lab before keeping it."
                           onClick={() => edit(() => fun.extend.setStickResolution(fd, bitsToWireRaw(bits)))}
                         >
                           {bits}-bit*
@@ -1955,13 +1961,9 @@ export default function App(): JSX.Element {
                         Set custom bits
                       </button>
                     </div>
-                    <div className="note" style={{ marginTop: 8 }}>
-                      12-bit is the most the sensor resolves; games receive 256 steps regardless.
-                    </div>
                     {!resInfo.standard && (
                       <div className="note bad" style={{ marginTop: 8 }}>
-                        Non-standard wire {resInfo.wire} → effective {resInfo.bits}-bit. The firmware only documents 0–4 (12–8 bit);
-                        anything else may quantise oddly or be ignored. Verify on the live sticks before keeping it.
+                        Experimental setting · wire {resInfo.wire}
                       </div>
                     )}
                   </div>
@@ -1970,15 +1972,11 @@ export default function App(): JSX.Element {
                 </div>
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
-                    <h3>Controller Rate</h3>
-                    <div className="hint">How fast this stick answers in Mouse mode — higher moves the cursor more per deflection. It does <strong>not</strong> change how often the pad sends inputs; that is the Polling card.</div>
+                    <div className="section-title"><h3>Controller Rate</h3><Help title="Controller Rate">How fast this stick answers in Mouse mode — higher moves the cursor more per deflection. It does <strong>not</strong> change how often the pad sends inputs; that is the Polling card. Only applies while Output is Mouse. 300* stores the maximum byte value of 255; None stores the stock neutral value of 50.</Help></div>
                     <div className="stack" style={{ gap: 12 }}>
                       <div className="row spread">
                         <div>
                           <div style={{ fontSize: 13.5 }}>Rate — constant per pick</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                            Only applies while Output is Mouse · firmware byte caps at 255
-                          </div>
                         </div>
                         <span className="mono">stored: {stick.mouseDpi(pkt)}</span>
                       </div>
@@ -2007,14 +2005,12 @@ export default function App(): JSX.Element {
                           </button>
                         )}
                       </div>
-                      <div className="note">Picks always write (100 / 150 / 200 / 250 / 255-max shown as 300*), but the pad only honors the byte while Output is Mouse. *300 exceeds the byte — the pad stores 255.</div>
                     </div>
                   </div>
 
 
                   <div className="card">
-                    <h3>Shape</h3>
-                    <div className="hint">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
@@ -2051,8 +2047,7 @@ export default function App(): JSX.Element {
                   </div>
 
                   <div className="card" style={{ borderColor: 'var(--bad)' }}>
-                    <h3>Reset everything</h3>
-                    <div className="hint">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, mouse rate, outputs), outer unlimited, 12-bit, 8K polling, RC off. Names, triggers, buttons and macros are untouched. Then Write to apply.</div>
+                    <div className="section-title"><h3>Reset everything</h3><Help title="Reset everything">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, mouse rate, outputs), outer unlimited, 12-bit, 8K polling, RC off. Names, triggers, buttons and macros are untouched. Then Write to apply.</Help></div>
                     <button
                       className="btn danger"
                       style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
@@ -2117,6 +2112,9 @@ export default function App(): JSX.Element {
           )}
           {tab === 'lab' && (
           <PerformanceBench
+            precisionAvailable={connected && modelId === 'G7ProCE' && !!profile && !dirty && !busy && !locked}
+            identity={(connPath ?? '') + ' · ' + (info?.firmware ?? '') + ' · ' + (modelId ?? '')}
+            reload={() => loadSlot(slot)}
             targetHz={gearHz}
             connection={pid === null ? 'Unknown' : [0x10c5, 0x10c7].includes(pid) ? 'USB wired' : [0x10c6, 0x10c8].includes(pid) ? '2.4 GHz receiver' : 'USB identity 0x' + pid.toString(16)}
             profile={slot}
@@ -2125,17 +2123,17 @@ export default function App(): JSX.Element {
             info={info}
             context={
               profile && fd
-                ? 'Now editing P' + slot + ': set ' + gearHz.toLocaleString() + ' Hz (gear ' + gear + ') · ' + resBits + '-bit (' + bitsToLevels(resBits).toLocaleString() + ' levels). This is the edited profile; it may differ from the running slot.'
+                ? 'Now editing P' + slot + ': set ' + gearHz.toLocaleString() + ' Hz (gear ' + gear + ') · ' + resolutionLabel + '. This is the edited profile; it may differ from the running slot.'
                 : 'Connect and load a slot to record the target settings alongside your measurements.'
             }
           />
           )}
-          <SteamCard
+          {tab === 'steam' && <SteamCard
             left={tab === 'steam' ? deadzonePct(vSticks[0]) : profile ? deadzonePct(profile.sticks[0]) : null}
             right={tab === 'steam' ? deadzonePct(vSticks[1]) : profile ? deadzonePct(profile.sticks[1]) : null}
             mouseRate={tab === 'steam' ? vMouse : profile && stick.mouseDpi(profile.sticks[1]) !== 50 ? stick.mouseDpi(profile.sticks[1]) : null}
             fittedK={tab === 'steam' ? fitCurveExponent(vDesign) : profile ? fitCurveExponent(stick.curve(profile.sticks[1])) : null}
-          />
+          />}
         </div>
       </main>
     </div>

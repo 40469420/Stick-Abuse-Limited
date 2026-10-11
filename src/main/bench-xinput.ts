@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import type { Distribution, XInputBench } from '../shared/bench'
+import { codeEvidence } from '../shared/precision'
 
 // Dedicated process, read-only XInput. No 1 ms Sleep, which would cap an 8K test.
 // Stopwatch timestamps are host observations, not USB hardware timestamps.
@@ -10,6 +11,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Collections.Generic;
 public static class StickBench {
   [StructLayout(LayoutKind.Sequential)] public struct Pad { public ushort buttons; public byte lt,rt; public short lx,ly,rx,ry; }
   [StructLayout(LayoutKind.Sequential)] public struct State { public uint packet; public Pad pad; }
@@ -32,6 +34,8 @@ public static class StickBench {
     int capacity=seconds*40000+10000;
     double[] calls=new double[capacity],intervals=new double[capacity],polls=new double[capacity];
     State previous=state; int count=0,changes=0,left=0,right=0;
+    bool[][] seen=new bool[4][]; double[] sum=new double[4], squares=new double[4];
+    for(int a=0;a<4;a++)seen[a]=new bool[65536];
     double lastPoll=0,lastChange=0,next=0;
     var clock=Stopwatch.StartNew();
     while(clock.Elapsed.TotalSeconds<seconds && count<capacity) {
@@ -41,6 +45,8 @@ public static class StickBench {
       calls[count]=after-before;
       if(count>0) polls[count-1]=after-lastPoll;
       lastPoll=after;
+      for(int a=0;a<4;a++){ int v=a==0?state.pad.lx:a==1?state.pad.ly:a==2?state.pad.rx:state.pad.ry;
+        seen[a][v+32768]=true; sum[a]+=v; squares[a]+=(double)v*v; }
       if(state.packet!=previous.packet) {
         if(changes>0) intervals[changes-1]=after-lastChange;
         lastChange=after;changes++;
@@ -52,9 +58,12 @@ public static class StickBench {
       while(clock.Elapsed.TotalMilliseconds<next) Thread.SpinWait(8);
     }
     double duration=clock.Elapsed.TotalMilliseconds;
+    string[] sets=new string[4],rms=new string[4];
+    for(int a=0;a<4;a++){ var codes=new List<int>(); for(int v=0;v<65536;v++)if(seen[a][v])codes.Add(v-32768);
+      sets[a]="["+string.Join(",",codes)+"]"; rms[a]=N(Math.Sqrt(Math.Max(0,squares[a]/count-Math.Pow(sum[a]/count,2)))); }
     return "{\"slot\":"+index+",\"durationMs\":"+N(duration)+",\"polls\":"+count+",\"packetChanges\":"+changes+
       ",\"stickChanges\":["+left+","+right+"],\"pollHz\":"+N(count*1000/duration)+",\"changeHz\":"+N(changes*1000/duration)+
-      ",\"intervals\":"+Stats(intervals,Math.Max(0,changes-1))+",\"calls\":"+Stats(calls,count)+",\"pollIntervals\":"+Stats(polls,Math.Max(0,count-1))+"}";
+      ",\"axisCodes\":["+string.Join(",",sets)+"],\"axisRms\":["+string.Join(",",rms)+"],\"intervals\":"+Stats(intervals,Math.Max(0,changes-1))+",\"calls\":"+Stats(calls,count)+",\"pollIntervals\":"+Stats(polls,Math.Max(0,count-1))+"}";
   }
 }`
 
@@ -74,6 +83,13 @@ export function validateXInputBench(data: unknown): XInputBench {
     !positive(d.pollHz) || !positive(d.changeHz) || Math.abs(d.pollHz - d.polls * 1000 / d.durationMs) > .01 ||
     Math.abs(d.changeHz - d.packetChanges * 1000 / d.durationMs) > .01 || !stats(d.calls, d.polls) ||
     !stats(d.pollIntervals, d.polls - 1) || !stats(d.intervals, Math.max(0, d.packetChanges - 1))) throw new Error('Invalid native timing result.')
+  const raw = data as XInputBench & { axisCodes?: number[][]; axisRms?: number[] }
+  if (raw.axisCodes !== undefined) {
+    if (!Array.isArray(raw.axisCodes) || raw.axisCodes.length !== 4 || !raw.axisCodes.every(v => Array.isArray(v) && v.length > 0 && v.length <= Math.min(65536, d.polls)) ||
+      !Array.isArray(raw.axisRms) || raw.axisRms.length !== 4 || !raw.axisRms.every(v => positive(v) && v <= 32768)) throw new Error('Invalid native axis evidence.')
+    d.codes = raw.axisCodes.map((values, i) => codeEvidence(values, d.polls, raw.axisRms![i]))
+    delete raw.axisCodes; delete raw.axisRms
+  }
   return d
 }
 
@@ -100,7 +116,7 @@ export function runXInputBench(slot: number, seconds: number, onReady: () => voi
         ready = true; output = output.replace(/^READY\r?\n/, '')
         try { onReady(); child.stdin.end('GO\n') } catch (e) { finish(e as Error) }
       }
-      if (output.length > 100000) finish(new Error('Native timing output exceeded its limit.'))
+      if (output.length > 2000000) finish(new Error('Native timing output exceeded its limit.'))
     })
     child.stderr.on('data', (chunk: string) => { if (errors.length < 4000) errors += chunk })
     child.on('error', e => finish(e))
