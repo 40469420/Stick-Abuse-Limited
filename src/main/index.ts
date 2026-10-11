@@ -1,3 +1,4 @@
+import { ApexGuard, listApex, killApex } from './apex-guard'
 /**
  * Stick Labs (Unlimited) — controller session, background RC reset and profile editing.
  */
@@ -36,6 +37,7 @@ if (!primaryInstance) app.quit()
 app.on('second-instance', () => showWindow())
 let tray: Tray | null = null
 let quitting = false
+let apexEnabled = false
 let resetEnabled = false
 let resetting = false
 let ioJobs = 0
@@ -51,6 +53,19 @@ function finishQuit(): void { quitting = true; if (quitAction) quitAction(); els
 let resetMessage = 'Automatic RC reset is off.'
 let recording: { id: string; recorder: SequenceRecorder; started: number; error: string | null; lastReport: number } | null = null
 const resetStatus = (): RcResetStatus => ({ enabled: resetEnabled, running: resetting, message: resetMessage })
+let lastApexAlert: string | null = null
+const apexGuard = new ApexGuard({
+  list: listApex, kill: killApex,
+  rc: async () => {
+    if (firmwareStatus.running || calibrationSession || resetting || ioJobs || reconnecting || recording || closeChecking || closePrompt || bench.active || !controller.isOpen) return null
+    const device = discover().find(d => d.path === controller.transport.currentPath)
+    if (!device || !['G7ProCE','G7ProS'].includes(identifyModel(device.product,device.productId)?.id ?? '')) return null
+    ioJobs++
+    try { const slot = await controller.getCurrentProfile(); return neutralRcProfile(await controller.readProfile(slot,1070)) !== null }
+    finally { ioJobs-- }
+  },
+  changed: status => { send('apex:status',status); if(status.alert && status.alert !== lastApexAlert) showWindow(); lastApexAlert=status.alert }
+})
 function reportReset(message: string): void {
   resetMessage = message
   send('rc:resetStatus', resetStatus())
@@ -58,7 +73,7 @@ function reportReset(message: string): void {
 }
 function savePreferences(): void {
   mkdirSync(app.getPath('userData'), { recursive: true })
-  writeFileSync(join(app.getPath('userData'), 'rc-preferences.json'), JSON.stringify({ resetRc: resetEnabled }), 'utf8')
+  writeFileSync(join(app.getPath('userData'), 'rc-preferences.json'), JSON.stringify({ resetRc: resetEnabled, apexGuard: apexEnabled }), 'utf8')
 }
 async function resetRcAfterConnect(force = false): Promise<boolean> {
   if ((!resetEnabled && !force) || resetting) return false
@@ -273,6 +288,14 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
   })
 }
 
+handle('apex:status', () => ({...apexGuard.status}))
+handle('apex:dismiss', () => { apexGuard.dismiss(); return true })
+handle('apex:set', (enabled: boolean) => {
+  if(typeof enabled !== 'boolean') throw new Error('Invalid Apex guard preference')
+  const previous=apexEnabled;apexEnabled=enabled
+  try { savePreferences() } catch(e) {apexEnabled=previous;throw e}
+  apexGuard.setEnabled(enabled);void apexGuard.tick();return {...apexGuard.status}
+})
 handle('firmware:status', () => firmwareStatus)
 handle('firmware:choose', async (version?: string) => {
   firmwareImage = null
@@ -639,6 +662,7 @@ app.whenReady().then(() => {
   try {
     const prefs = JSON.parse(readFileSync(join(app.getPath('userData'), 'rc-preferences.json'), 'utf8'))
     resetEnabled = prefs.resetRc === true
+    apexEnabled = prefs.apexGuard === true
     resetMessage = resetEnabled ? 'RC reset armed for the next connection/reconnection.' : 'Automatic RC reset is off.'
   } catch { /* First run uses the off default. */ }
   // A small in-memory icon also works in portable builds without external assets.
@@ -660,12 +684,14 @@ app.whenReady().then(() => {
     callback(false)
   })
   createWindow()
+  apexGuard.setEnabled(apexEnabled)
+  const apexMonitor = setInterval(() => { if(!quitting) void apexGuard.tick() }, 1000)
   const receiverMonitor = setInterval(() => {
     if (!resetEnabled || !receiverResetPending || calibrationSession || resetting || ioJobs || reconnecting || recording || !controller.isOpen || !controller.latestInput?.live) return
     receiverResetPending = false
     void resetRcAfterConnect().then(() => { if (!quitting && controller.isOpen && connectedInfo) send('device:reconnected', connectedInfo) })
   }, 500)
-  app.once('will-quit', () => { clearInterval(receiverMonitor); bench.stop() })
+  app.once('will-quit', () => { clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); bench.stop() })
 
   // Self-update from GitHub Releases (packaged builds only — never in dev).
   if (app.isPackaged) {

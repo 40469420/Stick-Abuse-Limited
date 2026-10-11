@@ -11,6 +11,14 @@ export function RcFilters({ fd, edit, busy, dirty, connected, slot, firmware, by
   fd: Packet; edit: (fn: () => void) => void; busy: boolean; dirty: boolean
   connected: boolean; slot: number; firmware: string; bytes: Uint8Array
 }): JSX.Element {
+  const [guard, setGuard] = useState<import('../main/apex-guard').ApexGuardStatus | null>(null)
+  const [savingGuard, setSavingGuard] = useState(false)
+  useEffect(() => {
+    let mounted=true
+    void api().apexGuardStatus().then(s=>{if(mounted)setGuard(s)}).catch(e=>{if(mounted)setMessage((e as Error).message)})
+    const off=api().on('apex:status',s=>setGuard(s as unknown as import('../main/apex-guard').ApexGuardStatus))
+    return ()=>{mounted=false;off()}
+  }, [])
   const [running, setRunning] = useState(false)
   const [reset, setReset] = useState<import('../main/rc-reset').RcResetStatus | null>(null)
   const [savingReset, setSavingReset] = useState(false)
@@ -98,6 +106,10 @@ export function RcFilters({ fd, edit, busy, dirty, connected, slot, firmware, by
     <div className="stack" style={{ gap: 16 }}>
     <div className="card">
       <h3>Background protection</h3>
+      <label className="row" style={{gap:10}}><input type="checkbox" aria-label="Close Apex While RC Is Enabled" checked={guard?.enabled ?? false} disabled={!guard || savingGuard} onChange={e=>{
+        setSavingGuard(true);void api().setApexGuard(e.target.checked).then(setGuard).catch(e=>setMessage((e as Error).message)).finally(()=>setSavingGuard(false))
+      }}/><strong>Close Apex While RC Is Enabled</strong><Help title="Apex guard">When enabled, checks the supported controller's stored active-profile RC settings and watches for r5apex.exe or r5apex_dx12.exe. Non-neutral RC arms the guard; neutral RC disarms it. Unsaved editor changes do not arm it. Apex is force-closed, which can interrupt a match and lose progress. Checks run about once per second while the app is running, including in the tray. Busy/disconnected controllers use the last verified RC state; unknown state cannot establish protection. This cannot guarantee ban prevention or close the game before it reads inputs. Turn this off to stop monitoring.</Help></label>
+      <p className="hint" role="status">{guard?.message ?? 'Loading Apex guard…'}</p>
       <label className="row" style={{ gap: 10 }}>
         <input type="checkbox" checked={reset?.enabled ?? false} disabled={!reset || savingReset || reset.running} onChange={(e) => {
           setSavingReset(true)

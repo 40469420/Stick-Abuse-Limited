@@ -1,3 +1,4 @@
+import { ApexWarning } from './ApexWarning'
 import { TermsGate } from './TermsGate'
 import { Help, SectionTitle } from './Help'
 import { FirmwarePanel } from './Firmware'
@@ -922,7 +923,7 @@ function StickCross({ lx, ly, rx, ry }: { lx: number; ly: number; rx: number; ry
 }
 
 export default function App(): JSX.Element {
-  return <><QuitWarning /><TermsGate><AppContent /></TermsGate></>
+  return <><QuitWarning /><ApexWarning /><TermsGate><AppContent /></TermsGate></>
 }
 
 function AppContent(): JSX.Element {

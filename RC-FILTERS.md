@@ -51,3 +51,11 @@ The native read-only reader was exercised successfully on Windows. Analytical te
 ## RC warning gate
 
 RC controls are greyed out and disabled until the user clicks “I understand Machi”. Acknowledgment lasts only for the mounted panel. The warning cites Apex's official prohibition of jitter aim/RC filters used to exploit aim assist or negate recoil. No RC-specific Call of Duty permission was verified; Activision's broader unsupported-hardware cheating policy does not establish permission. The firmware wording is the fork owner's requested disclaimer, not evidence that a downgrade or custom firmware is necessary or available.
+
+## Apex guard
+
+**Close Apex While RC Is Enabled** is optional and off by default. It watches the supported controller’s stored active-profile settings, not unsaved editor changes. Non-neutral RC arms it; neutral RC disarms it. When armed, it force-closes `r5apex.exe` or `r5apex_dx12.exe` and shows a warning. The preference is saved, and monitoring continues in the tray.
+
+Checks run about once per second and may take longer while Windows or the controller is busy. While a controller cannot be read, the guard retains its last verified RC state; with no verified state it cannot establish protection. Windows may deny process termination. Force-closing can interrupt a match or lose progress, and this feature cannot guarantee ban prevention or stop the game from reading input before termination. It does not terminate launchers or anti-cheat services.
+
+Tests use simulated processes by default. The optional `node tests/apex-native.mjs` check creates and terminates only its own disposable executable to verify Windows detection and force-close behavior.

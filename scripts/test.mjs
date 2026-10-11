@@ -20,6 +20,7 @@ const entry =
   tests.length > 0
     ? tests
     : [
+        'tests/apex-guard.ts',
         'tests/bench.ts',
         'tests/precision.ts',
         'tests/rawbytes.ts',

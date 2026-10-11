@@ -58,6 +58,9 @@ interface LabApi {
   startMacroRecording(id: string): Promise<boolean>
   stopMacroRecording(id: string): Promise<import('../shared/macros').MacroStep[]>
   cancelMacroRecording(id: string): Promise<boolean>
+  apexGuardStatus(): Promise<import('../main/apex-guard').ApexGuardStatus>
+  setApexGuard(enabled: boolean): Promise<import('../main/apex-guard').ApexGuardStatus>
+  dismissApexGuard(): Promise<boolean>
   rcResetStatus(): Promise<import('../main/rc-reset').RcResetStatus>
   setRcReset(enabled: boolean): Promise<import('../main/rc-reset').RcResetStatus>
   adjustCenter(side: number, direction: import('../shared/center').CenterDirection): Promise<boolean>

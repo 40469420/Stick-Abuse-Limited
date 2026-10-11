@@ -22,7 +22,7 @@ Prefer the original app? [Official Stick Labs](https://github.com/Realkiyoshii/s
 | Keybindings | Controller, keyboard and mouse outputs; up to three simultaneous outputs, toggle and turbo. |
 | Macros | Button/key recording, editable hold and delay timings, step reordering and duplication, playback preview, and reusable files. |
 | Calibration | Sticks, triggers, combined calibration, motion sensor and guided fine stick tuning. |
-| RC filters | Independent −10 to +10 levels, noise comparisons and optional reconnect resets. |
+| RC filters | Independent −10 to +10 levels, noise comparisons, optional reconnect resets and an Apex force-close guard. |
 | Profiles | Read, back up, restore and transfer controller profiles. |
 | Lab | Report timing, XInput state-change rates, center noise, range, snapback, trigger sweeps and saved comparisons. |
 | Bit-depth verification | Guided 12-bit versus higher-bit captures, per-axis output-step and noise comparisons, restoration and JSON export. |
