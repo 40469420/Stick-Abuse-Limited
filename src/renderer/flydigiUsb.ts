@@ -114,8 +114,17 @@ class FlyTransport {
   async connect(): Promise<HidDeviceLike> {
     const h = hid()
     if (!h) throw new Error('WebHID unavailable — use the desktop app build')
-    // requestDevice FIRST, before any await: Chromium may only allow the
-    // picker while the click's user gesture is current.
+    // Picker FIRST while the click gesture is current. Granted entries go
+    // stale across replugs (changed device paths), so every candidate is
+    // open-probed and corpses are skipped instead of trusted.
+    const openOk = async (dev: HidDeviceLike): Promise<boolean> => {
+      try {
+        if (!dev.opened) await dev.open()
+        return true
+      } catch {
+        return false
+      }
+    }
     let picked: HidDeviceLike[] = []
     try {
       picked = await h.requestDevice({
@@ -127,11 +136,26 @@ class FlyTransport {
     } catch {
       picked = []
     }
-    let dev: HidDeviceLike | null = picked[0] ?? null
+    let dev: HidDeviceLike | null = null
+    for (const p of picked) {
+      if (p.vendorId === FLY_VID && (await openOk(p))) {
+        dev = p
+        break
+      }
+      try {
+        if (p.opened) await p.close()
+      } catch {
+        /* ignore */
+      }
+    }
     if (!dev) {
-      // Fall back to an already-granted device (no picker needed).
       const granted = await h.getDevices().catch(() => [] as HidDeviceLike[])
-      dev = granted.find((d) => d.vendorId === FLY_VID) ?? null
+      for (const g of granted) {
+        if (g.vendorId === FLY_VID && (await openOk(g))) {
+          dev = g
+          break
+        }
+      }
     }
     if (!dev) {
       throw new Error('No Flydigi device selected — if the list was empty, quit Space Station fully (window + service: it locks the pad) and retry')
