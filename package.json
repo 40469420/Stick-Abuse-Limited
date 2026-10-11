@@ -45,6 +45,7 @@
     "files": [
       "out/**/*",
       "package.json",
+      "scripts/flybridge.py",
       "node_modules/node-hid/**/*",
       "node_modules/pkg-prebuilds/**/*"
     ],

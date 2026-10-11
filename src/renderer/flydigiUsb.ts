@@ -1,15 +1,13 @@
 /**
- * Flydigi Apex 5 USB transport over WebHID (renderer side).
+ * Flydigi Apex 5 USB layer (renderer side).
  *
- * node-hid cannot speak this pad: it sends feature/control transfers while
- * the pad only answers 32 B interrupt OUT on the 0xFFA0 collection
- * (report 3 out, report 4 back). WebHID sendReport does interrupt OUT.
- * Requires a user gesture (Connect button) + the main-process 'hid'
- * permission grant. Close Space Station first — it holds the handle.
+ * Transport runs in main via scripts/flybridge.py (hidapi interrupt-OUT —
+ * neither node-hid nor WebHID could reliably send these reports). This
+ * module owns the pad flows: identify, store reads, ack-verified writes.
+ * Close Space Station first — it holds the handle.
  */
+import { api } from './api'
 import {
-  FLY_PID_APEX5,
-  FLY_REPORT_OUT,
   FLY_SEC_LEFT,
   FLY_SEC_LEFT_LEN,
   FLY_SEC_RGB,
@@ -18,13 +16,10 @@ import {
   FLY_SEC_RIGHT_LEN,
   FLY_STORE_CHUNKS,
   FLY_STORE_LEN,
-  FLY_USAGE_CMD,
-  FLY_VID,
   FlyCmd,
   FlyStore,
   flyAnnounce,
   flyCurveWindow,
-  flyFrame,
   flyLedWindow,
   flyNonce,
   flyReplyOk,
@@ -35,179 +30,49 @@ import {
   parseFlyStore,
 } from '@shared/flydigi'
 
-interface HidReportEventLike {
-  reportId: number
-  data: DataView
-}
-
-interface HidDeviceLike extends EventTarget {
-  readonly opened: boolean
-  readonly vendorId: number
-  readonly productId: number
-  open(): Promise<void>
-  close(): Promise<void>
-  sendReport(reportId: number, data: BufferSource): Promise<void>
-}
-
-interface HidLike {
-  getDevices(): Promise<HidDeviceLike[]>
-  requestDevice(options: { filters: Array<{ vendorId: number; productId?: number; usagePage?: number; usage?: number }> }): Promise<HidDeviceLike[]>
-}
-
-function hid(): HidLike | null {
-  const n = navigator as unknown as { hid?: HidLike }
-  return n.hid ?? null
-}
-
 export interface FlyIdentity {
   uid: string
   version: { b0: number; b1: number }
 }
 
-interface Pending {
-  cmd: number
-  multi: boolean
-  resolve: (frame: Uint8Array) => void
-  onFrame?: (frame: Uint8Array) => void
-  reject: (err: Error) => void
-  timer: ReturnType<typeof setTimeout>
-}
-
-const ROUNDTRIP_MS = 3000
-
 class FlyTransport {
-  device: HidDeviceLike | null = null
-  private pending: Pending[] = []
-  private onReport = (e: Event): void => {
-    const ev = e as unknown as HidReportEventLike
-    const bytes = new Uint8Array(ev.data.buffer, ev.data.byteOffset, ev.data.byteLength)
-    // WebHID strips the report ID: body is [5A, A5, cmd, ...].
-    if (bytes.length < 3 || bytes[0] !== 0x5a || bytes[1] !== 0xa5) return
-    const cmd = bytes[2] ?? -1
-    const full = new Uint8Array(1 + bytes.length)
-    full[0] = ev.reportId
-    full.set(bytes, 1)
-    for (let i = this.pending.length - 1; i >= 0; i--) {
-      if (this.pending[i].cmd === cmd) {
-        const entry = this.pending[i]
-        if (entry.multi) {
-          entry.onFrame?.(full)
-          continue
-        }
-        this.pending.splice(i, 1)
-        clearTimeout(entry.timer)
-        entry.resolve(full)
-      }
-    }
-  }
+  private open = false
 
   get connected(): boolean {
-    return !!this.device?.opened
+    return this.open
   }
 
-  async scan(): Promise<Array<{ vendorId: number; productId: number }>> {
-    const h = hid()
-    if (!h) throw new Error('WebHID unavailable in this context')
-    const devs = await h.getDevices()
-    return devs
-      .filter((d) => d.vendorId === FLY_VID)
-      .map((d) => ({ vendorId: d.vendorId, productId: d.productId }))
-  }
-
-  async connect(): Promise<HidDeviceLike> {
-    const h = hid()
-    if (!h) throw new Error('WebHID unavailable — use the desktop app build')
-    // Picker FIRST while the click gesture is current. Granted entries go
-    // stale across replugs (changed device paths), so every candidate is
-    // open-probed and corpses are skipped instead of trusted.
-    const openOk = async (dev: HidDeviceLike): Promise<boolean> => {
-      try {
-        if (!dev.opened) await dev.open()
-        return true
-      } catch {
-        return false
-      }
-    }
-    let picked: HidDeviceLike[] = []
+  async connect(): Promise<void> {
+    await api().flyOpen()
+    this.open = true
     try {
-      picked = await h.requestDevice({
-        filters: [
-          { vendorId: FLY_VID, productId: FLY_PID_APEX5, usagePage: FLY_USAGE_CMD },
-          { vendorId: FLY_VID, productId: FLY_PID_APEX5 },
-        ],
-      })
-    } catch {
-      picked = []
+      await this.identify()
+    } catch (err) {
+      this.open = false
+      try {
+        await api().flyClose()
+      } catch {
+        /* ignore */
+      }
+      throw err
     }
-    const granted = await h.getDevices().catch(() => [] as HidDeviceLike[])
-    // Never nuke the live session until a replacement is open: a cancelled
-    // re-click used to disconnect first and strand the UI as connected.
-    for (const c of [...picked, ...granted]) {
-      if (c.vendorId !== FLY_VID) continue
-      if (!(await openOk(c))) continue
-      if (c !== this.device) this.disconnect()
-      this.device = c
-      c.addEventListener('inputreport', this.onReport as EventListener)
-      return c
-    }
-    if (!this.device?.opened) {
-      throw new Error('No Flydigi device selected — if the list was empty, quit Space Station fully (window + service: it locks the pad) and retry')
-    }
-    return this.device
   }
 
   disconnect(): void {
-    const d = this.device
-    this.device = null
-    for (const p of this.pending.splice(0)) {
-      clearTimeout(p.timer)
-      p.reject(new Error('disconnected'))
-    }
-    if (d) {
-      d.removeEventListener('inputreport', this.onReport as EventListener)
-      void d.close().catch(() => undefined)
-    }
+    this.open = false
+    void api().flyClose().catch(() => undefined)
   }
 
-  /**
-   * One command round-trip. Resolves with the FULL frame including a
-   * synthetic report-ID prefix ([04, 5A, A5, cmd, ...]) so the shared
-   * parsers see the exact wire shape.
-   */
-  send(cmd: number, args: ArrayLike<number> = []): Promise<Uint8Array> {
-    const dev = this.device
-    if (!dev?.opened) return Promise.reject(new Error('Flydigi not connected'))
-    const frame = flyFrame(cmd, args)
-    const body = new Uint8Array(frame.slice(1))
-    return new Promise<Uint8Array>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const i = this.pending.findIndex((p) => p.timer === timer)
-        if (i >= 0) this.pending.splice(i, 1)
-        reject(new Error(`Flydigi cmd 0x${cmd.toString(16)} timed out — close Space Station (it holds the handle) and retry`))
-      }, ROUNDTRIP_MS)
-      const drop = (): void => {
-        const i = this.pending.findIndex((p) => p.timer === timer)
-        if (i >= 0) this.pending.splice(i, 1)
-        clearTimeout(timer)
-      }
-      const entry: Pending = {
-        cmd,
-        multi: false,
-        resolve: (frame) => {
-          drop()
-          resolve(frame)
-        },
-        reject: (err) => {
-          drop()
-          reject(err)
-        },
-        timer,
-      }
-      this.pending.push(entry)
-      void dev.sendReport(FLY_REPORT_OUT, body).catch((e: unknown) => {
-        entry.reject(e instanceof Error ? e : new Error(String(e)))
-      })
-    })
+  /** One command round-trip; resolves with the full frame ([rid, 5A, A5, cmd, ...]). */
+  async send(cmd: number, args: ArrayLike<number> = []): Promise<Uint8Array> {
+    if (!this.open) return Promise.reject(new Error('Flydigi not connected'))
+    let raw: number[]
+    try {
+      raw = await api().flySend(cmd, Array.from(args))
+    } catch (err) {
+      throw err instanceof Error ? err : new Error(String(err))
+    }
+    return new Uint8Array(raw)
   }
 
   async identify(): Promise<FlyIdentity> {
@@ -217,63 +82,32 @@ class FlyTransport {
   }
 
   /**
-   * Dump the 1092 B config store (section byte 0x14, 42 chunks, E-stripped).
-   * Throws on timeout or short reads.
+   * Dump the 1092 B config store (42 chunks, E-stripped). Throws on timeout,
+   * short reads, or an unrecognized layout.
    */
   async readStore(): Promise<FlyStore> {
-    const dev = this.device
-    if (!dev?.opened) throw new Error('Flydigi not connected')
+    if (!this.open) throw new Error('Flydigi not connected')
+    const frames = await api().flyCollect(FlyCmd.ReadSection, [0x06, 0x00, 0x14, 0x01, 0x14, 0x2a], FLY_STORE_CHUNKS)
     const chunks = new Map<number, Uint8Array>()
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const i = this.pending.findIndex((p) => p.timer === timer)
-        if (i >= 0) this.pending.splice(i, 1)
-        reject(new Error('store read timed out'))
-      }, 15000)
-      const entry: Pending = {
-        cmd: FlyCmd.ReadSection,
-        multi: true,
-        resolve: () => undefined,
-        onFrame: (frame) => {
-          // frame: [04, 5A, A5, A3, X, idx, E, 25 data]
-          if (frame.length < 32) return
-          const idx = frame[5] ?? -1
-          if (idx < 0 || idx >= FLY_STORE_CHUNKS || chunks.has(idx)) return
-          chunks.set(idx, frame.slice(7, 32))
-          if (chunks.size >= FLY_STORE_CHUNKS) {
-            const i = this.pending.indexOf(entry)
-            if (i >= 0) this.pending.splice(i, 1)
-            clearTimeout(timer)
-            resolve()
-          }
-        },
-        reject: (err) => {
-          const i = this.pending.indexOf(entry)
-          if (i >= 0) this.pending.splice(i, 1)
-          clearTimeout(timer)
-          reject(err)
-        },
-        timer,
-      }
-      this.pending.push(entry)
-      const body = new Uint8Array(flyFrame(FlyCmd.ReadSection, [0x06, 0x00, 0x14, 0x01, 0x14, 0x2a]).slice(1))
-      void dev.sendReport(FLY_REPORT_OUT, body).catch((e: unknown) => {
-        entry.reject(e instanceof Error ? e : new Error(String(e)))
-      })
-    })
+    for (const f of frames) {
+      const bytes = new Uint8Array(f)
+      if (bytes.length < 8 || bytes[1] !== 0x5a || bytes[2] !== 0xa5 || bytes[3] !== FlyCmd.ReadSection) continue
+      const idx = bytes[5] ?? -1
+      if (idx < 0 || idx >= FLY_STORE_CHUNKS || chunks.has(idx)) continue
+      chunks.set(idx, bytes.slice(7, 32))
+    }
     if (chunks.size < FLY_STORE_CHUNKS) throw new Error(`store short: ${chunks.size}/${FLY_STORE_CHUNKS} chunks`)
     const img = new Uint8Array(FLY_STORE_LEN)
     for (const [idx, data] of [...chunks.entries()].sort((a, b) => a[0] - b[0])) {
       img.set(data.subarray(0, Math.min(25, FLY_STORE_LEN - idx * 25)), idx * 25)
     }
     const parsed = parseFlyStore(img)
-    if (!parsed) throw new Error('store layout unrecognized — E bytes or offsets shifted, report it')
+    if (!parsed) throw new Error('store layout unrecognized — report it')
     return parsed
   }
 
   /**
-   * Write one section pack (no save). Returns the pack ack.
-   * Caller must Save + verify the version stamp (see writeCurves).
+   * Write one section pack (no save). Returns nothing; caller saves.
    */
   async writePack(section: number, length: number, window: number[]): Promise<void> {
     const a4 = await this.send(FlyCmd.WriteStart, flyAnnounce(section, length))
@@ -294,33 +128,14 @@ class FlyTransport {
     return { stamp: `${stamp.b0.toString(16)}${stamp.b1.toString(16)}` }
   }
 
-  /**
-   * Write LED brightness (mode Default + period 4 shaped constants) + save.
-   * Brightness is visible on the pad itself — that is the verification.
-   * Writing while another LED mode is active resets it to Default.
-   */
-  async writeLed(brightness: number): Promise<{ stamp: string }> {
-    await this.writePack(FLY_SEC_RGB, FLY_SEC_RGB_LEN, flyLedWindow(brightness))
-    return this.saveCommit()
-  }
-
-  /**
-   * Write one left-curve pack + save, verified by ack + version-stamp oracle.
-   * Throws otherwise. Reads nothing back (curve store has no read path).
-   */
   async writeLeftCurve(type: number, points: number[]): Promise<{ stamp: string }> {
-    const window = flyCurveWindow(type, points)
-    const a4 = await this.send(FlyCmd.WriteStart, flyAnnounce(FLY_SEC_LEFT, FLY_SEC_LEFT_LEN))
-    if (!flyReplyOk(a4, FlyCmd.WriteStart)) throw new Error('pad refused the write announce')
-    const a5 = await this.send(FlyCmd.WritePack, [0x17, 0x00, ...window])
-    if (!flyReplyOk(a5, FlyCmd.WritePack)) throw new Error('pad refused the curve pack')
+    await this.writePack(FLY_SEC_LEFT, FLY_SEC_LEFT_LEN, flyCurveWindow(type, points))
     return this.saveCommit()
   }
 
   /**
    * Write both sticks + save, then re-read the store and compare.
-   * On mismatch, rewrites the original windows + saves (best-effort
-   * restore) and throws.
+   * Throws otherwise (pad state unknown — restore in Space Station).
    */
   async writeCurves(
     left: { type: number; points: number[] },
@@ -341,6 +156,12 @@ class FlyTransport {
       after.rightPoints.every((p, i) => p === right.points[i])
     if (!same) throw new Error(`save committed but read-back differs (stamp ${stamp}) — restore in Space Station`)
     return { stamp }
+  }
+
+  /** LED brightness + save (visible on the pad itself). */
+  async writeLed(brightness: number): Promise<{ stamp: string }> {
+    await this.writePack(FLY_SEC_RGB, FLY_SEC_RGB_LEN, flyLedWindow(brightness))
+    return this.saveCommit()
   }
 }
 
