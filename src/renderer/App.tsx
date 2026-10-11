@@ -1123,7 +1123,7 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
     <div className="stack" style={{ gap: 16 }}>
       <div className="card">
         <h3>{t('nav.device')} — Apex 5</h3>
-        <div className="hint">1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision), shapes, RC and reset are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</div>
+        <div className="hint">1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision) and shapes are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</div>
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
       </div>
       <div className="card">
@@ -2756,13 +2756,13 @@ export default function App(): JSX.Element {
 
                   <div className="card" style={{ borderColor: 'var(--bad)' }}>
                     <h3>{t('sticks.reset')}</h3>
-                    <div className="hint">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, mouse rate, outputs), outer unlimited, 12-bit, 8K polling, RC off. Names, triggers, buttons and macros are untouched. Then Write to apply.</div>
+                    <div className="hint">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, Controller Rate, outputs), outer unlimited, 12-bit, 8K polling. Names, triggers, buttons and macros are untouched. Then Write to apply.</div>
                     <button
                       className="btn danger"
                       style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
                       onClick={() => {
                         if (!profile || !fd) return
-                        if (!window.confirm('Reset EVERYTHING this app controls to stock neutral?\n\nBoth sticks, outer, detail, polling, RC. Names, triggers, buttons and macros are kept.')) return
+                        if (!window.confirm('Reset EVERYTHING this app controls to stock neutral?\n\nBoth sticks, outer, detail, polling. Names, triggers, buttons and macros are kept.')) return
                         edit(() => {
                           profile.sticks.forEach((s, i) => {
                             stick.setDeadzone(s, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 })
@@ -2887,7 +2887,7 @@ export default function App(): JSX.Element {
                             <button
                               key={opt.label}
                               className={`btn sm${active ? ' primary' : ' ghost'}`}
-                              title={opt.rate === null ? 'Stock neutral 50 — no added rate, Steam export skips it' : opt.rate > 255 ? `Firmware byte caps at 255 — stores ${wire}` : `Stores ${wire}`}
+                              title={opt.rate === null ? 'Stock neutral 50 — no added rate' : opt.rate > 255 ? `Firmware byte caps at 255 — stores ${wire}` : `Stores ${wire}`}
                               onClick={() => edit(() => stick.setMouseDpi(pkt, wire))}
                             >
                               {opt.label}
@@ -2949,13 +2949,13 @@ export default function App(): JSX.Element {
 
                   <div className="card" style={{ borderColor: 'var(--bad)' }}>
                     <h3>{t('sticks.reset')}</h3>
-                    <div className="hint">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, mouse rate, outputs), outer unlimited, 12-bit, 8K polling, RC off. Names, triggers, buttons and macros are untouched. Then Write to apply.</div>
+                    <div className="hint">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, Controller Rate, outputs), outer unlimited, 12-bit, 8K polling. Names, triggers, buttons and macros are untouched. Then Write to apply.</div>
                     <button
                       className="btn danger"
                       style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
                       onClick={() => {
                         if (!profile || !fd) return
-                        if (!window.confirm('Reset EVERYTHING this app controls to stock neutral?\n\nBoth sticks, outer, detail, polling, RC. Names, triggers, buttons and macros are kept.')) return
+                        if (!window.confirm('Reset EVERYTHING this app controls to stock neutral?\n\nBoth sticks, outer, detail, polling. Names, triggers, buttons and macros are kept.')) return
                         edit(() => {
                           profile.sticks.forEach((s, i) => {
                             stick.setDeadzone(s, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 })
@@ -3007,7 +3007,7 @@ export default function App(): JSX.Element {
             context={
               profile && fd
                 ? 'Now editing P' + slot + ': set ' + gearHz.toLocaleString() + ' Hz (gear ' + gear + ') · ' + resBits + '-bit (' + bitsToLevels(resBits).toLocaleString() + ' levels) — green chart is measured input, not the set rate.'
-                : 'Connect and load a slot — then switch gear or RC, write, and watch this chart.'
+                : 'Connect and load a slot — then switch gear, write, and watch this chart.'
             }
           />
           )}
