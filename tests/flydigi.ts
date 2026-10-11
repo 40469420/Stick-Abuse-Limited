@@ -15,6 +15,8 @@ import {
   flyCurveChecksum,
   flyCurveWindow,
   flyFrame,
+  flyLedChecksum,
+  flyLedWindow,
   flyRightChecksum,
   flyRightWindow,
   parseFlyStore,
@@ -159,6 +161,29 @@ check('store rejects missing FF run', (() => {
   bad[980] = 0
   return parseFlyStore(bad) === null
 })())
+
+// --- LED brightness: XX byte == brightness, cksum (0xDA + b) & FF --------
+const ledCaps: Array<[number, number]> = [
+  [0, 0xda],
+  [7, 0xe1],
+  [32, 0xfa],
+  [50, 0x0c],
+  [77, 0x27],
+  [88, 0x32],
+  [100, 0x3e],
+  [61, 0x17],
+  [16, 0xea],
+]
+check(
+  'led checksum rule exact',
+  ledCaps.every(([b, c]) => flyLedChecksum(b) === c)
+)
+const ledBuilt = flyLedWindow(40)
+check(
+  'led window byte-exact (brightness 40)',
+  JSON.stringify(ledBuilt) ===
+    JSON.stringify([0, 3, 0, 0, 9, 4, 40, 0x0c, 0x07, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02, 0, 0, 0, 0, 0])
+)
 
 if (failures > 0) {
   console.error(`${failures} FAILURES`)

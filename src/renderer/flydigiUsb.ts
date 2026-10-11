@@ -10,6 +10,12 @@
 import {
   FLY_PID_APEX5,
   FLY_REPORT_OUT,
+  FLY_SEC_LEFT,
+  FLY_SEC_LEFT_LEN,
+  FLY_SEC_RGB,
+  FLY_SEC_RGB_LEN,
+  FLY_SEC_RIGHT,
+  FLY_SEC_RIGHT_LEN,
   FLY_STORE_CHUNKS,
   FLY_STORE_LEN,
   FLY_USAGE_CMD,
@@ -19,6 +25,7 @@ import {
   flyAnnounce,
   flyCurveWindow,
   flyFrame,
+  flyLedWindow,
   flyNonce,
   flyReplyOk,
   flyRightWindow,
@@ -26,10 +33,6 @@ import {
   flyUidHex,
   flyVersionStamp,
   parseFlyStore,
-  FLY_SEC_LEFT,
-  FLY_SEC_LEFT_LEN,
-  FLY_SEC_RIGHT,
-  FLY_SEC_RIGHT_LEN,
 } from '@shared/flydigi'
 
 interface HidReportEventLike {
@@ -303,6 +306,16 @@ class FlyTransport {
       throw new Error('save did not commit (version stamp mismatch) — retry or restore in Space Station')
     }
     return { stamp: `${stamp.b0.toString(16)}${stamp.b1.toString(16)}` }
+  }
+
+  /**
+   * Write LED brightness (mode Default + period 4 shaped constants) + save.
+   * Brightness is visible on the pad itself — that is the verification.
+   * Writing while another LED mode is active resets it to Default.
+   */
+  async writeLed(brightness: number): Promise<{ stamp: string }> {
+    await this.writePack(FLY_SEC_RGB, FLY_SEC_RGB_LEN, flyLedWindow(brightness))
+    return this.saveCommit()
   }
 
   /**

@@ -98,6 +98,22 @@ export function flyTypeName(type: number): string {
   return `Custom (${type})`
 }
 
+/**
+ * LED brightness pack checksum: (0xDA + brightness) & 0xFF.
+ * Verified across 9 captured brightness writes (mode Default, period 4).
+ * Brightness-only writes send Default/period-4-shaped constants, so writing
+ * brightness while another mode is active resets the mode to Default.
+ */
+export function flyLedChecksum(brightness: number): number {
+  return (0xda + (Math.max(0, Math.min(100, Math.round(brightness))) & 0xff)) & 0xff
+}
+
+/** Build the 26 B LED window: [00,03,00,00,09,04][bright][0C,07,01][FF×10][cksum][00×5]. */
+export function flyLedWindow(brightness: number): number[] {
+  const b = Math.max(0, Math.min(100, Math.round(brightness)))
+  return [0, 3, 0, 0, 9, 4, b, 0x0c, 0x07, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, flyLedChecksum(b), 0, 0, 0, 0, 0]
+}
+
 export interface FlyCurve {
   /** sensitivity type byte (custom/quick/slow). */
   type: number

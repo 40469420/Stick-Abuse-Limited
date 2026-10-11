@@ -1202,6 +1202,54 @@ function ApexCalibrate(): JSX.Element {
   )
 }
 
+function ApexDevice({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
+  const [bright, setBright] = useState(40)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function write(): Promise<void> {
+    setErr(null)
+    setMsg(null)
+    if (!flyTransport.connected) {
+      setErr('Apex 5 not connected — connect it from the sidebar first, and close Space Station.')
+      return
+    }
+    if (!window.confirm(`Set LED brightness to ${bright}%? This sends Default-mode constants — another active LED mode resets to Default.`)) return
+    setBusy(true)
+    try {
+      const res = await flyTransport.writeLed(bright)
+      setMsg(`Brightness ${bright}% written + saved (stamp ${res.stamp}) — visible on the pad itself.`)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="card">
+        <h3>Device — Apex 5</h3>
+        <div className="hint">1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision), shapes, RC and reset are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</div>
+        {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
+      </div>
+      <div className="card">
+        <h3>LED brightness</h3>
+        <div className="hint">Mirrored from live captures (checksum rule proven). Brightness-only — the write carries Default-mode constants, so another active LED mode resets to Default.</div>
+        <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+          <Slider label="Brightness" value={bright} min={0} max={100} step={1} unit="%" onChange={(v) => setBright(Math.round(v))} format={(v) => `${v.toFixed(0)}%`} />
+        </div>
+        <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
+          <button className="btn sm primary" disabled={busy} onClick={() => void write()}>{busy ? 'Writing…' : 'Write LED'}</button>
+        </div>
+        {msg && <div className="note" style={{ marginTop: 8 }}>{msg}</div>}
+        {err && <div className="note bad" style={{ marginTop: 8 }}>{err}</div>}
+      </div>
+    </div>
+  )
+}
+
 function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   const [ptype, setPtype] = useState(2)
   const [left, setLeft] = useState<number[]>([50, 56, 63, 69, 75, 94, 113, 131, 150])
@@ -2301,11 +2349,7 @@ export default function App(): JSX.Element {
             <>
               {tab === 'sticks' && (<ApexSticks flyId={flyId} />)}
               {tab === 'device' && (
-                <div className="card">
-                  <h3>Device — Apex 5</h3>
-                  <div className="hint">1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision), shapes, RC and reset are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</div>
-                  {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
-                </div>
+                <ApexDevice flyId={flyId} />
               )}
               {(tab === 'profiles' || tab === 'lab') && (
                 <div className="msg"><h3>Not mapped yet</h3><p>Profile slots and analytics are GameSir-layout only. Apex curve tuning lives in Sticks.</p></div>
