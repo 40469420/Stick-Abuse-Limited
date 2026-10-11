@@ -117,10 +117,25 @@ class FlyTransport {
     const granted = await h.getDevices()
     let dev = granted.find((d) => d.vendorId === FLY_VID) ?? null
     if (!dev) {
-      const picked = await h.requestDevice({ filters: [{ vendorId: FLY_VID, productId: FLY_PID_APEX5, usagePage: FLY_USAGE_CMD }] })
+      // One picker with layered filters: strict (command page) first, then
+      // bare VID/PID — some Chromium builds filter vendor collections oddly,
+      // and a locked pad may only appear under the broad filter.
+      let picked: HidDeviceLike[] = []
+      try {
+        picked = await h.requestDevice({
+          filters: [
+            { vendorId: FLY_VID, productId: FLY_PID_APEX5, usagePage: FLY_USAGE_CMD },
+            { vendorId: FLY_VID, productId: FLY_PID_APEX5 },
+          ],
+        })
+      } catch {
+        picked = []
+      }
       dev = picked[0] ?? null
     }
-    if (!dev) throw new Error('No Flydigi device selected')
+    if (!dev) {
+      throw new Error('No Flydigi device selected — if the list was empty, quit Space Station fully (window + service: it locks the pad) and retry')
+    }
     if (!dev.opened) await dev.open()
     this.disconnect()
     this.device = dev
