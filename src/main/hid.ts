@@ -19,7 +19,7 @@ import {
   VENDOR_USAGE,
   VENDOR_USAGE_PAGE
 } from '../shared/protocol'
-import { FLY_PID_APEX5, FLY_USAGE_AUX, FLY_USAGE_CMD, FLY_VID } from '../shared/flydigi'
+import { FLY_PID_APEX5, FLY_USAGE_CMD, FLY_VID } from '../shared/flydigi'
 
 export interface Candidate {
   path: string
@@ -109,12 +109,12 @@ function listDevices(): Device[] {
   }
 }
 
-/** All vendor interfaces, no handle opened. GameSir 0xFFF0 plus Flydigi Apex 5 command pages. */
+/** All vendor interfaces, no handle opened. GameSir 0xFFF0 plus the Flydigi Apex 5 command page (0xFFA0 — the 0xFFEF aux page takes no commands, so it stays unlisted). */
 export function discover(): Candidate[] {
   const isGameSir = (d: { vendorId?: number; usagePage?: number; usage?: number }): boolean =>
     d.vendorId === VENDOR_ID && d.usagePage === VENDOR_USAGE_PAGE && d.usage === VENDOR_USAGE
   const isFlydigi = (d: { vendorId?: number; usagePage?: number; usage?: number }): boolean =>
-    d.vendorId === FLY_VID && (d.usagePage === FLY_USAGE_CMD || d.usagePage === FLY_USAGE_AUX)
+    d.vendorId === FLY_VID && d.usagePage === FLY_USAGE_CMD
   return listDevices()
     .filter(
       (d) =>

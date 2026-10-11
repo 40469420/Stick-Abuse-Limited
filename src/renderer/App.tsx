@@ -2159,7 +2159,7 @@ export default function App(): JSX.Element {
           )}
           {dirty && <div className="note warn">Unsaved stick changes — write to apply. Writing the running slot reboots the pad (~1-2 s).</div>}
           {tab !== 'steam' && !connected && (
-            <div className="msg"><h3>Connect a controller</h3><p>G7 Pro 8K · G7 Pro · Tarantula 8K (plus new 8K editions via auto-check). Rescan, then connect the vendor interface. Close GameSir Connect first — it holds the handle.</p></div>
+            <div className="msg"><h3>Connect a controller</h3><p>G7 Pro 8K · G7 Pro · Tarantula 8K · Flydigi Apex 5 (plus new 8K editions via auto-check). Rescan, then connect the vendor interface. Close GameSir Connect / Space Station first — they hold the handle.</p></div>
           )}
           {tab !== 'steam' && connected && !profile && model?.id !== 'Apex5' && (
             !model || model.support !== 'full' ? (
