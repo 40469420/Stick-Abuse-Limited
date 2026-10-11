@@ -136,6 +136,59 @@ function clampByte(v: number): number {
   return Math.max(0, Math.min(255, Math.round(v)))
 }
 
+function cleanDesign(design: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  return [...design]
+    .map((p) => ({ x: clampByte(p.x), y: clampByte(p.y) }))
+    .sort((a, b) => a.x - b.x)
+    .filter((p, i, arr) => i === 0 || p.x !== arr[i - 1].x)
+}
+
+/**
+ * Shared monotone-cubic core: cleaned control points plus an evaluator.
+ * Returns null for degenerate designs (<2 distinct points).
+ */
+function buildMonoSpline(
+  design: Array<{ x: number; y: number }>
+): { pts: Array<{ x: number; y: number }>; at: (x: number) => number } | null {
+  const pts = cleanDesign(design)
+  if (pts.length < 2) return null
+  const n = pts.length
+  const sec: number[] = []
+  for (let i = 0; i < n - 1; i++) sec.push((pts[i + 1].y - pts[i].y) / (pts[i + 1].x - pts[i].x))
+  // Endpoint tangents follow the end segments; interior tangents are the
+  // secant average, zeroed at direction changes and limited to 3× the
+  // smaller neighbour secant — the Fritsch–Carlson monotonicity gate.
+  const tan: number[] = new Array(n)
+  tan[0] = sec[0]
+  tan[n - 1] = sec[n - 2]
+  for (let i = 1; i < n - 1; i++) {
+    if (sec[i - 1] === 0 || sec[i] === 0 || Math.sign(sec[i - 1]) !== Math.sign(sec[i])) {
+      tan[i] = 0
+    } else {
+      const lim = 3 * Math.min(Math.abs(sec[i - 1]), Math.abs(sec[i]))
+      tan[i] = Math.max(-lim, Math.min(lim, (sec[i - 1] + sec[i]) / 2))
+    }
+  }
+  const at = (x: number): number => {
+    if (x <= pts[0].x) return pts[0].y
+    if (x >= pts[n - 1].x) return pts[n - 1].y
+    let i = 0
+    while (i < n - 2 && x > pts[i + 1].x) i++
+    const x0 = pts[i].x
+    const h = pts[i + 1].x - x0
+    const s = (x - x0) / h
+    const s2 = s * s
+    const s3 = s2 * s
+    return (
+      (2 * s3 - 3 * s2 + 1) * pts[i].y +
+      (s3 - 2 * s2 + s) * h * tan[i] +
+      (-2 * s3 + 3 * s2) * pts[i + 1].y +
+      (s3 - s2) * h * tan[i + 1]
+    )
+  }
+  return { pts, at }
+}
+
 /**
  * Resample a free-point design polyline down to the 5 firmware slots.
  *
@@ -168,8 +221,51 @@ export function resampleCurve(
   return xs.map((x) => ({ x, y: clampByte(at(x)) }))
 }
 
-/** Insert a point at the middle of the longest segment (up to MAX). */export function addDesignPoint(design: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
-  if (design.length >= DESIGN_MAX_POINTS) return design
+/**
+ * Resample a free-point design through a smooth spline down to the firmware
+ * slots — the Marius-style "curves" feel on GameSir hardware.
+ *
+ * Same input/output contract as resampleCurve, but segments are joined with
+ * a monotone cubic (Fritsch–Carlson tangents) instead of straight lines, so
+ * corners between control points round off instead of kinking. Monotone
+ * designs stay monotone: the output never wiggles backwards, it just bends
+ * more smoothly. A degenerate design (<2 distinct points) falls back to
+ * linear, exactly like resampleCurve.
+ *
+ * The pad still stores 5 linear segments, so this is honest smoothing within
+ * the hardware's resolution — the orange overlay in the UI is exactly what
+ * gets written, spline or not.
+ */
+export function resampleSpline(
+  design: Array<{ x: number; y: number }>,
+  xs: ReadonlyArray<number> = HW_CURVE_XS
+): Array<{ x: number; y: number }> {
+  const s = buildMonoSpline(design)
+  if (!s) return HW_CURVE_XS.map((x) => ({ x, y: x }))
+  return xs.map((x) => ({ x, y: clampByte(s.at(x)) }))
+}
+
+/**
+ * Dense trace of the same spline for drawing: `samples + 1` evenly spaced
+ * points across 0–255. Powers the smooth red design line in the graph so
+ * what you drag is what the spline sampler writes.
+ */
+export function traceSpline(
+  design: Array<{ x: number; y: number }>,
+  samples = 64
+): Array<{ x: number; y: number }> {
+  const s = buildMonoSpline(design)
+  if (!s) return [{ x: 0, y: 0 }, { x: 255, y: 255 }]
+  const out: Array<{ x: number; y: number }> = []
+  for (let i = 0; i <= samples; i++) {
+    const x = (i * 255) / samples
+    out.push({ x, y: clampByte(s.at(x)) })
+  }
+  return out
+}
+
+/** Insert a point at the middle of the longest segment (up to MAX). */
+export function addDesignPoint(design: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {  if (design.length >= DESIGN_MAX_POINTS) return design
   const pts = [...design].sort((a, b) => a.x - b.x)
   let best = 0
   let bestGap = -1
