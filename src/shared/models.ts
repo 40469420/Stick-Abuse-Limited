@@ -83,6 +83,24 @@ export const MODELS: ReadonlyArray<ControllerModel> = [
     supportNote: 'Reuses the G7ProCE proxy wholesale in the GameSir bundle: identical 1070-byte profile, 36-byte stick packet, Fun_Data offsets and 0xFE calibration. Only the gear table (250/500/1000) differs.'
   },
   {
+    id: 'Apex5',
+    marketingName: 'Flydigi Apex 5',
+    vendorId: 0x37d7,
+    usagePage: 0xffa0,
+    usage: 0x01,
+    pids: [0x2501],
+    productHints: ['Flydigi', 'APEX5', 'Apex 5'],
+    reportRates: [
+      { gear: 0, hz: 250, confirmed: false },
+      { gear: 1, hz: 500, confirmed: false },
+      { gear: 2, hz: 1000, confirmed: false }
+    ],
+    profileLength: 0,
+    dumpLength: 0,
+    support: 'full',
+    supportNote: 'Apex 5 (deviceCode k5) over WebHID interrupt reports (id 3 out / 4 back, 5A-A5 framing). Reads proven live; left-curve writes captured byte-exact with additive-checksum + save-nonce commit proof, owner-verified on hardware. Right-curve encoding, polling/precision switches and live input are unmapped — those cards stay off. 1000 Hz max.'
+  },
+  {
     id: 'G7SE',
     marketingName: 'GameSir G7 SE',
     vendorId: 0x3537,

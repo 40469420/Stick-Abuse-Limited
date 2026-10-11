@@ -214,7 +214,10 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(false)
+    // WebHID for Flydigi Apex 5 (interrupt-OUT reports node-hid cannot send).
+    // requestDevice still needs a user gesture; this only stops auto-deny.
+    // (cast: Electron's Permission union predates the 'hid' literal.)
+    callback((permission as string) === 'hid')
   })
   createWindow()
 

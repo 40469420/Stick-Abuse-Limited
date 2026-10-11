@@ -18,6 +18,7 @@ import {
 import { fitCurveExponent } from '@shared/steamcfg'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
+import { flyTransport, type FlyIdentity } from './flydigiUsb'
 
 /** Stick deadzone packet → whole percent for the Steam exporter. */
 function deadzonePct(pkt: import('@shared/profile').Packet): { begin: number; end: number; anti: number } {
@@ -1165,6 +1166,75 @@ function MariusPanel(): JSX.Element {
   )
 }
 
+function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
+  const [ptype, setPtype] = useState(2)
+  const [points, setPoints] = useState<number[]>([50, 56, 63, 69, 75, 94, 113, 131, 150])
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [stamp, setStamp] = useState<string | null>(null)
+
+  const setPt = (i: number, v: number): void => {
+    setPoints((prev) => {
+      const n = [...prev]
+      n[i] = Math.max(0, Math.min(150, Math.round(v)))
+      return n
+    })
+  }
+  const fill = (t: number, p: number[]): void => {
+    setPtype(t)
+    setPoints([...p])
+  }
+
+  async function write(): Promise<void> {
+    setErr(null)
+    setMsg(null)
+    if (!flyTransport.connected) {
+      setErr('Apex 5 not connected — connect it from the sidebar first, and close Space Station.')
+      return
+    }
+    if (!window.confirm('Write left curve to the Apex 5? Right stick, polling and precision are untouched. Space Station can restore.')) return
+    setBusy(true)
+    try {
+      const res = await flyTransport.writeLeftCurve(ptype, points)
+      setStamp(res.stamp)
+      setMsg(`Left curve written + save committed (stamp ${res.stamp}). Test feel in game — right curve is unmapped and untouched.`)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="card" style={{ borderColor: 'var(--warn)' }}>
+        <h3>Flydigi Apex 5 — left stick curve</h3>
+        <div className="hint">Same tab, native protocol (WebHID interrupt reports, mirrored byte-exact from live captures). The pad has no curve read-back, so the editor starts from the Slow preset — not from the pad. Right-stick curve encoding is unmapped and never written. Close Space Station first.</div>
+        {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}{stamp ? ` · last write ${stamp}` : ''}</div>}
+        <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
+          {[{ t: 3, label: 'Custom' }, { t: 1, label: 'Quick' }, { t: 2, label: 'Slow' }].map((o) => (
+            <button key={o.t} className={`btn sm${ptype === o.t ? ' primary' : ' ghost'}`} onClick={() => setPtype(o.t)}>{o.label}</button>
+          ))}
+          <div style={{ flex: 1 }} />
+          <button className="btn sm ghost" onClick={() => fill(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}>Slow</button>
+          <button className="btn sm ghost" onClick={() => fill(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}>Quick</button>
+        </div>
+        <div className="stack" style={{ gap: 8 }}>
+          {points.map((p, i) => (
+            <Slider key={i} label={`Point ${i + 1}`} value={p} min={0} max={150} step={1} onChange={(v) => setPt(i, v)} format={(v) => `${v.toFixed(0)}`} />
+          ))}
+        </div>
+        <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
+          <button className="btn sm primary" disabled={busy} onClick={() => void write()}>{busy ? 'Writing…' : 'Write left curve'}</button>
+        </div>
+        {msg && <div className="note" style={{ marginTop: 8 }}>{msg}</div>}
+        {err && <div className="note bad" style={{ marginTop: 8 }}>{err}</div>}
+      </div>
+    </div>
+  )
+}
+
 function ProfilesPanel({ connected, activeSlot, locked, modelId, modelLen, dumpLength, modelName }: { connected: boolean; activeSlot: number | null; locked: boolean; modelId: string; modelLen: number; dumpLength: number; modelName: string | null }): JSX.Element {
   const [entries, setEntries] = useState<SlotEntry[]>([1, 2, 3, 4].map((index) => ({ index, name: null, bytes: null, loading: false, error: null })))
   const [busy, setBusy] = useState(false)
@@ -1436,6 +1506,7 @@ export default function App(): JSX.Element {
   const [pid, setPid] = useState<number | null>(null)
   const [model, setModel] = useState<ControllerModel | null>(null)
   const [slot, setSlot] = useState(3)
+  const [flyId, setFlyId] = useState<FlyIdentity | null>(null)
   const [blob, setBlob] = useState<Uint8Array | null>(null)
   const [dirty, setDirty] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -1546,6 +1617,24 @@ export default function App(): JSX.Element {
         setModel(pre)
         setPid(cand?.productId ?? null)
         setMsg(`${pre.marketingName} detected — ${pre.supportNote}`)
+        return
+      }
+      if (pre?.id === 'Apex5') {
+        // Flydigi speaks WebHID interrupt reports, not the GameSir channel —
+        // handshake + tuning run renderer-side over flyTransport.
+        try {
+          await flyTransport.connect()
+          const ident = await flyTransport.identify()
+          setConnPath(path)
+          setConnected(true)
+          setInfo({ firmware: 'apex-link', dongle: '', currentProfile: 0 })
+          setPid(cand?.productId ?? null)
+          setModel(pre)
+          setFlyId(ident)
+          setMsg('Flydigi Apex 5 connected — left-curve tuning is live in Sticks. Close Space Station while tuned here.')
+        } catch (e) {
+          setErr((e as Error).message)
+        }
         return
       }
       const res = await api().connect(path)
@@ -1880,11 +1969,13 @@ export default function App(): JSX.Element {
               className="btn ghost sm"
               onClick={() => {
                 void api().disconnect()
+                flyTransport.disconnect()
                 setConnPath(null)
                 setConnected(false)
                 setInfo(null)
                 setPid(null)
                 setModel(null)
+                setFlyId(null)
               }}
             >
               Disconnect
@@ -1892,8 +1983,11 @@ export default function App(): JSX.Element {
           )}
           {info && (
             <div className="note">
-              FW {info.firmware} · live slot P{info.currentProfile}
-              <br />{model ? model.marketingName : 'Unknown model'}
+              {model?.id === 'Apex5' && flyId ? (
+                <>Apex 5 · uid {flyId.uid.slice(0, 12)}…<br />{model.marketingName}</>
+              ) : (
+                <>FW {info.firmware} · live slot P{info.currentProfile}<br />{model ? model.marketingName : 'Unknown model'}</>
+              )}
             </div>
           )}
           {pid === 0x0575 && (
@@ -2067,7 +2161,7 @@ export default function App(): JSX.Element {
           {tab !== 'steam' && !connected && (
             <div className="msg"><h3>Connect a controller</h3><p>G7 Pro 8K · G7 Pro · Tarantula 8K (plus new 8K editions via auto-check). Rescan, then connect the vendor interface. Close GameSir Connect first — it holds the handle.</p></div>
           )}
-          {tab !== 'steam' && connected && !profile && (
+          {tab !== 'steam' && connected && !profile && model?.id !== 'Apex5' && (
             !model || model.support !== 'full' ? (
               <div className="msg">
                 <h3>{model ? `${model.marketingName} — tuning locked` : 'Unknown controller — tuning locked'}</h3>
@@ -2077,6 +2171,24 @@ export default function App(): JSX.Element {
             ) : (
               <div className="msg"><h3>Loading profile…</h3></div>
             )
+          )}
+          {tab !== 'steam' && connected && !profile && model?.id === 'Apex5' && (
+            <>
+              {tab === 'sticks' && (<ApexSticks flyId={flyId} />)}
+              {tab === 'device' && (
+                <div className="card">
+                  <h3>Device — Apex 5</h3>
+                  <div className="hint">1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision), shapes, RC and reset are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</div>
+                  {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
+                </div>
+              )}
+              {(tab === 'profiles' || tab === 'lab') && (
+                <div className="msg"><h3>Not mapped yet</h3><p>Profile slots and analytics are GameSir-layout only. Apex curve tuning lives in Sticks.</p></div>
+              )}
+              {tab === 'calibrate' && (
+                <div className="msg"><h3>Not mapped yet</h3><p>Stick-center calibration needs live input decoding, not mapped for the Apex 5. Curves live in Sticks.</p></div>
+              )}
+            </>
           )}
           {connected && profile && pkt && dz && fd && (
             <>
