@@ -114,24 +114,24 @@ class FlyTransport {
   async connect(): Promise<HidDeviceLike> {
     const h = hid()
     if (!h) throw new Error('WebHID unavailable — use the desktop app build')
-    const granted = await h.getDevices()
-    let dev = granted.find((d) => d.vendorId === FLY_VID) ?? null
+    // requestDevice FIRST, before any await: Chromium may only allow the
+    // picker while the click's user gesture is current.
+    let picked: HidDeviceLike[] = []
+    try {
+      picked = await h.requestDevice({
+        filters: [
+          { vendorId: FLY_VID, productId: FLY_PID_APEX5, usagePage: FLY_USAGE_CMD },
+          { vendorId: FLY_VID, productId: FLY_PID_APEX5 },
+        ],
+      })
+    } catch {
+      picked = []
+    }
+    let dev = picked[0] ?? null
     if (!dev) {
-      // One picker with layered filters: strict (command page) first, then
-      // bare VID/PID — some Chromium builds filter vendor collections oddly,
-      // and a locked pad may only appear under the broad filter.
-      let picked: HidDeviceLike[] = []
-      try {
-        picked = await h.requestDevice({
-          filters: [
-            { vendorId: FLY_VID, productId: FLY_PID_APEX5, usagePage: FLY_USAGE_CMD },
-            { vendorId: FLY_VID, productId: FLY_PID_APEX5 },
-          ],
-        })
-      } catch {
-        picked = []
-      }
-      dev = picked[0] ?? null
+      // Fall back to an already-granted device (no picker needed).
+      const granted = await h.getDevices().catch(() => [] as HidDeviceLike[])
+      dev = granted.find((d) => d.vendorId === FLY_VID) ?? null
     }
     if (!dev) {
       throw new Error('No Flydigi device selected — if the list was empty, quit Space Station fully (window + service: it locks the pad) and retry')
