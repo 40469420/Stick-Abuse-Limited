@@ -219,6 +219,12 @@ app.whenReady().then(() => {
     // (cast: Electron's Permission union predates the 'hid' literal.)
     callback((permission as string) === 'hid')
   })
+  // This is the actual WebHID gate in Electron: without it the device
+  // picker comes up empty. GameSir path is unaffected (node-hid).
+  session.defaultSession.setDevicePermissionHandler((details) => {
+    const device = details.device as unknown as { vendorId?: number } | undefined
+    return details.deviceType === 'hid' && device?.vendorId === 0x37d7
+  })
   createWindow()
 
   // Self-update from GitHub Releases (packaged builds only — never in dev).
