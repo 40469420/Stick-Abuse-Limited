@@ -147,9 +147,10 @@ class FlyTransport {
     const { stamp } = await this.saveCommit()
     const after = await readBack().catch(() => null)
     if (!after) throw new Error(`saved (stamp ${stamp}) but the store would not re-read — verify feel in game`)
+    // NOTE: rightType is intentionally not compared — the pad stores 0
+    // there no matter what type byte the pack carries (observed live).
     const same =
       after.leftType === left.type &&
-      after.rightType === right.type &&
       after.leftPoints.length === left.points.length &&
       after.leftPoints.every((p, i) => p === left.points[i]) &&
       after.rightPoints.length === right.points.length &&

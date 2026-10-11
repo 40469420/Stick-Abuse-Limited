@@ -1250,10 +1250,22 @@ function ApexDevice({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   )
 }
 
+const FLY_P2D = (v: number): number => Math.max(0, Math.min(255, Math.round((v * 255) / 150)))
+const FLY_D2P = (p: number): number => Math.max(0, Math.min(150, Math.round((p * 150) / 255)))
+const FLY_SLOTX = (i: number): number => Math.round((i * 255) / 8)
+const flyToDesign = (pts: number[]): Array<{ x: number; y: number }> =>
+  pts.map((v, i) => ({ x: FLY_SLOTX(i), y: FLY_P2D(v) }))
+const flyFromDesign = (d: Array<{ x: number; y: number }>): number[] => d.map((p) => FLY_D2P(p.y))
+
 function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
   const [ptype, setPtype] = useState(2)
-  const [left, setLeft] = useState<number[]>([50, 56, 63, 69, 75, 94, 113, 131, 150])
-  const [right, setRight] = useState<number[]>([50, 62, 75, 87, 100, 112, 125, 137, 150])
+  const [which, setWhich] = useState(0)
+  const [leftDesign, setLeftDesign] = useState(() => flyToDesign([50, 56, 63, 69, 75, 94, 113, 131, 150]))
+  const [rightDesign, setRightDesign] = useState(() => flyToDesign([50, 62, 75, 87, 100, 112, 125, 137, 150]))
+  const [padLeft, setPadLeft] = useState(() => flyToDesign([50, 56, 63, 69, 75, 94, 113, 131, 150]))
+  const [padRight, setPadRight] = useState(() => flyToDesign([50, 62, 75, 87, 100, 112, 125, 137, 150]))
+  const [padType, setPadType] = useState(2)
+  const [deadStart, setDeadStart] = useState(10)
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -1271,8 +1283,11 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
     try {
       const store = await flyTransport.readStore()
       setPtype(store.leftType)
-      setLeft([...store.leftPoints])
-      setRight([...store.rightPoints])
+      setPadType(store.leftType)
+      setLeftDesign(flyToDesign(store.leftPoints))
+      setPadLeft(flyToDesign(store.leftPoints))
+      setRightDesign(flyToDesign(store.rightPoints))
+      setPadRight(flyToDesign(store.rightPoints))
       setLoaded(true)
       setMsg(`Store read — left ${flyTypeName(store.leftType)}, right type ${store.rightType}. Editing writes both sticks, verified by re-read.`)
     } catch (e) {
@@ -1287,18 +1302,30 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const setPt = (which: 'left' | 'right', i: number, v: number): void => {
-    const apply = (prev: number[]): number[] => {
-      const n = [...prev]
-      n[i] = Math.max(0, Math.min(150, Math.round(v)))
-      return n
-    }
-    if (which === 'left') setLeft(apply)
-    else setRight(apply)
+  const design = which === 0 ? leftDesign : rightDesign
+  const padDesign = which === 0 ? padLeft : padRight
+  const setDesign = which === 0 ? setLeftDesign : setRightDesign
+  const changed =
+    ptype !== padType ||
+    design.some((p, i) => p.y !== (padDesign[i]?.y ?? -1))
+
+  const onDesign = (next: Array<{ x: number; y: number }>): void => {
+    setDesign(next.map((p, i) => ({ x: FLY_SLOTX(i), y: Math.max(0, Math.min(255, Math.round(p.y))) })))
+    setPtype(3)
   }
-  const fillLeft = (t: number, p: number[]): void => {
+  const fillPreset = (t: number, p: number[]): void => {
     setPtype(t)
-    setLeft([...p])
+    setDesign(flyToDesign(p))
+  }
+  /** Deadzone nudge: mirrors Space Station's coupling (one observation — verify feel). */
+  const nudgeHead = (v: number): void => {
+    const delta = Math.round(v) - deadStart
+    if (delta === 0) return
+    setDesign((prev) =>
+      prev.map((p, i) => (i < 4 ? { ...p, y: Math.max(0, Math.min(255, p.y - Math.round((delta * 255) / 150))) } : p))
+    )
+    setDeadStart(Math.round(v))
+    setPtype(3)
   }
 
   async function write(): Promise<void> {
@@ -1320,8 +1347,8 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
     }
     try {
       const res = await flyTransport.writeCurves(
-        { type: ptype, points: left },
-        { type: ptype, points: right },
+        { type: ptype, points: flyFromDesign(leftDesign) },
+        { type: ptype, points: flyFromDesign(rightDesign) },
         () => flyTransport.readStore().catch(() => null)
       )
       setStamp(res.stamp)
@@ -1349,15 +1376,6 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
     }
   }
 
-  const curveEditor = (which: 'left' | 'right', points: number[], fixedType?: number): JSX.Element => (
-    <div className="stack" style={{ gap: 8 }}>
-      {points.map((p, i) => (
-        <Slider key={i} label={`${which === 'left' ? 'L' : 'R'}${i + 1}`} value={p} min={0} max={150} step={1} onChange={(v) => setPt(which, i, v)} format={(v) => `${v.toFixed(0)}`} />
-      ))}
-      {fixedType !== undefined && <div className="hint">Type byte reads {fixedType} — writes mirror the left type, like Space Station.</div>}
-    </div>
-  )
-
   return (
     <div className="stack" style={{ gap: 16 }}>
       <div className="card">
@@ -1375,32 +1393,60 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
           <div className="hint">No live gamepad stream — press a button on the pad (the browser needs input to see it).</div>
         )}
       </div>
+      <div className="card">
+        <h3>Dead zone</h3>
+        <div className="hint">No separate field on this pad — deadzone lives in the curve head, full range always (nothing clipped at the rim). <strong>Start</strong> reshapes the first 4 points of the viewed stick, mirroring Space Station's coupling (single observation — verify feel).</div>
+        <div className="stack" style={{ gap: 12, marginTop: 8 }}>
+          <Slider label="Start (head lift)" value={deadStart} min={0} max={30} step={1} unit="%" onChange={(v) => nudgeHead(v)} format={(v) => `${v.toFixed(0)}%`} />
+        </div>
+        <div className="row spread" style={{ marginTop: 8 }}>
+          <span className="label">End (input above = full)</span>
+          <span className="mono">100% fixed</span>
+        </div>
+      </div>
       <div className="card" style={{ borderColor: 'var(--warn)' }}>
-        <h3>Flydigi Apex 5 — stick curves</h3>
-        <div className="hint">Same tab, native protocol (WebHID interrupt reports, mirrored byte-exact from live captures + full store reads). Deadzone lives in the curve shape on this pad — there is no separate field. Right-curve encoding verified against captures. Close Space Station first.</div>
+        <h3>Custom curve designer — 9 points</h3>
+        <div className="hint">The pad stores exactly <strong>9 points</strong> per stick, so this canvas is exact — no quantization. <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the pad bytes</span>. Same tab, native protocol mirrored byte-exact from live captures. Close Space Station first.</div>
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}{stamp ? ` · last write ${stamp}` : ''}</div>}
-        <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
+        <div className="row" style={{ gap: 8, margin: '10px 0' }}>
+          {(['Left', 'Right'] as const).map((n, i) => (
+            <button key={n} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
+              {n} stick
+            </button>
+          ))}
+          <div style={{ flex: 1 }} />
+          <span className={`pill${changed ? ' warn' : ' good'}`}>{changed ? 'design ≠ pad — send it' : 'pad matches design'}</span>
+        </div>
+        <CurvePlot points={design} onChange={(next) => onDesign(next)} overlay={padDesign} />
+        <div className="row" style={{ gap: 8, margin: '8px 0' }}>
           <button className="btn sm" disabled={busy} onClick={() => void load()}>{loaded ? 'Reload from pad' : 'Load from pad'}</button>
+          <div style={{ flex: 1 }} />
+          <button className="btn sm primary" disabled={!changed || busy} onClick={() => void write()}>{busy ? 'Writing…' : 'Write both curves'}</button>
+        </div>
+        <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
           {[{ t: 3, label: 'Custom' }, { t: 1, label: 'Quick' }, { t: 2, label: 'Slow' }].map((o) => (
             <button key={o.t} className={`btn sm${ptype === o.t ? ' primary' : ' ghost'}`} onClick={() => setPtype(o.t)}>{o.label}</button>
           ))}
-          <div style={{ flex: 1 }} />
-          <button className="btn sm ghost" onClick={() => fillLeft(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}>Slow</button>
-          <button className="btn sm ghost" onClick={() => fillLeft(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}>Quick</button>
         </div>
-        <div className="two" style={{ alignItems: 'start', gap: 16 }}>
-          <div>
-            <div className="label" style={{ marginBottom: 6 }}>Left — 9 points</div>
-            {curveEditor('left', left)}
-          </div>
-          <div>
-            <div className="label" style={{ marginBottom: 6 }}>Right — 9 points</div>
-            {curveEditor('right', right, 0)}
-          </div>
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button className="btn sm ghost" onClick={() => fillPreset(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}>Slow</button>
+          <button className="btn sm ghost" onClick={() => fillPreset(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}>Quick</button>
         </div>
-        <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
-          <button className="btn sm primary" disabled={busy} onClick={() => void write()}>{busy ? 'Writing…' : 'Write both curves'}</button>
-        </div>
+        <table className="tbl" style={{ marginTop: 8 }}>
+          <thead><tr><th>#</th><th>Value (0–150)</th></tr></thead>
+          <tbody>
+            {design.map((p, i) => (
+              <tr key={i}>
+                <td className="mono">{i + 1}</td>
+                <td><input className="input" type="number" min={0} max={150} value={FLY_D2P(p.y)} onChange={(e) => {
+                  const v = Math.max(0, Math.min(150, Number(e.target.value)))
+                  if (!Number.isFinite(v)) return
+                  onDesign(design.map((q, j) => (j === i ? { ...q, y: FLY_P2D(v) } : q)))
+                }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         {msg && <div className="note" style={{ marginTop: 8 }}>{msg}</div>}
         {err && <div className="note bad" style={{ marginTop: 8 }}>{err}</div>}
       </div>
