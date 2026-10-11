@@ -127,7 +127,7 @@ class FlyTransport {
     } catch {
       picked = []
     }
-    let dev = picked[0] ?? null
+    let dev: HidDeviceLike | null = picked[0] ?? null
     if (!dev) {
       // Fall back to an already-granted device (no picker needed).
       const granted = await h.getDevices().catch(() => [] as HidDeviceLike[])
