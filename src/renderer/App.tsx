@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { api, b64ToBytes, bytesToB64, type Candidate, type DeviceInfo, type DeviceStats, type LiveSample, type PingResult } from './api'
-import { parseProfile, serializeProfile, fun, stick, LINEAR_CURVE, looksLikeCEProfile, Packet } from '@shared/profile'
+import { parseProfile, serializeProfile, fun, stick, LINEAR_CURVE, looksLikeCEProfile } from '@shared/profile'
 import { PROFILE_LENGTH, REPORT_RATE_OPTIONS, STICK_RESOLUTION_OPTIONS } from '@shared/protocol'
 import { identifyModel, MODELS, type ControllerModel } from '@shared/models'
 import {
@@ -15,7 +15,6 @@ import {
   outerBufferFromBytes,
   isOuterUnlimited
 } from '@shared/sticklab'
-import { fitCurveExponent } from '@shared/steamcfg'
 import { LANGS, LangContext, tr, useLangState, useT } from './i18n'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
@@ -23,11 +22,6 @@ import { flyTransport, type FlyIdentity } from './flydigiUsb'
 import { flyTypeName } from '@shared/flydigi'
 import { axisToByte, useFlyLive } from './flydigiLive'
 
-/** Stick deadzone packet → whole percent for the Steam exporter. */
-function deadzonePct(pkt: import('@shared/profile').Packet): { begin: number; end: number; anti: number } {
-  const d = stick.deadzone(pkt)
-  return { begin: d.begin / 10, end: d.end / 10, anti: d.beginAnti / 10 }
-}
 
 function Slider(props: {  label: string
   value: number
@@ -287,113 +281,6 @@ const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: 
   }
 }
 
-function SteamCard({ left, right, mouseRate, fittedK }: { left: { begin: number; end: number } | null; right: { begin: number; end: number } | null; mouseRate: number | null; fittedK: number | null }): JSX.Element {
-  const t = useT()
-  const [info, setInfo] = useState<{ steamPath: string | null; userId: string | null; apexInstalled: boolean; apexAppId: number; steamRunning: boolean } | null>(null)
-  const [games, setGames] = useState<Array<{ appId: number; name: string }>>([])
-  const [busy, setBusy] = useState(false)
-  const [tryCurve, setTryCurve] = useState(false)
-  const [result, setResult] = useState<{ game: string; files: string[]; backedUp: string[]; mapped: string[]; notTransferred: string[] } | null>(null)
-  const [bulk, setBulk] = useState<Array<{ appId: number; name: string; ok: boolean; detail: string }> | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    void api().steamInfo().then(setInfo).catch(() => undefined)
-    void api().steamGames().then(setGames).catch(() => undefined)
-  }, [])
-
-  async function run(): Promise<void> {
-    if (!left || !right) return
-    setBusy(true)
-    setError(null)
-    setResult(null)
-    try {
-      setResult(await api().steamExport(left, right, mouseRate, tryCurve ? fittedK : null))
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function runAll(): Promise<void> {
-    if (!left || !right) return
-    setBusy(true)
-    setError(null)
-    setBulk(null)
-    try {
-      const res = await api().steamExportAll(left, right, mouseRate, tryCurve ? fittedK : null)
-      setGames(res.games)
-      setBulk(res.result.games)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const okCount = bulk?.filter((g) => g.ok).length ?? 0
-
-  return (
-    <div className="card" style={{ marginTop: 16 }}>
-      <h3>{t('steam.title')} - any controller</h3>
-      <div className="hint">Writes your deadzones + Controller Rate pick into Steam's files so any Steam pad plays them.</div>
-      <label className="row" style={{ gap: 8, marginTop: 8, fontSize: 12.5 }}>
-        <input
-          type="checkbox"
-          checked={tryCurve}
-          disabled={fittedK === null}
-          onChange={(e) => setTryCurve(e.target.checked)}
-        />
-        <span>
-          Experimental curve fit{fittedK !== null ? ` (right stick ≈ exponent ${fittedK})` : ' (connect a pad first)'} — direction unconfirmed, may feel inverted. Tell me how it feels.
-        </span>
-      </label>
-      <div className="row wrap" style={{ gap: 8, margin: '10px 0', fontSize: 12 }}>
-        <span className="pill">{info ? (info.steamPath ? `Steam found${info.userId ? ` · user ${info.userId}` : ''}` : 'Steam not found') : 'Detecting Steam…'}</span>
-        <span className="pill">{games.length > 0 ? `${games.length} games detected` : 'Scanning library…'}</span>
-        {info?.steamRunning && <span className="pill bad">Steam is running — close it first</span>}
-      </div>
-      <div className="row wrap" style={{ gap: 8 }}>
-        <button
-          className="btn sm"
-          disabled={busy || !left || !right || !info?.steamPath || !info?.apexInstalled}
-          onClick={() => void run()}
-        >
-          {busy ? 'Writing…' : 'Apex only'}
-        </button>
-        <button
-          className="btn sm primary"
-          disabled={busy || !left || !right || !info?.steamPath || games.length === 0}
-          onClick={() => void runAll()}
-        >
-          {busy ? 'Writing…' : `All ${games.length} games`}
-        </button>
-      </div>
-      {!left && <div className="note" style={{ marginTop: 8 }}>Connect a pad and load a profile first — the export uses your current sticks.</div>}
-      {error && <div className="note bad" style={{ marginTop: 8 }}>{error}</div>}
-      {result && (
-        <div className="stack" style={{ gap: 6, marginTop: 10, fontSize: 12.5 }}>
-          <div className="note">Apex done{result.backedUp.length > 0 ? ` (old files kept as .bak)` : ''}. Restart Steam, then enable Steam Input for Apex.</div>
-          {result.mapped.map((m) => <span key={m}>✓ {m}</span>)}
-          {result.notTransferred.map((m) => <span key={m} style={{ color: 'var(--text-3)' }}>– {m}</span>)}
-        </div>
-      )}
-      {bulk && (
-        <div className="stack" style={{ gap: 6, marginTop: 10, fontSize: 12.5 }}>
-          <div className="note">{okCount}/{bulk.length} games written — restart Steam afterwards. Old files kept as .bak next to each config.</div>
-          <div className="log" style={{ maxHeight: 160 }}>
-            {bulk.map((g) => (
-              <div key={g.appId}>
-                <span className={g.ok ? 'resp' : 'cmd'}>{g.ok ? 'OK  ' : 'FAIL'}</span> {g.name} <span className="t">{g.detail}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 function AnalyticsPanel({ context }: { context: string }): JSX.Element {  const [rate, setRate] = useState(0)
   const [frames, setFrames] = useState(0)
@@ -1991,27 +1878,7 @@ export default function App(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [loadId, setLoadId] = useState(0)
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
-  const [tab, setTab] = useState<'sticks' | 'device' | 'profiles' | 'lab' | 'steam' | 'calibrate' | 'marius' | 'language'>('sticks')
-  // Virtual sticks for pad-less Steam shaping: real packets, never written
-  // to hardware — the Steam exporter reads these when no profile is loaded.
-  const [vSticks] = useState(() => {
-    const make = (): Packet => {
-      const p = new Packet(new Uint8Array(36))
-      p.setU8(0, 1)
-      p.setU8(2, 1)
-      stick.setDeadzone(p, { begin: 0, end: 1000, beginAnti: 0, endAnti: 1000 })
-      stick.setCurve(p, LINEAR_CURVE.map((c) => ({ ...c })))
-      p.setU8(27, 50)
-      return p
-    }
-    return [make(), make()]
-  })
-  const [vMouse, setVMouse] = useState<number | null>(null)
-  // Virtual curve design for Steam export (2–10 pts). Fitted to a single
-  // exponent on export — approximate by nature, stated in the UI.
-  const [vDesign, setVDesign] = useState<Array<{ x: number; y: number }>>([
-    { x: 0, y: 0 }, { x: 64, y: 64 }, { x: 128, y: 128 }, { x: 191, y: 191 }, { x: 255, y: 255 }
-  ])
+  const [tab, setTab] = useState<'sticks' | 'device' | 'profiles' | 'lab' | 'calibrate' | 'marius' | 'language'>('sticks')
   const [measuring, setMeasuring] = useState<{ left: number; suggestion: { dev: number; pct10: number } | null } | null>(null)
   const wanderRef = useRef(0)
   const modelLenRef = useRef(PROFILE_LENGTH)
@@ -2311,12 +2178,6 @@ export default function App(): JSX.Element {
     bump()
   }
 
-  /** Mutate a virtual (Steam-only) stick — no blob, no pad, just rerender. */
-  const editVirtual = (fn: () => void): void => {
-    fn()
-    force((n) => n + 1)
-  }
-
   const pkt = profile?.sticks[which] ?? null
   const fd = profile?.funData ?? null
   const dz = pkt ? stick.deadzone(pkt) : null
@@ -2422,12 +2283,6 @@ export default function App(): JSX.Element {
             </button>
             <button type="button" className={`nav-item${tab === 'lab' ? ' active' : ''}`} onClick={() => setTab('lab')}>
               {t('nav.lab')}
-            </button>
-          </div>
-          <div className="nav-group">
-            <h4>{t('nav.export')}</h4>
-            <button type="button" className={`nav-item${tab === 'steam' ? ' active' : ''}`} onClick={() => setTab('steam')}>
-              {t('nav.steam')}
             </button>
           </div>
           <div className="nav-group">
@@ -2586,95 +2441,11 @@ export default function App(): JSX.Element {
           )}
           {err && <div className="note bad">{err}</div>}
           {msg && <div className="note">{msg}</div>}
-          {tab === 'steam' && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <h3>Steam — no pad needed</h3>
-              <div className="hint">Tune deadzones here for export to Steam. Outer reach rides along inside Full power. Anti snap exports as Steam's on/off flag.</div>
-              <div className="two" style={{ alignItems: 'start', marginTop: 10 }}>
-                {(['Left', 'Right'] as const).map((name, i) => {
-                  const vp = vSticks[i]
-                  const vdz = stick.deadzone(vp)
-                  const setVD = (key: 'begin' | 'end', percent: number): void => {
-                    const next = { ...stick.deadzone(vp) }
-                    next[key] = Math.round(percent * 10)
-                    stick.setDeadzone(vp, next)
-                  }
-                  const outerB = 100 - vdz.end / 10
-                  return (
-                    <div className="stack" style={{ gap: 12 }} key={name}>
-                      <span className="label">{name} stick</span>
-                      <Slider label="Deadzone start" value={vdz.begin / 10} min={0} max={20} step={0.5} unit="%" onChange={(v) => editVirtual(() => setVD('begin', v))} format={(v) => `${v.toFixed(1)}%`} />
-                      <Slider label="Deadzone end" value={vdz.end / 10} min={10} max={100} step={0.5} unit="%" onChange={(v) => editVirtual(() => setVD('end', v))} format={(v) => `${v.toFixed(1)}%`} />
-                      <Slider label="Anti snap" value={vdz.beginAnti / 10} min={0} max={50} step={0.5} unit="%" onChange={(v) => editVirtual(() => { const n = { ...stick.deadzone(vp) }; n.beginAnti = Math.round(v * 10); stick.setDeadzone(vp, n) })} format={(v) => `${v.toFixed(1)}%`} />
-                      <Slider label="Anti ceiling" value={vdz.endAnti / 10} min={50} max={100} step={0.5} unit="%" onChange={(v) => editVirtual(() => { const n = { ...stick.deadzone(vp) }; n.endAnti = Math.round(v * 10); stick.setDeadzone(vp, n) })} format={(v) => `${v.toFixed(1)}%`} />
-                      <Slider label="Outer reach (earlier max)" value={outerB} min={0} max={90} step={1} unit="%" onChange={(v) => editVirtual(() => stick.setDeadzone(vp, { ...stick.deadzone(vp), end: Math.round((100 - v) * 10), endAnti: 1000 }))} format={(v) => (v === 0 ? '∞ full range' : `max at ${(100 - v).toFixed(0)}%`)} />
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="row wrap" style={{ gap: 8, marginTop: 12 }}>
-                <span className="label">Controller Rate</span>
-                {[{ label: 'None', value: null as number | null }, ...[100, 150, 200, 250, 300].map((r) => ({ label: `${r}${r > 255 ? '*' : ''}`, value: Math.min(r, 255) as number | null }))].map((opt) => (
-                  <button
-                    key={opt.label}
-                    className={`btn sm${vMouse === opt.value ? ' primary' : ' ghost'}`}
-                    onClick={() => setVMouse(opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <div className="card" style={{ marginTop: 16 }}>
-                <h3>Aim response — custom curve for Steam</h3>
-                <div className="hint">Design freely (drag, add up to 10 points). On export this is fitted to Steam's single-exponent language — the closest thing possible, not 1:1. Current fit: <span className="mono">k ≈ {fitCurveExponent(vDesign)}</span></div>
-                <CurvePlot points={vDesign} onChange={setVDesign} />
-                <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
-                  {Object.entries(AIM_CURVES).map(([key, c]) => (
-                    <button
-                      key={key}
-                      className="btn sm ghost"
-                      title={c.hint}
-                      onClick={() => setVDesign(c.pts.map((p) => ({ ...p })))}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                  <button
-                    className="btn sm ghost"
-                    disabled={vDesign.length >= DESIGN_MAX_POINTS}
-                    onClick={() => setVDesign((d) => addDesignPoint(d))}
-                  >
-                    + Add point ({vDesign.length}/{DESIGN_MAX_POINTS})
-                  </button>
-                  {vDesign.length > DESIGN_MIN_POINTS && (
-                    <button
-                      className="btn sm ghost"
-                      onClick={() => setVDesign((d) => d.slice(0, -1))}
-                    >
-                      − Remove last
-                    </button>
-                  )}
-                </div>
-                <table className="tbl" style={{ marginTop: 8 }}>
-                  <thead><tr><th>#</th><th>X (input)</th><th>Y (output)</th></tr></thead>
-                  <tbody>
-                    {vDesign.map((p, i) => (
-                      <tr key={i}>
-                        <td className="mono">{i + 1}</td>
-                        <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = vDesign.map((q) => ({ ...q })); next[i].x = Math.max(0, Math.min(255, Number(e.target.value))); setVDesign(next) }} /></td>
-                        <td><input className="input" type="number" min={0} max={255} value={p.y} onChange={(e) => { const next = vDesign.map((q) => ({ ...q })); next[i].y = Math.max(0, Math.min(255, Number(e.target.value))); setVDesign(next) }} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
           {dirty && <div className="note warn">{t('msg.dirty')}</div>}
-          {tab !== 'steam' && !connected && (
+          {!connected && (
             <div className="msg"><h3>{t('msg.connect')}</h3><p>G7 Pro 8K · G7 Pro · Tarantula 8K · Flydigi Apex 5 (plus new 8K editions via auto-check). {t('msg.connectBody')}</p></div>
           )}
-          {tab !== 'steam' && connected && !profile && model?.id !== 'Apex5' && (
+          {connected && !profile && model?.id !== 'Apex5' && (
             !model || model.support !== 'full' ? (
               <div className="msg">
                 <h3>{model ? `${model.marketingName} — ${t('msg.locked')}` : 'Unknown controller — tuning locked'}</h3>
@@ -2685,7 +2456,7 @@ export default function App(): JSX.Element {
               <div className="msg"><h3>{t('msg.loading')}</h3></div>
             )
           )}
-          {tab !== 'steam' && connected && !profile && model?.id === 'Apex5' && (
+          {connected && !profile && model?.id === 'Apex5' && (
             <>
               {tab === 'sticks' && (<ApexSticks flyId={flyId} />)}
               {tab === 'device' && (
@@ -3240,12 +3011,6 @@ export default function App(): JSX.Element {
             }
           />
           )}
-          <SteamCard
-            left={tab === 'steam' ? deadzonePct(vSticks[0]) : profile ? deadzonePct(profile.sticks[0]) : null}
-            right={tab === 'steam' ? deadzonePct(vSticks[1]) : profile ? deadzonePct(profile.sticks[1]) : null}
-            mouseRate={tab === 'steam' ? vMouse : profile && stick.mouseDpi(profile.sticks[1]) !== 50 ? stick.mouseDpi(profile.sticks[1]) : null}
-            fittedK={tab === 'steam' ? fitCurveExponent(vDesign) : profile ? fitCurveExponent(stick.curve(profile.sticks[1])) : null}
-          />
         </div>
       </main>
     </div>
