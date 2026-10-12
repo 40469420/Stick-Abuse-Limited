@@ -68,6 +68,30 @@ function blankStick(): Packet {
   check('raw write path: b11/b12/b13 = 1/0/100', p.u8(11) === 1 && lm.type === 0 && lm.rate === 100)
 }
 
+// raw bypass is non-destructive: only the enable bit flips, everything
+// else is preserved, so leaving raw restores the exact previous tune
+{
+  const p = blankStick()
+  stick.setEnabled(p, true)
+  stick.setSquareGate(p, true)
+  stick.setDeadzone(p, { begin: 50, end: 800, beginAnti: 80, endAnti: 1000 })
+  stick.setCurve(p, [
+    { x: 38, y: 46 }, { x: 77, y: 82 }, { x: 128, y: 122 }, { x: 179, y: 176 }, { x: 217, y: 219 }
+  ])
+  stick.setLinearModule(p, true, 3, 74)
+  stick.setAxisRatio(p, 46)
+  const before = Array.from(p.bytes)
+  // ...what the raw button does:
+  stick.setEnabled(p, false)
+  check('raw bypass reads as raw', stick.isRawState(p))
+  const diffs = before.map((b, i) => (b === p.bytes[i] ? -1 : i)).filter((i) => i >= 0)
+  check('raw bypass flips only the enable bit', JSON.stringify(diffs) === JSON.stringify([0]))
+  // ...and leaving raw restores the tune byte-for-byte:
+  stick.setEnabled(p, true)
+  check('leaving raw restores every byte', JSON.stringify(Array.from(p.bytes)) === JSON.stringify(before))
+  check('restored tune is not raw', !stick.isRawState(p))
+}
+
 // square gate or leftover deadzone disqualifies raw
 {
   const p = blankStick()
