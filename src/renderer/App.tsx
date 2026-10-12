@@ -2475,10 +2475,28 @@ export default function App(): JSX.Element {
   const modelLen = model && model.profileLength > 0 ? model.profileLength : PROFILE_LENGTH
   modelLenRef.current = modelLen
   const padCurve = pts
-  const curvePending = quantized.length === padCurve.length && quantized.some((q, i) => q.x !== padCurve[i].x || q.y !== padCurve[i].y)
 
   function reloadDesignFromPad(): void {
     if (pkt) setDesign(stick.curve(pkt).map((p) => ({ ...p })))
+  }
+
+  /**
+   * Curve edits apply immediately, like every other control: the design
+   * canvas updates AND the sampled slots are written into the working copy
+   * (marked dirty — the top Write button commits to the pad). No-op when
+   * the sampled design already equals the working copy, so loading and
+   * no-change touches never dirty the profile.
+   */
+  function stageDesign(next: Array<{ x: number; y: number }>, useSpline: boolean = spline): void {
+    setDesign(next)
+    if (!pkt || next.length < 2) return
+    const q = useSpline ? resampleSpline(next) : resampleCurve(next)
+    const cur = stick.curve(pkt)
+    if (q.length === cur.length && q.every((p, i) => p.x === cur[i].x && p.y === cur[i].y)) return
+    edit(() => {
+      stick.setCurve(pkt, q.map((p) => ({ ...p })))
+      stick.markCurveIdentity(pkt)
+    })
   }
 
   return (
@@ -2842,13 +2860,11 @@ export default function App(): JSX.Element {
                   <div className="card">
                     <h3>{t('sticks.curve')} — {design.length} {t('sticks.points')}</h3>
                     <div className="hint">{t('sticks.curveHint')}</div>
-                    <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => setDesign(next)} overlay={quantized} smooth={spline} />
+                    <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => stageDesign(next)} overlay={quantized} smooth={spline} />
                     <div className="row" style={{ gap: 8, margin: '8px 0' }}>
-                      <span className={curvePending ? 'pill warn' : 'pill good'}>{curvePending ? t('sticks.differs') : t('sticks.matches')}</span>
                       <div style={{ flex: 1 }} />
-                      <button className={`btn sm${!spline ? ' primary' : ' ghost'}`} onClick={() => setSpline(false)}>{t('sticks.linear')}</button>
-                      <button className={`btn sm${spline ? ' primary' : ' ghost'}`} onClick={() => setSpline(true)}>{t('sticks.spline')}</button>
-                      <button className="btn sm primary" disabled={!curvePending} onClick={() => edit(() => { if (pkt) { stick.setCurve(pkt, quantized.map((p) => ({ ...p }))); stick.markCurveIdentity(pkt) } })}>{t('sticks.send')}</button>
+                      <button className={`btn sm${!spline ? ' primary' : ' ghost'}`} onClick={() => { setSpline(false); stageDesign(design, false) }}>{t('sticks.linear')}</button>
+                      <button className={`btn sm${spline ? ' primary' : ' ghost'}`} onClick={() => { setSpline(true); stageDesign(design, true) }}>{t('sticks.spline')}</button>
                       <button className="btn sm ghost" onClick={reloadDesignFromPad}>{t('sticks.reload')}</button>
                     </div>
                     <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
@@ -2857,7 +2873,7 @@ export default function App(): JSX.Element {
                           key={key}
                           className="btn sm ghost"
                           title={c.hint}
-                          onClick={() => setDesign(c.pts.map((p) => ({ ...p })))}
+                          onClick={() => stageDesign(c.pts.map((p) => ({ ...p })))}
                         >
                           {c.label}
                         </button>
@@ -2885,7 +2901,7 @@ export default function App(): JSX.Element {
                           <button
                             className="btn sm ghost"
                             title={`Apply ${p.name}`}
-                            onClick={() => setDesign(p.pts.map((q) => ({ ...q })))}
+                            onClick={() => stageDesign(p.pts.map((q) => ({ ...q })))}
                           >
                             {p.name}
                           </button>
@@ -2903,7 +2919,7 @@ export default function App(): JSX.Element {
                       <button
                         className="btn sm"
                         disabled={design.length >= DESIGN_MAX_POINTS}
-                        onClick={() => setDesign((d) => addDesignPoint(d.length >= 2 ? d : padCurve))}
+                        onClick={() => stageDesign(addDesignPoint(design.length >= 2 ? design : padCurve))}
                       >
                         {t('sticks.addPoint')} ({design.length}/{DESIGN_MAX_POINTS})
                       </button>
@@ -2920,7 +2936,7 @@ export default function App(): JSX.Element {
                       </button>
                       <button
                         className="btn sm ghost"
-                        onClick={() => setDesign(LINEAR_CURVE.map((p) => ({ ...p })))}
+                        onClick={() => stageDesign(LINEAR_CURVE.map((p) => ({ ...p })))}
                       >
                         {t('sticks.resetCurve')}
                       </button>
@@ -2931,10 +2947,10 @@ export default function App(): JSX.Element {
                         {design.map((p, i) => (
                           <tr key={i}>
                             <td className="mono">{i + 1}</td>
-                            <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].x = Math.max(0, Math.min(255, Number(e.target.value))); setDesign(next) }} /></td>
-                            <td><input className="input" type="number" min={0} max={255} value={p.y} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].y = Math.max(0, Math.min(255, Number(e.target.value))); setDesign(next) }} /></td>
+                            <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].x = Math.max(0, Math.min(255, Number(e.target.value))); stageDesign(next) }} /></td>
+                            <td><input className="input" type="number" min={0} max={255} value={p.y} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].y = Math.max(0, Math.min(255, Number(e.target.value))); stageDesign(next) }} /></td>
                             <td>
-                              <button className="btn sm ghost" disabled={design.length <= DESIGN_MIN_POINTS} title={t('sticks.removePoint')} onClick={() => setDesign((d) => d.filter((_, j) => j !== i))}>−</button>
+                              <button className="btn sm ghost" disabled={design.length <= DESIGN_MIN_POINTS} title={t('sticks.removePoint')} onClick={() => stageDesign(design.filter((_, j) => j !== i))}>−</button>
                             </td>
                           </tr>
                         ))}
