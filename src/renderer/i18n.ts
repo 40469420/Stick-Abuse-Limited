@@ -119,6 +119,8 @@ const STR: Dict = {
   'common.reload': { en: 'Reload', zh: '重载', ja: '再読み込み' },
   'common.dismiss': { en: 'Dismiss', zh: '忽略', ja: '閉じる' },
   'common.loading': { en: 'Loading…', zh: '加载中…', ja: '読み込み中…' },
+  'hint.show': { en: 'Show help', zh: '显示帮助', ja: 'ヘルプ表示' },
+  'hint.hide': { en: 'Hide help', zh: '隐藏帮助', ja: 'ヘルプ非表示' },
   'common.working': { en: 'Working…', zh: '处理中…', ja: '処理中…' },
   'profiles.title': { en: 'Stick profiles', zh: '摇杆配置', ja: 'スティックプロファイル' },
   'buttons.title': { en: 'Button remap', zh: '按键映射', ja: 'ボタンリマップ' },

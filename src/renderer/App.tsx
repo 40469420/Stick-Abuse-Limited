@@ -27,6 +27,31 @@ import { flyTypeName } from '@shared/flydigi'
 import { axisToByte, useFlyLive } from './flydigiLive'
 
 
+/**
+ * Collapsible help text — every descriptive hint/note in the UI hides behind
+ * a small `?` toggle so cards stay clean. Warnings, errors, live readouts
+ * and anything interactive are never wrapped in this; only static explainer
+ * copy. Expanded content keeps the original `.hint` styling.
+ */
+function Hint({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }): JSX.Element {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="hint-wrap" style={style}>
+      <button
+        type="button"
+        className="hint-toggle"
+        title={open ? t('hint.hide') : t('hint.show')}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? '–' : '?'}
+      </button>
+      {open && <div className="hint">{children}</div>}
+    </div>
+  )
+}
+
 function Slider(props: {  label: string
   value: number
   min: number
@@ -382,7 +407,7 @@ function AnalyticsPanel({ context }: { context: string }): JSX.Element {  const 
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h3>{t('lab.title')}</h3>
-      <div className="hint">{context}</div>
+      <Hint>{context}</Hint>
       <div className="two" style={{ alignItems: 'start', marginTop: 10 }}>
         <div className="stack" style={{ gap: 10 }}>
           <div className="row" style={{ gap: 8 }}>
@@ -393,13 +418,13 @@ function AnalyticsPanel({ context }: { context: string }): JSX.Element {  const 
             <button className="btn sm ghost" onClick={() => setPaused((p) => !p)}>{paused ? t('lab.resume') : t('lab.pause')}</button>
           </div>
           <canvas ref={chartRef} className="plot" style={{ height: 120 }} />
-          <div className="note">{t('lab.streamNote')}</div>
+          <Hint>{t('lab.streamNote')}</Hint>
           <div className="row" style={{ gap: 8 }}>
             <button className="btn sm primary" disabled={pinging} onClick={() => void runPing()}>{pinging ? t('lab.measuring') : t('lab.runPing')}</button>
             {pingError && <span style={{ color: 'var(--bad)', fontSize: 12 }}>{pingError}</span>}
             {ping && <span className="mono">median {ping.median.toFixed(1)} ms · mean {ping.mean.toFixed(1)} ms · min {ping.min.toFixed(1)} · max {ping.max.toFixed(1)}</span>}
           </div>
-          <div className="note">{t('lab.pingNote')}</div>
+          <Hint>{t('lab.pingNote')}</Hint>
         </div>
         <div className="stack" style={{ gap: 10 }}>
           <div className="row spread">
@@ -419,9 +444,9 @@ function AnalyticsPanel({ context }: { context: string }): JSX.Element {  const 
               ))}
             </tbody>
           </table>
-          <div className="note">
+          <Hint>
             {extents ? t('lab.samples').replace('{n}', extents.n.toLocaleString()) : t('lab.samplesEmpty')}
-          </div>
+          </Hint>
         </div>
       </div>
     </div>
@@ -497,7 +522,7 @@ function LockedDump({ modelId, modelName, defaultLength }: { modelId: string; mo
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h3>Locked — {modelName ?? t('msg.unknownModel')}</h3>
-      <div className="hint">Profile backup is disabled for this model — its profile layout is unverified, so reads and writes stay off. A read-only dump helps unlock it.</div>
+      <Hint>Profile backup is disabled for this model — its profile layout is unverified, so reads and writes stay off. A read-only dump helps unlock it.</Hint>
       <div className="row" style={{ gap: 8, marginTop: 10 }}>
         <input
           className="input"
@@ -863,7 +888,7 @@ function CalibrationPanel(): JSX.Element {
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h3>{t('cal.bench')}</h3>
-      <div className="hint">{t('cal.intro')}</div>
+      <Hint>{t('cal.intro')}</Hint>
       <div className="row" style={{ gap: 20, justifyContent: 'center', margin: '12px 0' }}>
         {live ? (
           <>
@@ -871,10 +896,10 @@ function CalibrationPanel(): JSX.Element {
             <StickDial x={live.rx} y={live.ry} label={t('cal.right')} />
           </>
         ) : (
-          <div className="hint">{t('cal.waiting')}</div>
+          <Hint>{t('cal.waiting')}</Hint>
         )}
       </div>
-      <div className="hint" style={{ textAlign: 'center' }}>{t('cal.centerHint')}</div>
+      <Hint style={{ textAlign: 'center' }}>{t('cal.centerHint')}</Hint>
       <div className="row" style={{ gap: 28, justifyContent: 'center', margin: '4px 0 12px' }}>
         {([0, 1] as const).map((s) => (
           <div key={s} style={{ textAlign: 'center' }}>
@@ -949,7 +974,7 @@ function CalibrationPanel(): JSX.Element {
           ))}
         </tbody>
       </table>
-      <div className="note" style={{ marginTop: 8 }}>{t('cal.tipRest')}</div>
+      <Hint style={{ marginTop: 8 }}>{t('cal.tipRest')}</Hint>
       <div className="note warn" style={{ marginTop: 8 }}>{t('cal.driftWarn')} {t('cal.driftWarn2')}</div>
     </div>
   )
@@ -1040,7 +1065,7 @@ function MariusPanel(): JSX.Element {
     <div className="stack" style={{ gap: 16 }}>
       <div className="card" style={{ borderColor: 'var(--warn)' }}>
         <h3>Marius board — read-only preview</h3>
-        <div className="hint">Reverse-engineered from the public setup web app — <strong>unverified against hardware</strong>. This build has no write path: connect, identity and config reads only. Setup mode: hold PS while plugging USB.</div>
+        <Hint>Reverse-engineered from the public setup web app — <strong>unverified against hardware</strong>. This build has no write path: connect, identity and config reads only. Setup mode: hold PS while plugging USB.</Hint>
         <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
           <button className="btn sm" disabled={busy} onClick={() => void scan()}>Scan USB</button>
           {session && (
@@ -1127,7 +1152,7 @@ function ApexCalibrate(): JSX.Element {
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h3>{t('cal.bench')} — Apex 5</h3>
-      <div className="hint">Live center check off the standard gamepad stream. Firmware center-write is unmapped for this pad — tune the curve heads in Sticks instead. Leave the pad untouched on a table.</div>
+      <Hint>Live center check off the standard gamepad stream. Firmware center-write is unmapped for this pad — tune the curve heads in Sticks instead. Leave the pad untouched on a table.</Hint>
       <div className="row" style={{ gap: 20, justifyContent: 'center', margin: '12px 0' }}>
         {feed.present ? (
           <>
@@ -1135,7 +1160,7 @@ function ApexCalibrate(): JSX.Element {
             <StickDial x={axisToByte(feed.rx)} y={axisToByte(feed.ry)} label="Right" />
           </>
         ) : (
-          <div className="hint">Waiting for live input — press a button on the pad.</div>
+          <Hint>Waiting for live input — press a button on the pad.</Hint>
         )}
       </div>
       <div className="row wrap" style={{ gap: 8, margin: '10px 0', alignItems: 'center' }}>
@@ -1179,12 +1204,12 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
     <div className="stack" style={{ gap: 16 }}>
       <div className="card">
         <h3>{t('nav.device')} — Apex 5</h3>
-        <div className="hint">1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision) and shapes are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</div>
+        <Hint>1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision) and shapes are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</Hint>
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
       </div>
       <div className="card">
         <h3>{t('device.polling')} - {rates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
-        <div className="hint">Report-rate gears. Rate switching is unmapped on this pad — 1000 Hz max.</div>
+        <Hint>Report-rate gears. Rate switching is unmapped on this pad — 1000 Hz max.</Hint>
         <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
           {rates.map((o) => (
             <button
@@ -1200,7 +1225,7 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
       </div>
       <div className="card">
         <h3>{t('device.bits')} - 8-24</h3>
-        <div className="hint">Precision switching is unmapped on this pad — the sensor runs its stock resolution.</div>
+        <Hint>Precision switching is unmapped on this pad — the sensor runs its stock resolution.</Hint>
         <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
           {STICK_RESOLUTION_OPTIONS.map((o) => (
             <button
@@ -1226,11 +1251,11 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
       </div>
       <div className="card">
         <h3>{t('device.rate')}</h3>
-        <div className="hint">How fast this stick answers in Mouse mode on GameSir pads. No equivalent on this pad.</div>
+        <Hint>How fast this stick answers in Mouse mode on GameSir pads. No equivalent on this pad.</Hint>
       </div>
       <div className="card">
         <h3>{t('sticks.shape')}</h3>
-        <div className="hint">Round/square/raw processing flags. This pad has no shape flags: output always follows the curve.</div>
+        <Hint>Round/square/raw processing flags. This pad has no shape flags: output always follows the curve.</Hint>
         <div className="stack" style={{ gap: 8 }}>
           {['Round diagonals', 'Square gate', 'Pure raw 1:1'].map((name) => (
             <button key={name} className="btn sm ghost" disabled title="No processing-flag equivalent on this pad">{name}</button>
@@ -1239,11 +1264,11 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
       </div>
       <div className="card" style={{ borderColor: 'var(--bad)' }}>
         <h3>{t('sticks.reset')}</h3>
-        <div className="hint">Curve reset lives in the Sticks tab for this pad (designs state is shared there).</div>
+        <Hint>Curve reset lives in the Sticks tab for this pad (designs state is shared there).</Hint>
       </div>
       <div className="card">
         <h3>LED</h3>
-        <div className="hint">Mirrored from live captures (checksum rule proven). Brightness-only — the write carries Default-mode constants, so another active LED mode resets to Default.</div>
+        <Hint>Mirrored from live captures (checksum rule proven). Brightness-only — the write carries Default-mode constants, so another active LED mode resets to Default.</Hint>
         <div className="stack" style={{ gap: 8, marginTop: 8 }}>
           <Slider label="Brightness" value={bright} min={0} max={100} step={1} unit="%" onChange={(v) => setBright(Math.round(v))} format={(v) => `${v.toFixed(0)}%`} />
         </div>
@@ -1438,7 +1463,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
       <div className="stack" style={{ gap: 16 }}>
       <div className="card">
         <h3>{t('sticks.live')}</h3>
-        <div className="hint">Standard gamepad stream (XInput side), -1..1. {t('sticks.liveHint')}</div>
+        <Hint>Standard gamepad stream (XInput side), -1..1. {t('sticks.liveHint')}</Hint>
         {liveFeed.present ? (
           <>
             <StickCross lx={axisToByte(liveFeed.lx)} ly={axisToByte(liveFeed.ly)} rx={axisToByte(liveFeed.rx)} ry={axisToByte(liveFeed.ry)} />
@@ -1448,12 +1473,12 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
             </div>
           </>
         ) : (
-          <div className="hint">No live gamepad stream — press a button on the pad (the browser needs input to see it).</div>
+          <Hint>No live gamepad stream — press a button on the pad (the browser needs input to see it).</Hint>
         )}
       </div>
       <div className="card">
         <h3>{t('sticks.deadzone')} — 0.1% steps</h3>
-        <div className="hint">No separate window on this pad — deadzone lives in the curve head, full range always. <strong>Start</strong> reshapes the first 4 points of the viewed stick, mirroring Space Station's coupling (single observation — verify feel). End and anti stay neutral.</div>
+        <Hint>No separate window on this pad — deadzone lives in the curve head, full range always. <strong>Start</strong> reshapes the first 4 points of the viewed stick, mirroring Space Station's coupling (single observation — verify feel). End and anti stay neutral.</Hint>
         <div className="stack" style={{ gap: 12, marginTop: 8 }}>
           <Slider label="Start (head lift)" value={deadStart} min={0} max={20} step={0.1} unit="%" onChange={(v) => nudgeHead(v)} format={(v) => `${v.toFixed(1)}%`} />
           <div style={{ opacity: 0.45, pointerEvents: 'none' }}>
@@ -1529,7 +1554,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
       </div>
       <div className="card">
         <h3>{t('sticks.outer')} — ∞ no limit</h3>
-        <div className="hint">The boundary of max stick input. This pad is full range, always.</div>
+        <Hint>The boundary of max stick input. This pad is full range, always.</Hint>
         <div className="row spread" style={{ margin: '10px 0' }}>
           <div>
             <div style={{ fontSize: 13.5 }}>{t('sticks.noLimitTitle')}</div>
@@ -1545,15 +1570,15 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
             {t('sticks.infiniteOn')}
           </button>
         </div>
-        <div className="note">
+        <Hint>
           <strong>What this does.</strong> The outer threshold is the deflection where the stick hits maximum output. Neutral removes the boundary entirely: full physical range with nothing clipped or boosted at the rim.
-        </div>
+        </Hint>
       </div>
       </div>
       <div className="stack" style={{ gap: 16 }}>
       <div className="card" style={{ borderColor: 'var(--warn)' }}>
         <h3>{t('sticks.curve')} - 9 points</h3>
-        <div className="hint">The pad stores exactly <strong>9 points</strong> per stick, so this canvas is exact — no quantization. <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the pad bytes</span>. Same tab, native protocol mirrored byte-exact from live captures. Close Space Station first.</div>
+        <Hint>The pad stores exactly <strong>9 points</strong> per stick, so this canvas is exact — no quantization. <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the pad bytes</span>. Same tab, native protocol mirrored byte-exact from live captures. Close Space Station first.</Hint>
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}{stamp ? ` · last write ${stamp}` : ''}</div>}
         <div className="row" style={{ gap: 8, margin: '10px 0' }}>
           {(['Left', 'Right'] as const).map((n, i) => (
@@ -1604,7 +1629,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
             {t('sticks.copyCurve')}
           </button>
         </div>
-        <div className="note" style={{ marginTop: 8 }}>Fixed 9 points per stick — no add/remove. X positions are hardware slots.</div>
+        <Hint style={{ marginTop: 8 }}>Fixed 9 points per stick — no add/remove. X positions are hardware slots.</Hint>
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>#</th><th>X</th><th>Y</th></tr></thead>
           <tbody>
@@ -1629,7 +1654,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
       </div>
         <div className="card">
           <h3>{t('sticks.shape')}</h3>
-          <div className="hint">Three shapes for this stick — processing on for the first two, fully bypassed for raw. This pad has no shape flags: output always follows the curve.</div>
+          <Hint>Three shapes for this stick — processing on for the first two, fully bypassed for raw. This pad has no shape flags: output always follows the curve.</Hint>
           <div className="stack" style={{ gap: 8 }}>
             {['Round diagonals', 'Square gate', 'Pure raw 1:1'].map((name) => (
               <button key={name} className="btn sm ghost" disabled title="No processing-flag equivalent on this pad">{name}</button>
@@ -1638,7 +1663,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
         </div>
         <div className="card" style={{ borderColor: 'var(--bad)' }}>
           <h3>{t('sticks.reset')}</h3>
-          <div className="hint">Returns both curves to the Slow baseline. Polling, precision and names are untouched. Then Send to apply.</div>
+          <Hint>Returns both curves to the Slow baseline. Polling, precision and names are untouched. Then Send to apply.</Hint>
           <button
             className="btn danger"
             style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
@@ -1828,7 +1853,7 @@ function ProfilesPanel({ connected, activeSlot, locked, modelId, modelLen, dumpL
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h3>{t('profiles.title')} — {t('profiles.subtitle')}</h3>
-      <div className="hint">{t('profiles.hint')}</div>
+      <Hint>{t('profiles.hint')}</Hint>
       <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
         <button className="btn sm" disabled={busy} onClick={() => void refreshAll()}>{busy ? t('common.working') : t('profiles.readAll')}</button>
         <button className="btn sm" disabled={busy} onClick={() => void backupAll()}>{t('profiles.backup')}</button>
@@ -2040,7 +2065,7 @@ function ResetEverythingCard({ profile, fd, edit, onReload, notify }: {
   return (
     <div className="card" style={{ marginTop: 16, borderColor: 'var(--bad)' }}>
       <h3>{t('sticks.reset')}</h3>
-      <div className="hint">{t('sticks.resetHint')}</div>
+      <Hint>{t('sticks.resetHint')}</Hint>
       <button
         className="btn danger"
         style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
@@ -2798,7 +2823,7 @@ export default function App(): JSX.Element {
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
                     <h3>{t('sticks.live')}</h3>
-                    <div className="hint">{t('sticks.liveNote')} {t('sticks.liveHint')}</div>
+                    <Hint>{t('sticks.liveNote')} {t('sticks.liveHint')}</Hint>
                     <StickCross lx={live?.lx ?? 128} ly={live?.ly ?? 128} rx={live?.rx ?? 128} ry={live?.ry ?? 128} />
                     <div className="row spread">
                       <span className="mono">L {live?.lx ?? '—'},{live?.ly ?? '—'}</span>
@@ -2809,7 +2834,7 @@ export default function App(): JSX.Element {
 
                   <div className="card">
                     <h3>{t('sticks.deadzone')} — {t('sticks.steps01')}</h3>
-                    <div className="hint">{t('sticks.dzHint')}</div>
+                    <Hint>{t('sticks.dzHint')}</Hint>
                     <div className="stack" style={{ gap: 12, marginTop: 8 }}>
                       <Slider label={t('sticks.start')} value={dz.begin / 10} min={0} max={20} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
                       <Slider label={t('sticks.end')} value={dz.end / 10} min={10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
@@ -2887,7 +2912,7 @@ export default function App(): JSX.Element {
 
                   <div className="card">
                     <h3>{t('sticks.outer')} — {outerUnlimited ? t('sticks.noLimitTitle') : t('sticks.custom')}</h3>
-                    <div className="hint">{t('sticks.outerHint')}</div>
+                    <Hint>{t('sticks.outerHint')}</Hint>
                     <div className="row spread" style={{ margin: '10px 0' }}>
                       <div>
                         <div style={{ fontSize: 13.5 }}>{t('sticks.noLimitTitle')}</div>
@@ -2908,12 +2933,12 @@ export default function App(): JSX.Element {
                         {outerUnlimited ? t('sticks.infiniteOn') : t('sticks.setInfinite')}
                       </button>
                     </div>
-                    <div className="note">
+                    <Hint>
                       <strong>{t('sticks.outerWhatTitle')}</strong> {t('sticks.outerWhat')}
-                    </div>
-                    <div className="note" style={{ marginTop: 8 }}>
+                    </Hint>
+                    <Hint style={{ marginTop: 8 }}>
                       <strong>{t('sticks.outerSteamTitle')}</strong> {t('sticks.outerSteam')}
-                    </div>
+                    </Hint>
                     {!outerUnlimited && (
                       <div className="note warn" style={{ marginTop: 8 }}>
                         This stick currently carries a custom boundary: <span className="mono">{outerBuffer >= 0 ? `max at ${(100 - outerBuffer).toFixed(0)}% deflection` : `output tops at ${(100 + outerBuffer).toFixed(0)}%`}</span>.
@@ -2925,7 +2950,7 @@ export default function App(): JSX.Element {
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
                     <h3>{t('sticks.curve')} — {design.length} {t('sticks.points')}</h3>
-                    <div className="hint">{t('sticks.curveHint')}</div>
+                    <Hint>{t('sticks.curveHint')}</Hint>
                     <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => stageDesign(next)} overlay={quantized} smooth={spline} />
                     <div className="row" style={{ gap: 8, margin: '8px 0' }}>
                       <div style={{ flex: 1 }} />
@@ -3030,7 +3055,7 @@ export default function App(): JSX.Element {
 
                   <div className="card">
                     <h3>{t('sticks.shape')}</h3>
-                    <div className="hint">{t('sticks.shapeHint')}</div>
+                    <Hint>{t('sticks.shapeHint')}</Hint>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
@@ -3078,7 +3103,7 @@ export default function App(): JSX.Element {
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
                     <h3>{t('device.polling')} - {rates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
-                    <div className="hint">Report-rate gear (Fun_Data +14){model ? ` · ${model.marketingName} offers ${rates.length} gears` : ''}. Hz labels are the vendor's claim; measured input stays ~250–500/s.</div>
+                    <Hint>Report-rate gear (Fun_Data +14){model ? ` · ${model.marketingName} offers ${rates.length} gears` : ''}. Hz labels are the vendor's claim; measured input stays ~250–500/s.</Hint>
                     <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
                       {rates.filter((o) => o.hz >= 1000).map((o) => (
                         <button
@@ -3112,7 +3137,7 @@ export default function App(): JSX.Element {
 
                   <div className="card">
                     <h3>{t('device.bits')} - 8-24</h3>
-                    <div className="hint">{t('device.bitHint')}</div>
+                    <Hint>{t('device.bitHint')}</Hint>
                     <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
                       {STICK_RESOLUTION_OPTIONS.map((o) => (
                         <button
@@ -3134,9 +3159,9 @@ export default function App(): JSX.Element {
                         </button>
                       ))}
                     </div>
-                    <div className="note" style={{ marginTop: 8 }}>
+                    <Hint style={{ marginTop: 8 }}>
                       {t('device.bitNote')}
-                    </div>
+                    </Hint>
                     {!resInfo.standard && (
                       <div className="note bad" style={{ marginTop: 8 }}>
                         {t('device.nonStdFull').replace('{wire}', String(resInfo.wire)).replace('{bits}', String(resInfo.bits))}
@@ -3149,7 +3174,7 @@ export default function App(): JSX.Element {
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
                     <h3>{t('device.rate')}</h3>
-                    <div className="hint">{t('device.rateHint')}</div>
+                    <Hint>{t('device.rateHint')}</Hint>
                     <div className="stack" style={{ gap: 12 }}>
                       <div className="row spread">
                         <div>
@@ -3186,7 +3211,7 @@ export default function App(): JSX.Element {
                           </button>
                         )}
                       </div>
-                      <div className="note">{t('device.rateNote')}</div>
+                      <Hint>{t('device.rateNote')}</Hint>
                     </div>
                   </div>
 
@@ -3198,9 +3223,9 @@ export default function App(): JSX.Element {
           {tab === 'buttons' && connected && profile && (
             <div className="card" style={{ marginTop: 16 }}>
               <h3>{t('buttons.title')}</h3>
-              <div className="hint">{t('buttons.hint')}</div>
-              <div className="hint">{t('buttons.backs')}</div>
-              {modelId === 'G7ProCE' && <div className="hint">{t('buttons.backsExtra')}</div>}
+              <Hint>{t('buttons.hint')}</Hint>
+              <Hint>{t('buttons.backs')}</Hint>
+              {modelId === 'G7ProCE' && <Hint>{t('buttons.backsExtra')}</Hint>}
               <table className="tbl" style={{ marginTop: 8 }}>
                 <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
                 <tbody>
@@ -3284,7 +3309,7 @@ function LanguagePanel(): JSX.Element {
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h3>{tr(lang, 'lang.title')}</h3>
-      <div className="hint">{tr(lang, 'lang.hint')}</div>
+      <Hint>{tr(lang, 'lang.hint')}</Hint>
       <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
         {LANGS.map((o) => (
           <button

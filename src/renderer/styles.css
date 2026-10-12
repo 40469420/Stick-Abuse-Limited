@@ -243,10 +243,30 @@ textarea {
   letter-spacing: 0.04em;
 }
 
-.card > .hint {
+.card > .hint,
+.card > .hint-wrap .hint {
   margin: 0 0 14px;
   color: var(--text-3);
   font-size: 12.5px;
+}
+.hint-wrap {
+  margin: 2px 0 10px;
+}
+.hint-toggle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.hint-toggle:hover {
+  color: var(--accent-2);
+  border-color: var(--accent-2);
 }
 
 .row {
