@@ -1,5 +1,9 @@
 # Stick Labs (Unlimited)
 
+> [!WARNING]
+> ## ⚠️ DISCLAIMER ⚠️
+> This version has no affiliation with the original outside the owner knowing it exists. My beliefs on these features are my own and my own only. At no point can you run games with official stances while in bannable/abusable states. Do not bother. Create your own fork.
+
 A Windows controller companion with expanded tuning, bindings, macros and performance testing. Built on [Stick Labs by Realkiyoshii](https://github.com/Realkiyoshii/stick-labs), with the Unlimited fork maintained by [@Machixo](https://x.com/Machixo).
 
 The full feature set targets the **GameSir G7 Pro 8K**. Other supported controllers keep their existing controls; availability depends on the model, firmware and connection mode.
