@@ -46,6 +46,8 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 /** Attempts the read-back will make before giving up, and the gap between them. */
 const READ_BACK_ATTEMPTS = 4
 const READ_BACK_RETRY_MS = 900
+/** Full write+verify cycles before giving up and rolling back. */
+const WRITE_VERIFY_ATTEMPTS = 3
 
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i])
@@ -89,7 +91,7 @@ interface Pending {
 const DEFAULT_TIMEOUT = 2500
 
 export class Controller {
-  readonly transport = new Transport()
+  readonly transport: Transport
 
   private pending: Pending[] = []
   private inputListeners = new Set<(input: LiveInput) => void>()
@@ -99,7 +101,8 @@ export class Controller {
 
   state: ControllerState = 'disconnected'
 
-  constructor() {
+  constructor(transport?: Transport) {
+    this.transport = transport ?? new Transport()
     this.transport.onResponse((raw) => this.dispatch(raw))
     this.transport.onError(() => this.failAll(new Error('device disconnected')))
   }
@@ -304,9 +307,13 @@ export class Controller {
    *   1. reads the current bytes **first** — they are the only rollback source
    *      there is, and a failed read refuses the write outright rather than
    *      proceeding blind
-   *   2. writes
-   *   3. reads back, re-opening the handle if the pad rebooted underneath us
-   *   4. on a mismatch, puts the original bytes back and proves *that* too
+   *   2. writes, then reads back and byte-compares — up to WRITE_VERIFY_ATTEMPTS
+   *      full cycles, because a single failed comparison is as likely a flaky
+   *      read (reboot mid-verify, contention) as a bad write; only a repeated
+   *      mismatch triggers the rollback
+   *   3. reads back again with handle re-open across reboots (readBack)
+   *   4. on a persistent mismatch, puts the original bytes back and proves
+   *      *that* too
    *
    * A rollback that also fails to verify throws rather than returning, because
    * at that point the slot's contents are genuinely unknown.
@@ -326,10 +333,17 @@ export class Controller {
       )
     }
 
-    await this.writeProfile(profile, data, length)
+    for (let attempt = 1; attempt <= WRITE_VERIFY_ATTEMPTS; attempt++) {
+      await this.writeProfile(profile, data, length)
 
-    const after = await this.readBack(profile, length)
-    if (bytesEqual(after, data)) return { verified: true, rolledBack: false }
+      try {
+        const after = await this.readBack(profile, length)
+        if (bytesEqual(after, data)) return { verified: true, rolledBack: false }
+      } catch {
+        /* unreadable verify — retry the whole cycle while attempts remain */
+      }
+      if (attempt < WRITE_VERIFY_ATTEMPTS) await sleep(READ_BACK_RETRY_MS)
+    }
 
     await this.writeProfile(profile, before, length)
     const restored = await this.readBack(profile, length)

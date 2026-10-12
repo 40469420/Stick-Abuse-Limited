@@ -2421,7 +2421,24 @@ export default function App(): JSX.Element {
             setMsg(`Slot ${slot} written + verified, but could not confirm it went live — use Activate in Stick profiles below.`)
           }
         } else {
-          setMsg(`Slot ${slot} written + read-back verified. If the pad reboots (~1-2 s), it is applying the change — reconnect if needed.`)
+          // Bytes are verified in the slot, but this was the LIVE slot, so
+          // the pad reboots to apply — confirm it comes back on this slot
+          // rather than assuming the reboot went fine.
+          let back = false
+          for (let i = 0; i < 8 && !back; i++) {
+            await new Promise((r) => setTimeout(r, 1000))
+            try {
+              if ((await api().currentProfile()) === slot) back = true
+            } catch {
+              /* handle down mid-reboot — retry */
+            }
+          }
+          if (back) {
+            setInfo((prev) => (prev ? { ...prev, currentProfile: slot } : prev))
+            setMsg(`Slot ${slot} written, verified and live after reboot.`)
+          } else {
+            setMsg(`Slot ${slot} written + verified, but the pad has not reconnected yet — confirm the live slot above before continuing.`)
+          }
         }
         return true
       } else if (res.rolledBack) {
