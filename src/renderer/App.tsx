@@ -2935,8 +2935,7 @@ export default function App(): JSX.Element {
                     </div>
                     <Hint>
                       <strong>{t('sticks.outerWhatTitle')}</strong> {t('sticks.outerWhat')}
-                    </Hint>
-                    <Hint style={{ marginTop: 8 }}>
+                      <br /><br />
                       <strong>{t('sticks.outerSteamTitle')}</strong> {t('sticks.outerSteam')}
                     </Hint>
                     {!outerUnlimited && (
