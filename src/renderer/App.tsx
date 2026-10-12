@@ -621,6 +621,34 @@ function CalibrationPanel(): JSX.Element {
   const maxDev = rest ? Math.max(...rest.map((v) => Math.abs(v))) : 0
   const centered = maxDev <= 4
   const inCal = (live?.calTarget ?? 0) !== 0
+  const [trim, setTrim] = useState<[number, number, number, number]>([0, 0, 0, 0])
+  const [trimBusy, setTrimBusy] = useState(false)
+  const [trimErr, setTrimErr] = useState<string | null>(null)
+  const fmtT = (v: number): string => (v > 0 ? `+${v}` : `${v}`)
+
+  async function nudgeTrim(stick: 0 | 1, direction: 0 | 1 | 2 | 3, axis: 0 | 1, delta: number): Promise<void> {
+    if (busy || trimBusy || flow || inCal) return
+    setTrimErr(null)
+    setTrimBusy(true)
+    const i = stick * 2 + axis
+    setTrim((prev) => {
+      const next: [number, number, number, number] = [...prev] as [number, number, number, number]
+      next[i] += delta
+      return next
+    })
+    try {
+      await api().setStickCenter(stick, direction)
+    } catch (e) {
+      setTrim((prev) => {
+        const next: [number, number, number, number] = [...prev] as [number, number, number, number]
+        next[i] -= delta
+        return next
+      })
+      setTrimErr((e as Error).message)
+    } finally {
+      setTrimBusy(false)
+    }
+  }
 
   async function enter(): Promise<void> {
     setErr(null)
@@ -846,6 +874,27 @@ function CalibrationPanel(): JSX.Element {
           <div className="hint">{t('cal.waiting')}</div>
         )}
       </div>
+      <div className="hint" style={{ textAlign: 'center' }}>{t('cal.centerHint')}</div>
+      <div className="row" style={{ gap: 28, justifyContent: 'center', margin: '4px 0 12px' }}>
+        {([0, 1] as const).map((s) => (
+          <div key={s} style={{ textAlign: 'center' }}>
+            <div className="label">{t('cal.centerTrim')} — {s === 0 ? t('cal.left') : t('cal.right')}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 36px)', gap: 4, justifyContent: 'center', margin: '8px 0' }}>
+              <span />
+              <button className="btn sm ghost" disabled={busy || trimBusy || !!flow || inCal} onClick={() => void nudgeTrim(s, 2, 1, -CENTER_NUDGE)}>▲</button>
+              <span />
+              <button className="btn sm ghost" disabled={busy || trimBusy || !!flow || inCal} onClick={() => void nudgeTrim(s, 0, 0, -CENTER_NUDGE)}>◀</button>
+              <span />
+              <button className="btn sm ghost" disabled={busy || trimBusy || !!flow || inCal} onClick={() => void nudgeTrim(s, 1, 0, CENTER_NUDGE)}>▶</button>
+              <span />
+              <button className="btn sm ghost" disabled={busy || trimBusy || !!flow || inCal} onClick={() => void nudgeTrim(s, 3, 1, CENTER_NUDGE)}>▼</button>
+              <span />
+            </div>
+            <div className="mono" style={{ fontSize: 11 }}>X {fmtT(trim[s * 2])} · Y {fmtT(trim[s * 2 + 1])}</div>
+          </div>
+        ))}
+      </div>
+      {trimErr && <div className="note bad" style={{ marginBottom: 8 }}>{trimErr}</div>}
       <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
         <span className={`pill${inCal ? ' warn' : ''}`}>{inCal ? `${t('cal.inCal')} (target ${live?.calTarget})` : t('cal.idle')}</span>
         {rest && <span className={`pill${maxDev <= 2 ? ' good' : maxDev <= 6 ? ' warn' : ' bad'}`}>{verdict} · ±{maxDev}</span>}
@@ -902,69 +951,6 @@ function CalibrationPanel(): JSX.Element {
       </table>
       <div className="note" style={{ marginTop: 8 }}>{t('cal.tipRest')}</div>
       <div className="note warn" style={{ marginTop: 8 }}>{t('cal.driftWarn')} {t('cal.driftWarn2')}</div>
-    </div>
-  )
-}
-
-function CenterTrimCard(): JSX.Element {
-  const t = useT()
-  const [trim, setTrim] = useState<[number, number, number, number]>([0, 0, 0, 0])
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-
-  async function nudge(stick: 0 | 1, direction: 0 | 1 | 2 | 3, axis: 0 | 1, delta: number): Promise<void> {
-    if (busy) return
-    setErr(null)
-    setBusy(true)
-    const i = stick * 2 + axis
-    setTrim((prev) => {
-      const next: [number, number, number, number] = [...prev] as [number, number, number, number]
-      next[i] += delta
-      return next
-    })
-    try {
-      await api().setStickCenter(stick, direction)
-    } catch (e) {
-      setTrim((prev) => {
-        const next: [number, number, number, number] = [...prev] as [number, number, number, number]
-        next[i] -= delta
-        return next
-      })
-      setErr((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const fmt = (v: number): string => (v > 0 ? `+${v}` : `${v}`)
-  const arrowBtn = (stick: 0 | 1, direction: 0 | 1 | 2 | 3, axis: 0 | 1, delta: number, glyph: string): JSX.Element => (
-    <button className="btn sm ghost" disabled={busy} onClick={() => void nudge(stick, direction, axis, delta)}>{glyph}</button>
-  )
-
-  return (
-    <div className="card" style={{ marginTop: 16 }}>
-      <h3>{t('cal.centerTrim')}</h3>
-      <div className="hint">{t('cal.centerHint')}</div>
-      <div className="row" style={{ gap: 28, justifyContent: 'center', margin: '12px 0' }}>
-        {([0, 1] as const).map((s) => (
-          <div key={s} style={{ textAlign: 'center' }}>
-            <div className="label">{s === 0 ? t('cal.left') : t('cal.right')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 36px)', gap: 4, justifyContent: 'center', margin: '8px 0' }}>
-              <span />
-              {arrowBtn(s, 2, 1, -CENTER_NUDGE, '▲')}
-              <span />
-              {arrowBtn(s, 0, 0, -CENTER_NUDGE, '◀')}
-              <span />
-              {arrowBtn(s, 1, 0, CENTER_NUDGE, '▶')}
-              <span />
-              {arrowBtn(s, 3, 1, CENTER_NUDGE, '▼')}
-              <span />
-            </div>
-            <div className="mono" style={{ fontSize: 11 }}>X {fmt(trim[s * 2])} · Y {fmt(trim[s * 2 + 1])}</div>
-          </div>
-        ))}
-      </div>
-      {err && <div className="note bad" style={{ marginBottom: 8 }}>{err}</div>}
     </div>
   )
 }
@@ -3245,7 +3231,7 @@ export default function App(): JSX.Element {
           )}
           {tab === 'calibrate' && (
             connected && model?.support === 'full' ? (
-              <><CalibrationPanel /><CenterTrimCard /></>
+              <CalibrationPanel />
             ) : (
               <div className="msg"><h3>{t('cal.connectTitle')}</h3><p>{t('cal.connectBody')}</p></div>
             )
