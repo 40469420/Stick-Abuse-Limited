@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { api, b64ToBytes, bytesToB64, type Candidate, type DeviceInfo, type DeviceStats, type LiveSample, type PingResult } from './api'
-import { parseProfile, serializeProfile, fun, stick, LINEAR_CURVE, looksLikeCEProfile, type Packet, type Profile } from '@shared/profile'
-import { PROFILE_LENGTH, REPORT_RATE_OPTIONS, STICK_RESOLUTION_OPTIONS } from '@shared/protocol'
+import { parseProfile, serializeProfile, fun, stick, button, LINEAR_CURVE, looksLikeCEProfile, type Packet, type Profile } from '@shared/profile'
+import { PROFILE_LENGTH, REPORT_RATE_OPTIONS, STICK_RESOLUTION_OPTIONS, STANDARD_BUTTONS } from '@shared/protocol'
 import { identifyModel, MODELS, type ControllerModel } from '@shared/models'
 import {
   describeRawResolution,
@@ -17,6 +17,7 @@ import {
   outerBufferFromBytes,
   isOuterUnlimited
 } from '@shared/sticklab'
+import { keyLabel, displayMapping, REMAP_TARGETS } from '@shared/keymap'
 import { LANGS, LangContext, tr, useLangState, useT } from './i18n'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
@@ -1929,7 +1930,7 @@ export default function App(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [loadId, setLoadId] = useState(0)
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
-  const [tab, setTab] = useState<'sticks' | 'device' | 'profiles' | 'lab' | 'calibrate' | 'marius' | 'language'>('sticks')
+  const [tab, setTab] = useState<'sticks' | 'device' | 'buttons' | 'profiles' | 'lab' | 'calibrate' | 'marius' | 'language'>('sticks')
   const [measuring, setMeasuring] = useState<{ left: number; suggestion: { dev: number; pct10: number } | null } | null>(null)
   const wanderRef = useRef(0)
   const modelLenRef = useRef(PROFILE_LENGTH)
@@ -2326,6 +2327,9 @@ export default function App(): JSX.Element {
             </button>
             <button type="button" className={`nav-item${tab === 'device' ? ' active' : ''}`} onClick={() => setTab('device')}>
               {t('nav.device')}
+            </button>
+            <button type="button" className={`nav-item${tab === 'buttons' ? ' active' : ''}`} onClick={() => setTab('buttons')}>
+              {t('nav.buttons')}
             </button>
             <button type="button" className={`nav-item${tab === 'calibrate' ? ' active' : ''}`} onClick={() => setTab('calibrate')}>
               {t('nav.calibrate')}
@@ -2939,6 +2943,46 @@ export default function App(): JSX.Element {
               </div>
               )}
             </>
+          )}
+          {tab === 'buttons' && connected && profile && (
+            <div className="card" style={{ marginTop: 16 }}>
+              <h3>{t('buttons.title')}</h3>
+              <div className="hint">{t('buttons.hint')}</div>
+              <table className="tbl" style={{ marginTop: 8 }}>
+                <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
+                <tbody>
+                  {STANDARD_BUTTONS.map((name, i) => {
+                    const pkt = profile.buttons[i]
+                    if (!pkt) return null
+                    const values = button.mapValues(pkt)
+                    const current = values.find((v) => v !== 0) ?? 0
+                    return (
+                      <tr key={name}>
+                        <td className="mono">{keyLabel(i + 1)}</td>
+                        <td>
+                          <select
+                            className="input"
+                            style={{ width: 190 }}
+                            disabled={busy || locked}
+                            value={current}
+                            onChange={(e) => {
+                              const v = Number(e.target.value)
+                              edit(() => button.setMap(pkt, [v, 0, 0]))
+                            }}
+                          >
+                            <option value={0}>{t('buttons.unmapped')}</option>
+                            {REMAP_TARGETS.filter((k) => k.value !== 0).map((k) => (
+                              <option key={k.value} value={k.value}>{k.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>{displayMapping(values)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
           {tab === 'profiles' && (
             <ProfilesPanel connected={connected} activeSlot={info?.currentProfile ?? null} locked={locked} modelId={modelId} modelLen={modelLen} dumpLength={model?.dumpLength ?? 0} modelName={model?.marketingName ?? null} />
