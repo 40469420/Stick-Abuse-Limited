@@ -10,6 +10,25 @@ Controller profiles and configurations shared by @Machixo.
 
 Browse [profile backups](profiles/) or [configs](configs/).
 
+## Main Apex (All rounder)
+
+Bindings decoded from the uploaded profile:
+
+| Input | Output |
+| --- | --- |
+| Left stick click | D-pad Up |
+| Capture | Keyboard **T** |
+| FL1 | A |
+| FR1 | B |
+| FL2 | X |
+| FR2 | Y |
+
+A is explicitly mapped to A, so its behavior is unchanged. Other standard buttons and triggers retain their original mappings.
+
+- **RC filters:** Left 0, right 0 (neutral/off).
+- **Macros:** All four slots contain 0 steps; macros and looping are disabled.
+- **Turbo / toggle:** Disabled.
+
 ## Using a profile
 
 1. Back up your current profiles in Stick Labs (Unlimited).
