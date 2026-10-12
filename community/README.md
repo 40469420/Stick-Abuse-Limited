@@ -6,14 +6,14 @@ Controller profiles and configurations shared by @Machixo.
 
 | File | Type | Notes |
 | --- | --- | --- |
-| [Main Apex (All rounder)](profiles/Main%20Apex%20%28All%20rounder%29.sticklab.bin) | Single profile · 1070 bytes | Uploaded by Machixo. Use a matching controller model and firmware. The name does not certify compliance with any game's rules. |
+| [Main Apex (All rounder)](https://github.com/40469420/stick-labs-unlimited/raw/refs/heads/main/community/profiles/Main%20Apex%20%28All%20rounder%29.sticklab.bin) | Single profile · 1070 bytes | Uploaded by Machixo. Use a matching controller model and firmware. The name does not certify compliance with any game's rules. |
 
 Browse [profile backups](profiles/) or [configs](configs/).
 
 ## Using a profile
 
 1. Back up your current profiles in Stick Labs (Unlimited).
-2. Download the file using GitHub's **Download raw file** button.
+2. Click the profile's download link above to download the file directly.
 3. For a single `.sticklab.bin` or `.sticklab.json` profile, open **Profiles**, choose the destination slot and use its **Import** control. This overwrites that slot.
 4. For a full backup JSON exported with **Backup all**, use **Restore all** instead.
 
