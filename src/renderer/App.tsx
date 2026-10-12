@@ -2948,17 +2948,26 @@ export default function App(): JSX.Element {
             <div className="card" style={{ marginTop: 16 }}>
               <h3>{t('buttons.title')}</h3>
               <div className="hint">{t('buttons.hint')}</div>
+              <div className="hint">{t('buttons.backs')}</div>
               <table className="tbl" style={{ marginTop: 8 }}>
                 <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
                 <tbody>
-                  {STANDARD_BUTTONS.map((name, i) => {
-                    const pkt = profile.buttons[i]
+                  {[
+                    ...STANDARD_BUTTONS.map((name, i) => ({ name: keyLabel(i + 1), value: i + 1, pkt: profile.buttons[i] ?? null as Packet | null })),
+                    ...(profile.functionKeys[0] && profile.functionKeys[0].length === 169
+                      ? [{ name: `${keyLabel(17)} · L4`, value: 17, pkt: profile.functionKeys[0] as Packet | null }]
+                      : []),
+                    ...(profile.functionKeys[1] && profile.functionKeys[1].length === 169
+                      ? [{ name: `${keyLabel(18)} · R4`, value: 18, pkt: profile.functionKeys[1] as Packet | null }]
+                      : [])
+                  ].map((row) => {
+                    const pkt = row.pkt
                     if (!pkt) return null
                     const values = button.mapValues(pkt)
                     const current = values.find((v) => v !== 0) ?? 0
                     return (
-                      <tr key={name}>
-                        <td className="mono">{keyLabel(i + 1)}</td>
+                      <tr key={row.name}>
+                        <td className="mono">{row.name}</td>
                         <td>
                           <select
                             className="input"

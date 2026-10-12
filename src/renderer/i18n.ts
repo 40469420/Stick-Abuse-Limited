@@ -127,6 +127,7 @@ const STR: Dict = {
   'buttons.target': { en: 'Acts as', zh: '映射为', ja: '割当先' },
   'buttons.effective': { en: 'Effective', zh: '实际', ja: '実効' },
   'buttons.unmapped': { en: 'Unmapped (self)', zh: '未映射（自身）', ja: '未設定（自身）' },
+  'buttons.backs': { en: 'FL1 / FR1 are the back buttons (L4 / R4).', zh: 'FL1 / FR1 为背键（L4 / R4）。', ja: 'FL1 / FR1 は背面ボタン（L4 / R4）。' },
   'profiles.readAll': { en: 'Read all from controller', zh: '从手柄读取全部', ja: '全部読み込み' },
   'profiles.write': { en: 'Write', zh: '写入', ja: '書き込み' },
   'steam.title': { en: 'Export to Steam', zh: '导出到 Steam', ja: 'Steamへエクスポート' },

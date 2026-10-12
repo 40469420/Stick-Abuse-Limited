@@ -84,6 +84,27 @@ function blankButton(): Packet {
   check('multi (Connect-written) displays joined', displayMapping([9, 10, 0]) === 'Cross + Circle')
 }
 
+// function-key packets (FL1/FR1, 169 bytes) share the same 7-byte map head:
+// turbo@0, speed@1, map_en@2, values@3-5, toggle@6 — macro storage (7+) untouched
+{
+  const p = new Packet(new Uint8Array(169))
+  // simulate a macro tail so we can prove it survives
+  p.setU8(7, 0x05)
+  p.setU8(11, 0xab)
+  p.setU8(168, 0xcd)
+  button.setMap(p, [12, 0, 0])
+  check('function packet map head written', p.u8(2) === 1 && p.u8(3) === 12 && p.u8(4) === 0 && p.u8(5) === 0)
+  check('function packet macro tail preserved', p.u8(7) === 0x05 && p.u8(11) === 0xab && p.u8(168) === 0xcd)
+  check('function packet map reads back', JSON.stringify(button.mapValues(p)) === JSON.stringify([12, 0, 0]))
+}
+
+// hardware case: profile_1.bin FL1 head [01 1e 01 04 ...] decodes per Connect
+{
+  const p = new Packet(new Uint8Array([0x01, 0x1e, 0x01, 0x04, 0x00, 0x00, 0x00, ...new Array(162).fill(0)]))
+  check('fixture FL1 mapped bit set', button.mapped(p))
+  check('fixture FL1 values [4,0,0] (D-pad Right)', JSON.stringify(button.mapValues(p)) === JSON.stringify([4, 0, 0]))
+}
+
 if (failed > 0) {
   console.log(`${failed} FAILURES`)
   process.exit(1)
