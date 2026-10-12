@@ -1878,6 +1878,7 @@ function KeySelect({ value, disabled, open, onToggle, onClose, onPick }: {
 }): JSX.Element {
   const t = useT()
   const btnRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const [pos, setPos] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null)
   const [flip, setFlip] = useState(false)
   useEffect(() => {
@@ -1889,7 +1890,12 @@ function KeySelect({ value, disabled, open, onToggle, onClose, onPick }: {
       setFlip(r.bottom + 320 > window.innerHeight)
     }
     place()
-    const close = (): void => onClose()
+    const close = (e: Event): void => {
+      // Scrolling the option list itself must not close the menu —
+      // only page-level scrolls do.
+      if (menuRef.current && menuRef.current.contains(e.target as Node)) return
+      onClose()
+    }
     window.addEventListener('scroll', close, true)
     window.addEventListener('resize', close)
     return () => {
@@ -1932,6 +1938,7 @@ function KeySelect({ value, disabled, open, onToggle, onClose, onPick }: {
       {open && pos && createPortal(
         <div
           data-keyselect
+          ref={menuRef}
           style={{
             position: 'fixed',
             left: Math.max(8, Math.min(pos.left, window.innerWidth - pos.width - 8)),
