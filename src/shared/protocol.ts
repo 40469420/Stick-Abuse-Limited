@@ -48,7 +48,12 @@ export const Cmd = {
   MacroRecord: 0x16,
   QuickUpdate: 0x17,
   Rumble: 0x20,
-  Extended: 0xe2,
+  /**
+   * `0xE2` — set stick center ("Center Point Adjustment" in Connect).
+   * Recovered from Connect 1.16.7's `Km()` builder; previously reserved here
+   * as `Extended` (unused). The pad acks with {@link Resp.SetStickCenterAck}.
+   */
+  SetStickCenter: 0xe2,
   Heartbeat: 0xf2,
   EnterUpgrade: 0xfc,
   Calibration: 0xfd,
@@ -92,6 +97,8 @@ export const Resp = {
   ReadKeyStatus: 243,
   ReadKeyStatusAck: 244,
   RequestToUpgrade: 252,
+  /** Ack for {@link setStickCenter} — recovered from Connect's report parser. */
+  SetStickCenterAck: 227,
   /** Fixed id for report 0x12 live input. */
   Unknown: 0
 } as const
@@ -289,6 +296,38 @@ export function quickUpdate(): number[] {
 
 export function calibrationState(state: number): number[] {
   return report(Cmd.Calibration, state)
+}
+
+/** Which stick a center trim applies to. */
+export const CenterStick = { Left: 0, Right: 1 } as const
+
+/** Nudge direction of a center trim. */
+export const CenterDirection = { Left: 0, Right: 1, Up: 2, Down: 3 } as const
+
+/** Units per nudge — Connect hardcodes 32 in every Center Point Adjustment. */
+export const CENTER_NUDGE = 32
+
+/**
+ * `[0x0F, 0xE2, stick, direction, magHi, magLo, 0…]` (64 bytes) — nudge a
+ * stick's center point, byte-for-byte what Connect 1.16.7's `Km()` builds
+ * (`n[0]=15, n[1]=226`, magnitude u16 BE; called as `Km(stick, dir, 32)`).
+ *
+ * Hardware-confirmation status: RECOVERED, not yet proven on a pad — but
+ * safe to try, because the pad answers (or doesn't) with
+ * {@link Resp.SetStickCenterAck} and the caller awaits it instead of
+ * assuming: no ack within the timeout surfaces as an error, never as a
+ * silent pretend-write (the calibration lesson, PROTOCOL.md §12.6).
+ *
+ * Semantics from Connect's own help text: fine-tunes a slight center
+ * offset, applies across ALL profiles (it is not profile bytes), and stick
+ * recalibration restores the default. There is no read-back — Connect
+ * tracks the offset locally too — so callers must do the same.
+ */
+export function setStickCenter(stick: number, direction: number, magnitude = CENTER_NUDGE): number[] {
+  const s = stick === 1 ? 1 : 0
+  const d = Math.max(0, Math.min(3, Math.round(direction)))
+  const m = Math.max(0, Math.min(0xffff, Math.round(magnitude)))
+  return report(Cmd.SetStickCenter, s, d, (m >> 8) & 0xff, m & 0xff)
 }
 
 /**

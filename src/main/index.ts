@@ -145,6 +145,10 @@ handle('device:calibration', (state: number) => {
   controller.calibration(state)
   return true
 })
+handle('device:stickCenter', async (stick: number, direction: number) => {
+  await controller.nudgeCenter(stick, direction)
+  return true
+})
 // MARIUS board preview — reads only. There is intentionally no write handler.
 handle('marius:discover', () => discoverMarius())
 handle('marius:connect', async (path: string) => mariusReader.connect(path))

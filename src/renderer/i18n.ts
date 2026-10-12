@@ -229,6 +229,8 @@ const STR: Dict = {
   'cal.left': { en: 'Left', zh: '左', ja: '左' },
   'cal.right': { en: 'Right', zh: '右', ja: '右' },
   'cal.driftWarn2': { en: 'Calibrating around worn sticks may help briefly or make it worse, with no way to undo it.', zh: '在磨损的摇杆上校准可能短暂有效，也可能更糟，且无法撤销。', ja: '摩耗したスティックでの調整は一時的か悪化の可能性があり、元に戻せません。' },
+  'cal.centerTrim': { en: 'Center trim', zh: '中心微调', ja: 'センター微調整' },
+  'cal.centerHint': { en: "Nudge the center point per stick, like Connect's Center Point Adjustment. Global across profiles, fixed 32-unit steps. The pad offers no read-back — the counter is this session only; recalibrate to restore the default.", zh: '像 Connect 的中心点调整一样，微调每根摇杆的中心点。全局生效不分配置，固定 32 单位步进。手柄无回读——计数器仅为本次会话；重新校准可恢复默认。', ja: 'Connectの中心点調整のように微調整。全体に適用、32単位固定。読み戻しなし — カウンタは今回のみ。再調整で初期化。' },
   'cal.connectTitle': { en: 'Connect a supported controller', zh: '连接受支持的手柄', ja: '対応コントローラーを接続' },
   'cal.connectBody': { en: 'Calibration needs a live G7 Pro 8K, G7 Pro or Tarantula 8K.', zh: '校准需要已连接的 G7 Pro 8K、G7 Pro 或 Tarantula 8K。', ja: '調整には接続中の G7 Pro 8K / G7 Pro / Tarantula 8K が必要です。' },
   'lab.title': { en: 'Analytics — polling, latency, stick range', zh: '分析——回报率、延迟、摇杆范围', ja: '分析 — ポーリング・遅延・レンジ' },

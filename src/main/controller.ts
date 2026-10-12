@@ -24,8 +24,10 @@ import {
   readFirmwareVersion,
   readProfileCommands,
   readRGB,
+  Resp,
   rumble,
   setLightStatus,
+  setStickCenter,
   switchProfile,
   writeProfileCommands,
   type ParsedResponse
@@ -467,6 +469,21 @@ export class Controller {
       throw new Error('device not open')
     }
     this.transport.write(calibrateParts(state, partMask))
+  }
+
+  /**
+   * Nudge a stick's center point ({@link setStickCenter}).
+   *
+   * Unlike calibration, this one IS awaited: Connect waits for
+   * `SetStickCenterAck` (type 227) on every nudge, so a pad that takes the
+   * command answers and a pad that doesn't surfaces as a timeout error —
+   * never a silent pretend-write.
+   */
+  async nudgeCenter(stick: number, direction: number): Promise<void> {
+    if (!this.transport.isOpen) {
+      throw new Error('device not open')
+    }
+    await this.request(setStickCenter(stick, direction), (p) => p.raw[1] === Resp.SetStickCenterAck, 3000)
   }
 
   /**

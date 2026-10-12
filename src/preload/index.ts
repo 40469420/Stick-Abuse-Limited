@@ -23,6 +23,7 @@ const api = {
   switchProfile: (profile: number) => call<boolean>('profile:switch', profile),
   currentProfile: () => call<number>('profile:current'),
   calibration: (state: number) => call<boolean>('device:calibration', state),
+  setStickCenter: (stick: number, direction: number) => call<boolean>('device:stickCenter', stick, direction),
   openExternal: (url: string) => call<boolean>('system:openExternal', url),
   version: () => call<string>('system:version'),
   steamInfo: () =>

@@ -50,6 +50,7 @@ interface LabApi {
   switchProfile(profile: number): Promise<boolean>
   currentProfile(): Promise<number>
   calibration(state: number): Promise<boolean>
+  setStickCenter(stick: number, direction: number): Promise<boolean>
   ping(count: number): Promise<PingResult>
   openExternal(url: string): Promise<boolean>
   version(): Promise<string>
