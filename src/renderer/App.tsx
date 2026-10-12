@@ -308,6 +308,22 @@ const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: 
       { x: 235, y: 176 },
       { x: 255, y: 240 }
     ]
+  },
+  nekosu: {
+    label: 'Nekosu',
+    hint: 'Snappy fast start, even pull, 10 points',
+    pts: [
+      { x: 0, y: 0 },
+      { x: 12, y: 39 },
+      { x: 39, y: 61 },
+      { x: 69, y: 82 },
+      { x: 98, y: 104 },
+      { x: 131, y: 125 },
+      { x: 169, y: 154 },
+      { x: 207, y: 182 },
+      { x: 228, y: 206 },
+      { x: 255, y: 255 }
+    ]
   }
 }
 
