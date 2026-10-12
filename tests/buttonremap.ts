@@ -19,7 +19,7 @@ function blankButton(): Packet {
   return new Packet(new Uint8Array(7))
 }
 
-// write path: Cross onto a blank packet
+// write path: A onto a blank packet
 {
   const p = blankButton()
   button.setMap(p, [9, 0, 0])
@@ -58,7 +58,7 @@ function blankButton(): Packet {
 // key labels (Connect 1.16.7 ko parity)
 {
   check('0 is em-dash', keyLabel(0) === '—')
-  check('9 is Cross', keyLabel(9) === 'Cross')
+  check('9 is A (Xbox layout)', keyLabel(9) === 'A')
   check('16 is Camera', keyLabel(16) === 'Camera')
   check('17 is FL1', keyLabel(17) === 'FL1')
   check('20 is R2', keyLabel(20) === 'R2')
@@ -80,8 +80,9 @@ function blankButton(): Packet {
 // display strings
 {
   check('empty displays as em-dash', displayMapping([0, 0, 0]) === '—')
-  check('single displays plain', displayMapping([9, 0, 0]) === 'Cross')
-  check('multi (Connect-written) displays joined', displayMapping([9, 10, 0]) === 'Cross + Circle')
+  check('10 is B, 11 is X, 12 is Y', keyLabel(10) === 'B' && keyLabel(11) === 'X' && keyLabel(12) === 'Y')
+  check('single displays plain', displayMapping([9, 0, 0]) === 'A')
+  check('multi (Connect-written) displays joined', displayMapping([9, 10, 0]) === 'A + B')
 }
 
 // function-key packets (FL1/FR1, 169 bytes) share the same 7-byte map head:

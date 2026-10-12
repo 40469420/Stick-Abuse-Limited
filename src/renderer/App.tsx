@@ -1812,6 +1812,55 @@ function ProfilesPanel({ connected, activeSlot, locked, modelId, modelLen, dumpL
   )
 }
 
+/**
+ * Button glyphs for the remap UI — original Xbox-style icons (colored
+ * ABXY, bumpers, triggers, d-pad arrows, system keys, back paddles).
+ * Anything without a drawn glyph (keyboard/mouse/special/unknown)
+ * returns null and the text label carries it.
+ */
+function KeyIcon({ value, tag, size = 18 }: { value: number; tag?: string; size?: number }): JSX.Element | null {
+  const s = size
+  const wrap = (inner: JSX.Element): JSX.Element => (
+    <svg width={s} height={s} viewBox="0 0 20 20" style={{ verticalAlign: 'middle', flexShrink: 0 }}>{inner}</svg>
+  )
+  const label = (bg: string, ch: string, fg = '#fff', fs = 10): JSX.Element =>
+    wrap(<><circle cx={10} cy={10} r={8.5} fill={bg} /><text x={10} y={10.5} fontSize={fs} fill={fg} fontWeight={800} textAnchor="middle" dominantBaseline="central">{ch}</text></>)
+  const arrow = (pts: string): JSX.Element =>
+    wrap(<><rect x={2.5} y={2.5} width={15} height={15} rx={4.5} fill="#33333d" /><polygon points={pts} fill="#fff" /></>)
+  const pill = (ch: string, tall: boolean): JSX.Element =>
+    wrap(<><rect x={2} y={tall ? 3 : 6.5} width={16} height={tall ? 14 : 7} rx={3.5} fill={tall ? '#3a3a46' : '#4a4a55'} /><text x={10} y={10.5} fontSize={6} fill="#fff" fontWeight={800} textAnchor="middle" dominantBaseline="central">{ch}</text></>)
+  const paddle = (ch: string): JSX.Element =>
+    wrap(<><rect x={3.5} y={3.5} width={13} height={13} rx={5.5} fill="#4a4a55" stroke="#7a7a88" strokeWidth={1} /><text x={10} y={10.5} fontSize={6} fill="#fff" fontWeight={800} textAnchor="middle" dominantBaseline="central">{ch}</text></>)
+  switch (value) {
+    case 9: return label('#2ca243', 'A')
+    case 10: return label('#e74856', 'B')
+    case 11: return label('#2f7de1', 'X')
+    case 12: return label('#f2b90d', 'Y')
+    case 1: return arrow('10,5.5 14.5,12 5.5,12')
+    case 2: return arrow('10,14.5 14.5,8 5.5,8')
+    case 3: return arrow('5.5,10 12,5.5 12,14.5')
+    case 4: return arrow('14.5,10 8,5.5 8,14.5')
+    case 5: return pill('LB', false)
+    case 6: return pill('RB', false)
+    case 19: return pill('LT', true)
+    case 20: return pill('RT', true)
+    case 7:
+    case 8:
+      return wrap(<><circle cx={10} cy={10} r={8} fill="#33333d" /><circle cx={10} cy={10} r={3} fill="#8a8a96" /></>)
+    case 13:
+      return wrap(<><circle cx={10} cy={10} r={8} fill="none" stroke="#8a8a96" strokeWidth={2} /><circle cx={10} cy={10} r={2.5} fill="#8a8a96" /></>)
+    case 14:
+      return wrap(<><rect x={3} y={6} width={9} height={8} rx={1.5} fill="none" stroke="#8a8a96" strokeWidth={1.5} /><rect x={8} y={8.5} width={9} height={8} rx={1.5} fill="#33333d" stroke="#8a8a96" strokeWidth={1.5} /></>)
+    case 15:
+      return wrap(<><rect x={2.5} y={2.5} width={15} height={15} rx={4.5} fill="#33333d" /><path d="M6 7.5h8M6 10h8M6 12.5h8" stroke="#fff" strokeWidth={1.6} strokeLinecap="round" /></>)
+    case 16:
+      return wrap(<><rect x={2.5} y={6} width={15} height={9} rx={2} fill="#33333d" /><circle cx={10} cy={10.5} r={2.8} fill="none" stroke="#8a8a96" strokeWidth={1.5} /><rect x={8} y={4} width={4} height={2.5} rx={1} fill="#33333d" /></>)
+    case 17: return paddle(tag ?? 'FL1')
+    case 18: return paddle(tag ?? 'FR1')
+    default: return null
+  }
+}
+
 function ResetEverythingCard({ profile, fd, edit, onReload, notify }: {
   profile: Profile | null
   fd: Packet | null
@@ -2952,22 +3001,28 @@ export default function App(): JSX.Element {
               <table className="tbl" style={{ marginTop: 8 }}>
                 <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
                 <tbody>
-                  {[
+                  {([
                     ...STANDARD_BUTTONS.map((name, i) => ({ name: keyLabel(i + 1), value: i + 1, pkt: profile.buttons[i] ?? null as Packet | null })),
                     ...(profile.functionKeys[0] && profile.functionKeys[0].length === 169
-                      ? [{ name: `${keyLabel(17)} · L4`, value: 17, pkt: profile.functionKeys[0] as Packet | null }]
+                      ? [{ name: 'FL1 · L4', value: 17, tag: 'L4', pkt: profile.functionKeys[0] as Packet | null }]
                       : []),
                     ...(profile.functionKeys[1] && profile.functionKeys[1].length === 169
-                      ? [{ name: `${keyLabel(18)} · R4`, value: 18, pkt: profile.functionKeys[1] as Packet | null }]
+                      ? [{ name: 'FR1 · R4', value: 18, tag: 'R4', pkt: profile.functionKeys[1] as Packet | null }]
+                      : []),
+                    ...(profile.functionKeys[2] && profile.functionKeys[2].length === 169
+                      ? [{ name: 'FL2 · L5', value: 17, tag: 'L5', pkt: profile.functionKeys[2] as Packet | null }]
+                      : []),
+                    ...(profile.functionKeys[3] && profile.functionKeys[3].length === 169
+                      ? [{ name: 'FR2 · R5', value: 18, tag: 'R5', pkt: profile.functionKeys[3] as Packet | null }]
                       : [])
-                  ].map((row) => {
+                  ] as Array<{ name: string; value: number; tag?: string; pkt: Packet | null }>).map((row) => {
                     const pkt = row.pkt
                     if (!pkt) return null
                     const values = button.mapValues(pkt)
                     const current = values.find((v) => v !== 0) ?? 0
                     return (
                       <tr key={row.name}>
-                        <td className="mono">{row.name}</td>
+                        <td><span className="row" style={{ gap: 7, alignItems: 'center' }}><KeyIcon value={row.value} tag={row.tag} />{row.name}</span></td>
                         <td>
                           <select
                             className="input"
@@ -2985,7 +3040,7 @@ export default function App(): JSX.Element {
                             ))}
                           </select>
                         </td>
-                        <td>{displayMapping(values)}</td>
+                        <td><span className="row" style={{ gap: 7, alignItems: 'center' }}>{current !== 0 && <KeyIcon value={current} />}{displayMapping(values)}</span></td>
                       </tr>
                     )
                   })}

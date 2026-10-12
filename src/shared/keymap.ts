@@ -43,10 +43,10 @@ const CONTROLLER: Array<[number, string]> = [
   [6, 'R1'],
   [7, 'L3'],
   [8, 'R3'],
-  [9, 'Cross'],
-  [10, 'Circle'],
-  [11, 'Square'],
-  [12, 'Triangle'],
+  [9, 'A'],
+  [10, 'B'],
+  [11, 'X'],
+  [12, 'Y'],
   [13, 'PS / Home'],
   [14, 'Select / View'],
   [15, 'Start / Menu'],
@@ -256,7 +256,7 @@ export const REMAP_TARGETS: KeyTarget[] = KEY_TARGETS.filter(
   (k) => k.value <= 20
 )
 
-/** Human-readable mapping, e.g. `Cross` or `Cross + Circle` or `—`. */
+/** Human-readable mapping, e.g. `A` or `A + B` or `—`. */
 export function displayMapping(values: readonly number[]): string {
   const named = values.filter((v) => v !== 0).map((v) => keyLabel(v))
   return named.length > 0 ? named.join(' + ') : '—'
