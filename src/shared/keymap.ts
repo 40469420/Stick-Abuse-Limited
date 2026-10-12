@@ -12,9 +12,11 @@
  * unverified meaning, so they stay unnamed here and display as `#29/#30`
  * rather than a wrong label.
  *
- * Tournament note: Stick Labs only ever writes single controller targets
- * (0–20). Keyboard/mouse/special entries exist so pads configured in
- * Connect still *display* correctly — this app never offers them as targets.
+ * Tournament note: Stick Labs writes single targets only. Keyboard targets
+ * are offered (every key 50–155); mouse/special entries exist so pads
+ * configured in Connect still *display* correctly — this app never offers
+ * them as targets. A stricter tournament-only target list can narrow this
+ * further without touching the encoding.
  */
 
 export interface KeyTarget {
@@ -247,13 +249,13 @@ export function keyGroup(value: number): KeyGroup {
 }
 
 /**
- * Targets this app offers: single controller keys only (0–20), mirroring
- * what Connect itself allows on this pad (KeyboardAndMouse and
- * MapToMoreKeys are both disabled device-side). One press in, one press
- * out — no multi-maps, no macros, no turbo.
+ * Targets this app offers: single controller keys (0–20) plus every
+ * keyboard key (50–155). One press in, one press out — no multi-maps, no
+ * macros, no turbo. Mouse/special stay out (unneeded attack surface for a
+ * tuning app; the bytes would work the same way).
  */
 export const REMAP_TARGETS: KeyTarget[] = KEY_TARGETS.filter(
-  (k) => k.value <= 20
+  (k) => k.value <= 20 || (k.value >= 50 && k.value <= 155)
 )
 
 /** Human-readable mapping, e.g. `A` or `A + B` or `—`. */

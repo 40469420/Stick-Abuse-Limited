@@ -122,7 +122,7 @@ const STR: Dict = {
   'common.working': { en: 'Working…', zh: '处理中…', ja: '処理中…' },
   'profiles.title': { en: 'Stick profiles', zh: '摇杆配置', ja: 'スティックプロファイル' },
   'buttons.title': { en: 'Button remap', zh: '按键映射', ja: 'ボタンリマップ' },
-  'buttons.hint': { en: 'One press in, one press out — single controller targets only, the same bytes Connect writes. Turbo and toggle bytes are never touched. Multi-maps written in Connect show their first target here.', zh: '一按进一按出——仅单个手柄按键目标，与 Connect 写入的字节一致。从不动 turbo 与切换字节。在 Connect 里写的多重映射这里只显示第一个目标。', ja: '1入力1出力 — 単一パッドターゲットのみ、Connectと同じバイトを書き込みます。ターボ/トグルには触れません。Connectの複数マップは最初のターゲットのみ表示。' },
+  'buttons.hint': { en: 'One press in, one press out — single controller or keyboard targets only, the same bytes Connect writes. Turbo and toggle bytes are never touched. Multi-maps written in Connect show their first target here.', zh: '一按进一按出——仅单个目标（手柄按键或键盘），与 Connect 写入的字节一致。从不动 turbo 与切换字节。在 Connect 里写的多重映射这里只显示第一个目标。', ja: '1入力1出力 — 単一ターゲットのみ（パッドボタンまたはキーボード）、Connectと同じバイトを書き込みます。ターボ/トグルには触れません。Connectの複数マップは最初のターゲットのみ表示。' },
   'buttons.source': { en: 'Button', zh: '按键', ja: 'ボタン' },
   'buttons.target': { en: 'Acts as', zh: '映射为', ja: '割当先' },
   'buttons.effective': { en: 'Effective', zh: '实际', ja: '実効' },

@@ -70,11 +70,19 @@ function blankButton(): Packet {
   check('unknown shows #n', keyLabel(999) === '#999')
 }
 
-// tournament-safe target list: single controller keys only
+// tournament-safe target list: single controller + keyboard keys
 {
-  check('21 targets (0–20)', REMAP_TARGETS.length === 21)
-  check('all targets within 0–20', REMAP_TARGETS.every((k) => k.value >= 0 && k.value <= 20))
-  check('no keyboard/mouse/special targets', REMAP_TARGETS.every((k) => k.group === 'none' || k.group === 'controller' || k.group === 'function'))
+  check('127 targets (0–20 + 50–155)', REMAP_TARGETS.length === 127)
+  check('controller targets present', [0, 1, 16, 17, 20].every((v) => REMAP_TARGETS.some((k) => k.value === v)))
+  check('every keyboard key present', Array.from({ length: 106 }, (_, i) => i + 50).every((v) => REMAP_TARGETS.some((k) => k.value === v)))
+  check('no mouse/special targets', REMAP_TARGETS.every((k) => k.group === 'none' || k.group === 'controller' || k.group === 'function' || k.group === 'keyboard'))
+}
+
+// keyboard target write path (Camera -> T, the hardware-verified case)
+{
+  const p = blankButton()
+  button.setMap(p, [82, 0, 0])
+  check('keyboard target bytes are [0,0,1,82,0,0,0]', JSON.stringify(Array.from(p.bytes)) === JSON.stringify([0, 0, 1, 82, 0, 0, 0]))
 }
 
 // display strings
