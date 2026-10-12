@@ -2797,14 +2797,13 @@ export default function App(): JSX.Element {
                             onClick={() => {
                               edit(() => {
                                 if (s.key === 'raw') {
-                                  stick.applyPhysics(pkt)
-                                  stick.setEnabled(pkt, true)
-                                  stick.setSquareGate(pkt, false)
+                                  // True bypass: the untouched sensor output with real
+                                  // circularity. All other bytes are left alone, so
+                                  // leaving raw restores the previous tune exactly.
+                                  stick.setEnabled(pkt, false)
                                 } else {
-                                  const wasRaw = stick.isRawState(pkt)
                                   stick.setEnabled(pkt, true)
                                   stick.setSquareGate(pkt, s.key === 'square')
-                                  if (wasRaw) stick.setDeadzone(pkt, { ...stick.deadzone(pkt), begin: 50 })
                                 }
                               })
                             }}

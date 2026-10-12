@@ -613,10 +613,12 @@ export const stick = {
   },
 
   /**
-   * True when this stick IS raw output: either the legacy bypass
-   * (`stick_en` clear, written by older app versions) or the calibrated
-   * identity — processing on, linear points + identity transform, zero
-   * deadzone window, neutral axis ratio.
+   * True when this stick IS raw output: either the full bypass
+   * (`stick_en` clear — the untouched sensor, nothing else matters) or the
+   * calibrated identity — processing on, linear points + identity transform,
+   * zero deadzone window, neutral axis ratio. The bypass is the only path
+   * the firmware does not "perfect": any processing engages its correction,
+   * so neutral bytes through the pipeline still read corrected.
    */
   isRawState(p: Packet): boolean {
     if (!stick.enabled(p)) return true
