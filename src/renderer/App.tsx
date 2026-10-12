@@ -4,6 +4,7 @@ import { parseProfile, serializeProfile, fun, stick, button, LINEAR_CURVE, looks
 import { PROFILE_LENGTH, REPORT_RATE_OPTIONS, STICK_RESOLUTION_OPTIONS, STANDARD_BUTTONS, CENTER_NUDGE } from '@shared/protocol'
 import { identifyModel, MODELS, type ControllerModel } from '@shared/models'
 import {
+  describeRawResolution,
   bitsToLevels,
   bitsToWireRaw,
   EXTENDED_BITS,
@@ -2504,6 +2505,7 @@ export default function App(): JSX.Element {
   const rates = model && model.reportRates.length > 0 ? model.reportRates : REPORT_RATE_OPTIONS
   const gearHz = rates.find((o) => o.gear === gear)?.hz ?? 0
   const resWire = fd ? fun.extend.stickResolution(fd) : 0
+  const resInfo = describeRawResolution(fd ? fun.extend.stickResolution(fd) : 0)
 
   // Center guard: while measuring, track the worst rest deviation of the
   // current stick; the countdown then proposes a Start % that covers it.
@@ -3159,6 +3161,11 @@ export default function App(): JSX.Element {
                     <Hint style={{ marginTop: 8 }}>
                       {t('device.bitNote')}
                     </Hint>
+                    {!resInfo.standard && (
+                      <div className="note bad" style={{ marginTop: 8 }}>
+                        {t('device.nonStdFull').replace('{wire}', String(resInfo.wire)).replace('{bits}', String(resInfo.bits))}
+                      </div>
+                    )}
                   </div>
 
 
@@ -3167,23 +3174,6 @@ export default function App(): JSX.Element {
                   <div className="card">
                     <h3>{t('device.rate')}</h3>
                     <Hint>{t('device.rateHint')}</Hint>
-                    <div className="row wrap" style={{ gap: 8, margin: '10px 0', alignItems: 'center' }}>
-                      <span className="label">{t('device.output')}</span>
-                      <button
-                        className={`btn sm${stick.mapIndex(pkt) !== 4 ? ' primary' : ' ghost'}`}
-                        title={t('device.outputStickTitle')}
-                        onClick={() => edit(() => { stick.setMapIndex(pkt, which === 0 ? 1 : 2); stick.setMapped(pkt, true) })}
-                      >
-                        {t('device.outputStick')}
-                      </button>
-                      <button
-                        className={`btn sm${stick.mapIndex(pkt) === 4 ? ' primary' : ' ghost'}`}
-                        title={t('device.outputMouseTitle')}
-                        onClick={() => edit(() => { stick.setMapIndex(pkt, 4) })}
-                      >
-                        {t('device.outputMouse')}
-                      </button>
-                    </div>
                     <div className="stack" style={{ gap: 12 }}>
                       <div className="row spread">
                         <div>
@@ -3211,7 +3201,13 @@ export default function App(): JSX.Element {
                           )
                         })}
                         {stick.mapIndex(pkt) === 4 && (
-                          <span className="pill warn">{t('device.outputMouse')}</span>
+                          <button
+                            className="btn sm ghost"
+                            title={t('device.restoreStick')}
+                            onClick={() => edit(() => { stick.setMapIndex(pkt, which === 0 ? 1 : 2); stick.setMapped(pkt, true) })}
+                          >
+                            {which === 0 ? t('device.backLeft') : t('device.backRight')}
+                          </button>
                         )}
                       </div>
                       <Hint>{t('device.rateNote')}</Hint>
