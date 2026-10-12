@@ -22,7 +22,7 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 
 | Section | Controls |
 | --- | --- |
-| Sticks | Deadzones, anti-deadzones, custom response curves with optional spline smoothing, shape and linear full-range preset. |
+| Sticks | Deadzones, anti-deadzones, custom response curves with optional spline smoothing, shape, linear full-range preset and a separate true raw bypass option. |
 | Device | Polling-rate settings, standard 8–12-bit resolution and experimental higher-bit requests. |
 | Center offsets | Independent stick-center adjustment with directional nudges, mouse dragging and live previews. |
 | Triggers | Separate LT/RT input and output ranges, adaptive/fixed hair triggers and response curves. |

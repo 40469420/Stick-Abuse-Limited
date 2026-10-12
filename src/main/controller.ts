@@ -91,7 +91,7 @@ interface Pending {
 const DEFAULT_TIMEOUT = 2500
 
 export class Controller {
-  readonly transport = new Transport()
+  readonly transport: Transport
 
   private pending: Pending[] = []
   private inputListeners = new Set<(input: LiveInput) => void>()
@@ -101,7 +101,8 @@ export class Controller {
 
   state: ControllerState = 'disconnected'
 
-  constructor() {
+  constructor(transport?: Transport) {
+    this.transport = transport ?? new Transport()
     this.transport.onResponse((raw) => this.dispatch(raw))
     this.transport.onError(() => this.failAll(new Error('device disconnected')))
   }
@@ -328,10 +329,14 @@ export class Controller {
       )
     }
 
-    await this.writeProfile(profile, data, length)
-
-    const after = await this.readBack(profile, length)
-    if (bytesEqual(after, data)) return { verified: true, rolledBack: false }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await this.writeProfile(profile, data, length)
+      try {
+        const after = await this.readBack(profile, length)
+        if (bytesEqual(after, data)) return { verified: true, rolledBack: false }
+      } catch { /* Retry unreadable verification before restoring the backup. */ }
+      if (attempt < 2) await sleep(READ_BACK_RETRY_MS)
+    }
 
     await this.writeProfile(profile, before, length)
     const restored = await this.readBack(profile, length)

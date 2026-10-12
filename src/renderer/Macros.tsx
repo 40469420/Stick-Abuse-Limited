@@ -1,3 +1,4 @@
+import { IconSelect } from './IconSelect'
 import { Help } from './Help'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { Profile } from '@shared/profile'
@@ -114,9 +115,7 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
     </div>
     <div className="card">
       <label className="stack">Macro button
-        <select className="input" aria-label="Macro button" disabled={busy || !!recordMode || preview !== null} value={selected} onChange={(e) => { setSelected(Number(e.target.value)); setMessage('') }}>
-          {FUNCTION_LABELS.map((name, i) => <option key={name} value={i}>{name}</option>)}
-        </select>
+        <IconSelect label="Macro button" disabled={busy || !!recordMode || preview !== null} value={selected} onChange={v => { setSelected(v); setMessage('') }} options={FUNCTION_LABELS.map((name, i) => ({ value: i, label: name, icon: i % 2 ? 18 : 17, tag: ['L4', 'R4', 'L5', 'R5'][i] }))} />
       </label>
       {parseError && <p className="note warn">{parseError}. Re-read the profile; its macro bytes have not been changed.</p>}
       <fieldset disabled={locked} className="control-fieldset">
@@ -198,7 +197,7 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
         </div>
         <div className="context-help"><Help title="How this works">Step 32 has no trailing-delay field in the controller format. Use Loop delay for the gap between repeated sequences. Reordering that would lose a delay is rejected.</Help></div>
         <div className="row wrap" style={{ gap: 8 }}>
-          <label>Copy to <select className="input" value={copyTarget} onChange={(e) => setCopyTarget(Number(e.target.value))}>{FUNCTION_LABELS.map((name, i) => <option value={i} key={name}>{name}</option>)}</select></label>
+          <label>Copy to <IconSelect label="Copy macro to" value={copyTarget} onChange={setCopyTarget} options={FUNCTION_LABELS.map((name, i) => ({ value: i, label: name, icon: i % 2 ? 18 : 17, tag: ['L4', 'R4', 'L5', 'R5'][i] }))} /></label>
           <button className="btn ghost" disabled={selected === copyTarget} onClick={() => {
             try { const valid = validateMacro(doc); edit(() => writeMacro(profile.functionKeys[copyTarget], valid)); setMessage(`Copied to ${FUNCTION_LABELS[copyTarget]}. Write the profile to apply.`) } catch (e) { setMessage((e as Error).message) }
           }}>Copy macro</button>

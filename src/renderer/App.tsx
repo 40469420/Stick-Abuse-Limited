@@ -1,3 +1,4 @@
+import { KeyIcon } from './KeyIcon'
 import { resampleSpline, traceSpline } from '@shared/sticklab'
 import { ApexDevice, ApexSticks } from './FlydigiPanel'
 import { flyTransport, type FlyIdentity } from './flydigiUsb'
@@ -259,6 +260,22 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
  * curve bytes only, +14..+23.
  */
 const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: number; y: number }> }> = {
+  nekosu: {
+    label: 'Nekosu',
+    hint: 'Snappy fast start, even pull, 10 points',
+    pts: [
+      { x: 0, y: 0 },
+      { x: 12, y: 39 },
+      { x: 39, y: 61 },
+      { x: 69, y: 82 },
+      { x: 98, y: 104 },
+      { x: 131, y: 125 },
+      { x: 169, y: 154 },
+      { x: 207, y: 182 },
+      { x: 228, y: 206 },
+      { x: 255, y: 255 }
+    ]
+  },
   linear: { label: 'Linear', hint: '1:1 raw', pts: [...LINEAR_CURVE] },
   fpsAim: {
     label: 'Kiyoshi Curve',
@@ -955,6 +972,11 @@ function AppContent(): JSX.Element {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [which, setWhich] = useState(0)
+  const [outputLocks, setOutputLocks] = useState<[boolean, boolean]>(() => {
+    try { const v = JSON.parse(localStorage.getItem('sticklabs.outputLocks') ?? 'null'); if (Array.isArray(v) && v.length === 2 && v.every(x => typeof x === 'boolean')) return v as [boolean, boolean] } catch { /* default unlocked */ }
+    return [false, false]
+  })
+  useEffect(() => { try { localStorage.setItem('sticklabs.outputLocks', JSON.stringify(outputLocks)) } catch { /* session only */ } }, [outputLocks])
   const [live, setLive] = useState<LiveSample | null>(null)
   const [busy, setBusy] = useState(false)
   const [loadId, setLoadId] = useState(0)
@@ -1189,6 +1211,7 @@ function AppContent(): JSX.Element {
     setMsg(null)
     setErr(null)
     try {
+      if (profile && stick.lockStickOutput(profile.sticks, outputLocks)) syncBlob()
       const res = await api().writeProfile(slot, bytesToB64(blob), modelLen)
       if (res.verified) {
         const liveNow = info?.currentProfile
@@ -1198,14 +1221,12 @@ function AppContent(): JSX.Element {
           // One step: apply by switching onto the written slot, then prove
           // it — the pad may reboot instead of acking, so the live slot is
           // read back (across the reboot window) rather than trusting reply.
-          let switched = false
           try {
             await api().switchProfile(slot)
-            switched = true
           } catch {
             /* reboot likely ate the ack — confirm below instead of failing */
           }
-          let applied = switched
+          let applied = false
           if (!applied) {
             setMsg(`Slot ${slot} written + verified — confirming it took (pad may be rebooting)…`)
           }
@@ -1224,7 +1245,12 @@ function AppContent(): JSX.Element {
             setMsg(`Slot ${slot} written + verified, but could not confirm it went live — use Activate in Stick profiles below.`)
           }
         } else {
-          setMsg(`Slot ${slot} written + read-back verified. If the pad reboots (~1-2 s), it is applying the change — reconnect if needed.`)
+          let back = false
+          for (let i = 0; i < 8 && !back; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            try { back = (await api().currentProfile()) === slot } catch { /* retry across reboot */ }
+          }
+          setMsg(back ? `Slot ${slot} written, verified and confirmed live on the pad.` : `Slot ${slot} written + verified, but could not confirm it went live — reconnect and check the active profile.`)
         }
         return true
       } else if (res.rolledBack) {
@@ -1551,7 +1577,7 @@ function AppContent(): JSX.Element {
                   const outerB = 100 - vdz.end / 10
                   return (
                     <div className="stack" style={{ gap: 12 }} key={name}>
-                      <span className="label">{name} stick</span>
+                      <span className="label"><KeyIcon value={i ? 8 : 7} /> {name} stick</span>
                       <Slider label="Deadzone start" value={vdz.begin / 10} min={0} max={20} step={0.5} unit="%" onChange={(v) => editVirtual(() => setVD('begin', v))} format={(v) => `${v.toFixed(1)}%`} />
                       <Slider label="Deadzone end" value={vdz.end / 10} min={10} max={100} step={0.5} unit="%" onChange={(v) => editVirtual(() => setVD('end', v))} format={(v) => `${v.toFixed(1)}%`} />
                       <Slider label="Anti snap" value={vdz.beginAnti / 10} min={0} max={50} step={0.5} unit="%" onChange={(v) => editVirtual(() => { const n = { ...stick.deadzone(vp) }; n.beginAnti = Math.round(v * 10); stick.setDeadzone(vp, n) })} format={(v) => `${v.toFixed(1)}%`} />
@@ -1639,7 +1665,7 @@ function AppContent(): JSX.Element {
               {(tab === 'sticks' || tab === 'device') && <div className="row" style={{ gap: 8, marginBottom: 12 }}>
                 {(['Left', 'Right'] as const).map((n, i) => (
                   <button key={n} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
-                    {n} stick
+                    <KeyIcon value={i === 0 ? 7 : 8} /> {n} stick
                   </button>
                 ))}
                 <div style={{ flex: 1 }} />
@@ -1841,19 +1867,20 @@ function AppContent(): JSX.Element {
 
 
                   <div className="card">
-                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</Help></div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. True raw bypass disables processing and preserves your stored tuning; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
                           { name: 'Round diagonals', hint: 'Uniform reach all directions (FPS aim)' },
                           { name: 'Square gate', hint: 'Diagonals reach full deflection (hotter corners)' },
-                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' }
+                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' },
+                          { name: 'True raw bypass', hint: 'Disables stick processing; preserves your tuning bytes. Firmware and game behavior may differ.' }
                         ] as const
                       ).map((s) => {
                         const isRaw = stick.isRawLinear(pkt)
                         const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
-                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw)
+                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'True raw bypass' && !stick.enabled(pkt))
                         return (
                           <button
                             key={s.name}
@@ -1863,6 +1890,8 @@ function AppContent(): JSX.Element {
                               edit(() => {
                                 if (s.name === 'Linear full range (1:1)') {
                                   stick.applyRawLinear(pkt)
+                                } else if (s.name === 'True raw bypass') {
+                                  stick.setEnabled(pkt, false)
                                 } else {
                                   stick.setEnabled(pkt, true)
                                   stick.setSquareGate(pkt, s.name === 'Square gate')
@@ -2009,6 +2038,7 @@ function AppContent(): JSX.Element {
                   <div className="card">
                     <div className="section-title"><h3>Controller Rate</h3><Help title="Controller Rate">How fast this stick answers in Mouse mode — higher moves the cursor more per deflection. It does <strong>not</strong> change how often the pad sends inputs; that is the Polling card. Only applies while Output is Mouse. 300* stores the maximum byte value of 255; None stores the stock neutral value of 50.</Help></div>
                     <div className="stack" style={{ gap: 12 }}>
+                      <label className="row"><input type="checkbox" checked={outputLocks[which]} onChange={e => { const next: [boolean, boolean] = [...outputLocks]; next[which] = e.target.checked; setOutputLocks(next) }} />Lock normal stick output<Help title="Output lock">On Write, prevents this stick from using Mouse output by restoring its normal left/right stick destination. Saved on this PC; it does not change your curve or sensitivity.</Help></label>
                       <div className="row spread">
                         <div>
                           <div style={{ fontSize: 13.5 }}>Rate — constant per pick</div>
@@ -2045,19 +2075,20 @@ function AppContent(): JSX.Element {
 
 
                   <div className="card">
-                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Stick processing stays enabled; calibration and game sensitivity still apply.</Help></div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. True raw bypass disables processing and preserves your stored tuning; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
                           { name: 'Round diagonals', hint: 'Uniform reach all directions (FPS aim)' },
                           { name: 'Square gate', hint: 'Diagonals reach full deflection (hotter corners)' },
-                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' }
+                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' },
+                          { name: 'True raw bypass', hint: 'Disables stick processing; preserves your tuning bytes. Firmware and game behavior may differ.' }
                         ] as const
                       ).map((s) => {
                         const isRaw = stick.isRawLinear(pkt)
                         const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
-                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw)
+                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'True raw bypass' && !stick.enabled(pkt))
                         return (
                           <button
                             key={s.name}
@@ -2067,6 +2098,8 @@ function AppContent(): JSX.Element {
                               edit(() => {
                                 if (s.name === 'Linear full range (1:1)') {
                                   stick.applyRawLinear(pkt)
+                                } else if (s.name === 'True raw bypass') {
+                                  stick.setEnabled(pkt, false)
                                 } else {
                                   stick.setEnabled(pkt, true)
                                   stick.setSquareGate(pkt, s.name === 'Square gate')

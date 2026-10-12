@@ -1,3 +1,4 @@
+import { KeyIcon } from './KeyIcon'
 import { Help } from './Help'
 import { LINEAR_CURVE } from '@shared/profile'
 import { STICK_RESOLUTION_OPTIONS } from '@shared/protocol'
@@ -207,6 +208,22 @@ function CurvePlot({ points, onChange, overlay, smooth }: { points: Array<{ x: n
  * curve bytes only, +14..+23.
  */
 const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: number; y: number }> }> = {
+  nekosu: {
+    label: 'Nekosu',
+    hint: 'Snappy fast start, even pull, 10 points',
+    pts: [
+      { x: 0, y: 0 },
+      { x: 12, y: 39 },
+      { x: 39, y: 61 },
+      { x: 69, y: 82 },
+      { x: 98, y: 104 },
+      { x: 131, y: 125 },
+      { x: 169, y: 154 },
+      { x: 207, y: 182 },
+      { x: 228, y: 206 },
+      { x: 255, y: 255 }
+    ]
+  },
   linear: { label: 'Linear', hint: '1:1 raw', pts: [...LINEAR_CURVE] },
   fpsAim: {
     label: 'Kiyoshi Curve',
@@ -677,7 +694,7 @@ export function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Elemen
         <div className="row" style={{ gap: 8, margin: '10px 0' }}>
           {(['Left', 'Right'] as const).map((n, i) => (
             <button key={n} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
-              {n} stick
+              <KeyIcon value={i === 0 ? 7 : 8} /> {n} stick
             </button>
           ))}
           <div style={{ flex: 1 }} />

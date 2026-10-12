@@ -1,3 +1,4 @@
+import { KeyIcon } from './KeyIcon'
 import { Help } from './Help'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { api, type LiveSample } from './api'
@@ -88,7 +89,7 @@ export function CenterOffsets({ busy }: { busy: boolean }): JSX.Element {
         const ready = fresh && !!raw && Math.abs(x) <= .3 && Math.abs(y) <= .3
         const disabled = busy || sending || !ready
         return <div className="card" key={side}>
-          <h3>{side === 0 ? 'Left stick' : 'Right stick'}</h3>
+          <h3><KeyIcon value={side === 0 ? 7 : 8} /> {side === 0 ? 'Left stick' : 'Right stick'}</h3>
           <svg viewBox="0 0 260 260" width="100%" style={{ maxHeight: 260, touchAction: 'none', cursor: disabled ? 'default' : 'grab' }} role="img" aria-label={`${side === 0 ? 'Left' : 'Right'} live center preview`}
             onPointerDown={(event) => {
               if (disabled || working.current || event.button !== 0) return

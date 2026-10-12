@@ -1011,3 +1011,11 @@ table.tbl tbody tr:hover {
 .terms-official h2 { margin-top: 0; }
 .terms-official span { display: block; margin-top: 12px; font-size: 11px; overflow-wrap: anywhere; color: var(--text-2); }
 @media (max-width: 800px) { .terms-backdrop { padding: 12px; } .terms-dialog { height: auto; max-height: calc(100dvh - 24px); grid-template-columns: minmax(0, 1fr); overflow-y: auto; } .terms-main { overflow: visible; padding: 18px; } .terms-copy { max-height: 45dvh; } .terms-official { padding: 18px; border-left: 0; border-top: 1px solid var(--line); } }
+.icon-select { position: relative; min-width: 0; width: 100%; }
+.icon-select-trigger { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: pointer; }
+.icon-select-chevron { margin-left: auto; }
+.icon-select-popup { position: absolute; top: calc(100% + 4px); left: 0; width: max(100%, 240px); max-width: min(440px, 85vw); z-index: 90; padding: 8px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg-2, #21151b); box-shadow: 0 12px 36px #0009; }
+.icon-select-options { max-height: 280px; overflow-y: auto; margin-top: 4px; }
+.icon-select-option { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.icon-select-option:hover, .icon-select-option:focus-visible, .icon-select-option.selected { background: var(--bg-3, #3a2630); }
+.icon-select-group { padding: 8px; color: var(--text-3); font-size: 11px; }

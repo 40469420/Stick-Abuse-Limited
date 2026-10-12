@@ -1,3 +1,4 @@
+import { KeyIcon } from './KeyIcon'
 import { GameGuardControls } from './GameGuards'
 import { Help } from './Help'
 import { useEffect, useRef, useState } from 'react'
@@ -128,7 +129,7 @@ export function RcFilters({ fd, edit, busy, dirty, connected, slot, firmware, by
         {wires.map((wire, i) => {
           const info = describeRawRc(wire)
           return <fieldset key={i} disabled={busy || running || !connected} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 16 }}>
-            <legend>{i === 0 ? 'Left stick' : 'Right stick'}</legend>
+            <legend><KeyIcon value={i === 0 ? 7 : 8} /> {i === 0 ? 'Left stick' : 'Right stick'}</legend>
             <label className="stack" style={{ gap: 8 }}>
               <span>RC level: {info.standard ? (info.level > 0 ? '+' : '') + info.level : 'Unknown'}</span>
               <input aria-label={`${i === 0 ? 'Left' : 'Right'} RC level`} type="range" min={-10} max={10} step={1}
@@ -175,7 +176,7 @@ export function RcFilters({ fd, edit, busy, dirty, connected, slot, firmware, by
           { name: 'Vendor', left: c.left, right: c.right, rate: `${c.reportHz.toFixed(1)} reports/s`, duration: c.durationMs },
           ...(c.xinput ? [{ name: `XInput slot ${c.xinput.slot}`, left: c.xinput.left, right: c.xinput.right, rate: `${(c.xinput.polls * 1000 / c.xinput.durationMs).toFixed(1)} polls/s · ${c.xinput.packetChanges} state changes`, duration: c.xinput.durationMs }] : [])
         ].map((stream) => [stream.left, stream.right].map((m, i) =>
-          <tr key={`${label}-${stream.name}-${i}`}><td>{label} · {i === 0 ? 'Left' : 'Right'}<br /><small>{stream.name} · {c.at}</small></td><td>{describeRawRc(c.levels[i]).label}</td><td>{m.count}<br /><small>{stream.rate} · {(stream.duration / 1000).toFixed(2)} s</small></td><td>{m.rms.toFixed(3)}</td><td>{m.spanX.toFixed(3)} / {m.spanY.toFixed(3)}</td><td>{m.centerOffset.toFixed(3)}</td></tr>
+          <tr key={`${label}-${stream.name}-${i}`}><td><KeyIcon value={i ? 8 : 7} /> {label} · {i === 0 ? 'Left' : 'Right'}<br /><small>{stream.name} · {c.at}</small></td><td>{describeRawRc(c.levels[i]).label}</td><td>{m.count}<br /><small>{stream.rate} · {(stream.duration / 1000).toFixed(2)} s</small></td><td>{m.rms.toFixed(3)}</td><td>{m.spanX.toFixed(3)} / {m.spanY.toFixed(3)}</td><td>{m.centerOffset.toFixed(3)}</td></tr>
         )))}</tbody>
       </table></div>}
       <div className="context-help"><Help title="Compare stick noise">Keep deadzones, curves, polling, connection and stick position the same. Measurements use vendor-count units; XInput signed coordinates are divided by 256, retaining fractions, with no added deadzone. XInput polls include repeats and are not USB reports. Its 16-bit coordinate format does not prove a 16-bit sensor. RMS is variation around the mean; center offset is distance from (128,128). Deadzones can hide noise, and movement can inflate it. This comparison cannot establish latency or aim-assist effects.</Help></div>

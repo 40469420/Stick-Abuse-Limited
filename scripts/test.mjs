@@ -22,6 +22,8 @@ const entry =
     : [
         'tests/apex-guard.ts',
         'tests/game-guards.ts',
+        'tests/writeverify.ts',
+        'tests/raw-bypass-output.ts',
         'tests/flydigi.ts',
         'tests/curveidentity.ts',
         'tests/splinecurve.ts',

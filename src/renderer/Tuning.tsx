@@ -1,3 +1,5 @@
+import { IconSelect } from './IconSelect'
+import { KeyIcon } from './KeyIcon'
 import { useEffect, useState } from 'react'
 import { type Packet, type Profile, motion, fun } from '@shared/profile'
 import { bounded, curvePoints, setCustomCurve, setHair, setMotionActivation, setPercent, setWindow } from '@shared/tuning'
@@ -24,7 +26,7 @@ export function TriggerTuning({ profile, edit, busy }: Props): JSX.Element {
   function change(fn: () => void): void { try { edit(fn); setError('') } catch (e) { setError((e as Error).message) } }
   const status = p.u8(16), mode = status & 128 ? status & 1 ? 1 : 2 : 0
   return <div className="stack tuning-page"><div className="card"><SectionTitle title="Trigger tuning">LT and RT have independent ranges, curves and hair-trigger settings. Use Write to controller to apply edits. Trigger button assignments and turbo are on Keybindings. Live output is the controller’s mapped result, not physical trigger position.</SectionTitle>
-    <div className="segmented" role="group" aria-label="Trigger selection">{['Left trigger', 'Right trigger'].map((label, i) => <button type="button" disabled={busy} aria-pressed={side === i} className={side === i ? 'selected' : ''} key={label} onClick={() => setSide(i)}>{label}<small>{i ? 'RT / R2' : 'LT / L2'}</small></button>)}</div>
+    <div className="segmented" role="group" aria-label="Trigger selection">{['Left trigger', 'Right trigger'].map((label, i) => <button type="button" disabled={busy} aria-pressed={side === i} className={side === i ? 'selected' : ''} key={label} onClick={() => setSide(i)}><KeyIcon value={i ? 20 : 19} /> {label}<small>{i ? 'RT / R2' : 'LT / L2'}</small></button>)}</div>
     <div className="row spread"><span className="pill">Live output: {live?.live ? Math.round((side ? live.rt : live.lt) / 255 * 100) + '%' : 'unavailable'}</span><button className="btn ghost" disabled={busy} onClick={() => change(() => { setWindow(p, 3, [0, 1000, 0, 1000]); p.setBit(2, 0, true); setHair(p, 0, 0, 100); setCustomCurve(p, 22, [0, 64, 128, 191, 255].map(v => ({ x: v, y: v }))); p.setU8(20, 0); p.setU8(21, 50) })}>Reset this trigger’s tuning</button></div>
   </div>{error && <p className="note bad" role="alert">{error}</p>}<fieldset className="control-fieldset" disabled={busy}><div className="settings-grid">
     <section className="card"><WindowControls p={p} start={3} enabled={2} change={change} /></section>
@@ -60,9 +62,7 @@ export function GyroTuning({ profile, edit, busy }: Props): JSX.Element {
       </section>
       <section className="card"><SectionTitle title="2. Output mapping">Converts motion into the selected destination. Disabling mapping preserves its stored settings. Directional outputs use the key assignments below. Mouse support depends on firmware and connection mode.</SectionTitle>
         <label className="check-row"><input type="checkbox" checked={p.bit(27, 0)} onChange={e => change(() => p.setBit(27, 0, e.target.checked))} /> Enable output mapping</label>
-        <fieldset className="control-fieldset" disabled={!p.bit(27, 0)}><label className="stack">Send motion to<select className="input" value={output} onChange={e => change(() => p.setU8(33, bounded(Number(e.target.value), 4)))}>
-          {![1,2,3,4].includes(output) && <option value={output}>Stored value {output}</option>}{['Left stick', 'Right stick', 'Directional keys / wheel', 'Mouse'].map((label, i) => <option key={label} value={i + 1}>{label}</option>)}
-        </select></label>
+        <fieldset className="control-fieldset" disabled={!p.bit(27, 0)}><label className="stack">Send motion to<IconSelect label="Send motion to" value={output} onChange={v => change(() => p.setU8(33, bounded(v, 4)))} disabled={!p.bit(27, 0)} options={[...(![1, 2, 3, 4].includes(output) ? [{ value: output, label: 'Stored value ' + output, icon: 0 }] : []), { value: 1, label: 'Left stick', icon: 7 }, { value: 2, label: 'Right stick', icon: 8 }, { value: 3, label: 'Directional keys / wheel', icon: 1 }, { value: 4, label: 'Mouse', icon: 200 }]} /></label>
         {output === 4 && percent(32, 'Mouse sensitivity · 50 neutral')}{(output === 1 || output === 2) && percent(40, 'Stick sensitivity · 50 neutral')}
         {output === 3 && <div className="control-grid">{['Up', 'Down', 'Left', 'Right', 'Outside deadzone'].map((label, i) => <label className="stack" key={label}>{label}<KeyPicker label={'Motion output: ' + label} value={p.u8(35 + i)} onChange={v => change(() => p.setU8(35 + i, v))} /></label>)}</div>}</fieldset>
       </section>

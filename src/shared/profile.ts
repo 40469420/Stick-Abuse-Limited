@@ -624,6 +624,16 @@ export const stick = {
    * identity — processing on, linear points + identity transform, zero
    * deadzone window, neutral axis ratio.
    */
+  lockStickOutput(sticks: Packet[], locks: readonly boolean[]): boolean {
+    let changed = false
+    sticks.forEach((s, i) => {
+      if (locks[i] && stick.mapIndex(s) === 4) {
+        stick.setMapIndex(s, i === 0 ? 1 : 2)
+        changed = true
+      }
+    })
+    return changed
+  },
   isRawState(p: Packet): boolean {
     if (!stick.enabled(p)) return true
     const dz = stick.deadzone(p)
