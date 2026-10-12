@@ -2215,6 +2215,25 @@ export default function App(): JSX.Element {
   const [spline, setSpline] = useState(false)
   // Which remap row's icon dropdown is open (row key, or null).
   const [bindOpen, setBindOpen] = useState<string | null>(null)
+  // Per-stick output lock: locked sticks are forced back to normal stick
+  // output on every Write, so Mouse output can never reach the pad again.
+  const [outLock, setOutLock] = useState<[boolean, boolean]>(() => {
+    try {
+      const saved = window.localStorage.getItem('sticklabs.outLock.v1')
+      const parsed = JSON.parse(saved ?? 'null')
+      if (Array.isArray(parsed)) return [parsed[0] === true, parsed[1] === true]
+    } catch {
+      /* fresh — unlocked */
+    }
+    return [false, false]
+  })
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('sticklabs.outLock.v1', JSON.stringify(outLock))
+    } catch {
+      /* storage full/blocked — lock still works for the session */
+    }
+  }, [outLock])
   // User curve presets for 8K profiles — named designs kept in this browser.
   const [presets, setPresets] = useState<Array<{ name: string; pts: Array<{ x: number; y: number }> }>>(() => {
     try {
@@ -2427,6 +2446,10 @@ export default function App(): JSX.Element {
     setMsg(null)
     setErr(null)
     try {
+      if (profile && (outLock[0] || outLock[1])) {
+        // Output lock: Mouse output can never reach the pad on locked sticks.
+        if (stick.lockStickOutput(profile.sticks, outLock)) syncBlob()
+      }
       const res = await api().writeProfile(slot, bytesToB64(blob), modelLen)
       if (res.verified) {
         const liveNow = info?.currentProfile
@@ -3225,6 +3248,15 @@ export default function App(): JSX.Element {
                             {which === 0 ? t('device.backLeft') : t('device.backRight')}
                           </button>
                         )}
+                      </div>
+                      <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                        <button
+                          className={`btn sm${outLock[which] ? ' primary' : ' ghost'}`}
+                          title={t('device.lockOutTitle')}
+                          onClick={() => setOutLock((prev) => (which === 0 ? [!prev[0], prev[1]] : [prev[0], !prev[1]]))}
+                        >
+                          {t('device.lockOut')}
+                        </button>
                       </div>
                       <Hint>{t('device.rateNote')}</Hint>
                     </div>

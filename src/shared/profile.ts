@@ -613,6 +613,24 @@ export const stick = {
   },
 
   /**
+   * Output lock: force locked sticks back to normal stick output.
+   *
+   * Only repairs `mapIndex 4` (Mouse) → 1/2 (this stick) and touches nothing
+   * else — no deadzone/curve/rate bytes, no `mapped` flag. Returns whether
+   * anything changed. Used by the write path so a locked stick can never
+   * reach the pad in Mouse output (runaway-cursor guard).
+   */
+  lockStickOutput(sticks: Packet[], locks: readonly boolean[]): boolean {
+    let changed = false
+    sticks.forEach((s, i) => {
+      if (locks[i] && stick.mapIndex(s) === 4) {
+        stick.setMapIndex(s, i === 0 ? 1 : 2)
+        changed = true
+      }
+    })
+    return changed
+  },
+  /**
    * True when this stick IS raw output: either the full bypass
    * (`stick_en` clear — the untouched sensor, nothing else matters) or the
    * calibrated identity — processing on, linear points + identity transform,

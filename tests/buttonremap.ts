@@ -3,7 +3,7 @@
 // Encoding (recovered from Connect 1.16.7: map_en = any target set, values
 // padded to 3 with 0): byte2 bit0 = mapped, bytes 3-5 = target indices.
 // Turbo (bytes 0-1) and toggle (byte 6) are never touched by this app.
-import { Packet, button } from '../src/shared/profile'
+import { Packet, button, stick } from '../src/shared/profile'
 import { keyLabel, displayMapping, REMAP_TARGETS } from '../src/shared/keymap'
 
 let failed = 0
@@ -112,6 +112,29 @@ function blankButton(): Packet {
   const p = new Packet(new Uint8Array([0x01, 0x1e, 0x01, 0x04, 0x00, 0x00, 0x00, ...new Array(162).fill(0)]))
   check('fixture FL1 mapped bit set', button.mapped(p))
   check('fixture FL1 values [4,0,0] (D-pad Right)', JSON.stringify(button.mapValues(p)) === JSON.stringify([4, 0, 0]))
+}
+
+// output lock: Mouse output can never reach the pad on locked sticks
+{
+  const mk = (): Packet[] => {
+    const l = new Packet(new Uint8Array(36))
+    const r = new Packet(new Uint8Array(36))
+    stick.setMapIndex(l, 4)
+    stick.setMapIndex(r, 2)
+    stick.setDeadzone(l, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 })
+    return [l, r]
+  }
+  const both = mk()
+  check('locked mouse stick forced to stick 1', stick.lockStickOutput(both, [true, false]) === true)
+  check('left back to index 1', stick.mapIndex(both[0]) === 1)
+  check('unlocked stick untouched', stick.mapIndex(both[1]) === 2)
+  check('deadzone bytes untouched by lock', JSON.stringify(stick.deadzone(both[0])) === JSON.stringify({ begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 }))
+  const clean = mk()
+  stick.setMapIndex(clean[0], 1)
+  check('no change reported when already stick', stick.lockStickOutput(clean, [true, true]) === false)
+  const right = mk()
+  stick.setMapIndex(right[1], 4)
+  check('right stick forced to index 2', stick.lockStickOutput(right, [false, true]) === true && stick.mapIndex(right[1]) === 2)
 }
 
 if (failed > 0) {
