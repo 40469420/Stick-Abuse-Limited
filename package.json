@@ -47,6 +47,7 @@
       "build/firmware-host.exe",
       "build/firmware/**/*",
       "package.json",
+      "scripts/flybridge.py",
       "node_modules/node-hid/**/*",
       "node_modules/pkg-prebuilds/**/*"
     ],

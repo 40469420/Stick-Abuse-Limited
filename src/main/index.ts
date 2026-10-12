@@ -26,6 +26,8 @@ import type { FirmwareImage, FirmwareStatus } from '../shared/firmware'
 
 let firmwareImage: FirmwareImage | null = null
 let firmwareStatus: FirmwareStatus = { running: false, message: 'Choose an original firmware file to validate. Nothing has been flashed.', backup: null }
+import { flyBridge } from './flybridge'
+import { flyFrame } from '../shared/flydigi'
 
 const controller = new Controller()
 const rcCapture = new RcCapture()
@@ -566,6 +568,34 @@ handle('marius:disconnect', () => {
   mariusReader.close()
   return true
 })
+// Flydigi Apex 5 via the hidapi bridge (WebHID/node-hid cannot do its
+// interrupt-OUT reports). Reads and ack-verified writes only.
+handle('fly:open', async () => {
+  await flyBridge.open()
+  return true
+})
+handle('fly:send', async (cmd: number, args: number[]) => {
+  const res = await flyBridge.call(
+    'send',
+    { report: flyFrame(cmd, args ?? []), expect: cmd, timeoutMs: 5000 },
+    8000
+  )
+  if (!res.ok || !res.frame) throw new Error(res.error ?? `fly cmd 0x${Number(cmd).toString(16)} failed`)
+  return res.frame
+})
+handle('fly:collect', async (cmd: number, args: number[], count: number) => {
+  const res = await flyBridge.call(
+    'collect',
+    { report: flyFrame(cmd, args ?? []), expect: cmd, count: Math.max(1, Math.min(64, Math.round(Number(count) || 42))), timeoutMs: 20000 },
+    25000
+  )
+  if (!res.ok || !res.frames) throw new Error(res.error ?? 'fly collect failed')
+  return res.frames
+})
+handle('fly:close', () => {
+  flyBridge.close()
+  return true
+})
 handle('system:openExternal', (url: string) => {
   if (typeof url !== 'string' || !/^https:\/\//.test(url)) throw new Error('blocked URL')
   void shell.openExternal(url)
@@ -703,9 +733,7 @@ app.whenReady().then(() => {
     { label: 'Quit Stick Labs (Unlimited)', click: () => app.quit() }
   ]))
   tray.on('double-click', showWindow)
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(false)
-  })
+  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
   createWindow()
   for (const game of gameKeys) gameGuards[game].setEnabled(gameEnabled[game] === true)
   apexGuard.setEnabled(apexEnabled)
@@ -720,7 +748,7 @@ app.whenReady().then(() => {
     receiverResetPending = false
     void resetRcAfterConnect().then(() => { if (!quitting && controller.isOpen && connectedInfo) send('device:reconnected', connectedInfo) })
   }, 500)
-  app.once('will-quit', () => { clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); for (const game of gameKeys) gameGuards[game].setEnabled(false); bench.stop() })
+  app.once('will-quit', () => { flyBridge.close(); clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); for (const game of gameKeys) gameGuards[game].setEnabled(false); bench.stop() })
 
   // Self-update from GitHub Releases (packaged builds only — never in dev).
   if (app.isPackaged) {

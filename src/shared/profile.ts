@@ -579,6 +579,64 @@ export const stick = {
     })
   },
 
+  /**
+   * Curve transform, bytes 11..13 (`linear_module_en`, curve type,
+   * curve rate in GameSir's own reader/writer).
+   *
+   * The 5 curve points are NOT the whole story: the firmware also applies
+   * this transform on top. Proven against stock fixtures — every linear
+   * stick carries `en=1/type=0/rate=100` (identity), while shaped sticks
+   * carry e.g. `type=3/rate=74` or `type=1/rate=65`. Writing curve points
+   * without resetting these bytes leaves a stale transform active, so the
+   * pad keeps bending the new points with the old curvature — curves
+   * (including linear/raw) feel wrong until the type is rewritten too.
+   */
+  linearModule(p: Packet): { en: boolean; type: number; rate: number } {
+    return { en: p.bit(11, 0), type: p.u8(12), rate: p.u8(13) }
+  },
+  setLinearModule(p: Packet, en: boolean, type: number, rate: number): void {
+    p.setBit(11, 0, en)
+    p.setU8(12, type)
+    p.setU8(13, rate)
+  },
+  /**
+   * Identity transform: the 5 points are used exactly as written.
+   * Always pair with a curve write — never write points alone.
+   */
+  markCurveIdentity(p: Packet): void {
+    stick.setLinearModule(p, true, 0, 100)
+  },
+
+  /** True when the 5 points are linear AND the transform is identity. */
+  isIdentityCurve(p: Packet): boolean {
+    const pts = stick.curve(p)
+    const lm = stick.linearModule(p)
+    return (
+      lm.en && lm.type === 0 && lm.rate === 100 &&
+      pts.length === LINEAR_CURVE.length &&
+      pts.every((q, i) => q.x === LINEAR_CURVE[i].x && q.y === LINEAR_CURVE[i].y)
+    )
+  },
+
+  /**
+   * True when this stick IS raw output: either the legacy bypass
+   * (`stick_en` clear, written by older app versions) or the calibrated
+   * identity — processing on, linear points + identity transform, zero
+   * deadzone window, neutral axis ratio.
+   */
+  isRawState(p: Packet): boolean {
+    if (!stick.enabled(p)) return true
+    const dz = stick.deadzone(p)
+    return (
+      stick.enabled(p) &&
+      !stick.squareGate(p) &&
+      stick.deadEnabled(p) &&
+      dz.begin === 0 && dz.end === 1000 && dz.beginAnti === 0 && dz.endAnti === 1000 &&
+      stick.isIdentityCurve(p) &&
+      stick.axisRatio(p) === 50
+    )
+  },
+
   /** Map block begins at byte 24. */
   mapped: (p: Packet): boolean => p.bit(24, 0),
   setMapped: (p: Packet, on: boolean): void => p.setBit(24, 0, on),
@@ -612,6 +670,9 @@ export const stick = {
    * `[0,100] → [0,100]`: nothing is clipped at the bottom and full output still
    * arrives only at full deflection. The output window is left neutral and
    * `axis_ratio` neutral, so the composed transform is the identity end to end.
+   * The curve transform bytes are reset to identity too (type 0 / rate 100) —
+   * without that, a stale curvature from a previous preset keeps bending the
+   * linear points and the stick does not feel raw.
    *
    * These are EEPROM bytes in the stick packet, not an app-side transform —
    * PROTOCOL §4.5 and §12.5. Lives here rather than in the page so the exact
@@ -625,6 +686,7 @@ export const stick = {
       p.setU8(15 + i * 2, LINEAR_CURVE[i].y)
     }
     p.setU8(27, 50)
+    stick.markCurveIdentity(p)
   }
 }
 

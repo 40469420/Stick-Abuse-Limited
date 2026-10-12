@@ -1,3 +1,6 @@
+import { resampleSpline, traceSpline } from '@shared/sticklab'
+import { ApexDevice, ApexSticks } from './FlydigiPanel'
+import { flyTransport, type FlyIdentity } from './flydigiUsb'
 import { GameGuardWarning } from './GameGuards'
 import { ApexWarning } from './ApexWarning'
 import { TermsGate } from './TermsGate'
@@ -85,7 +88,8 @@ function Slider(props: {  label: string
   )
 }
 
-function CurvePlot({ points, onChange, overlay }: { points: Array<{ x: number; y: number }>; onChange?: (next: Array<{ x: number; y: number }>) => void; overlay?: Array<{ x: number; y: number }> }): JSX.Element {
+function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Array<{ x: number; y: number }>; onChange?: (next: Array<{ x: number; y: number }>) => void; smooth?: boolean
+  overlay?: Array<{ x: number; y: number }> }): JSX.Element {
   const ref = useRef<HTMLCanvasElement | null>(null)
   const drag = useRef<number | null>(null)
 
@@ -194,7 +198,8 @@ function CurvePlot({ points, onChange, overlay }: { points: Array<{ x: number; y
     ctx.strokeStyle = '#f43f52'
     ctx.lineWidth = 2
     ctx.beginPath()
-    points.forEach((p, i) => {
+    const line = smooth ? traceSpline(points) : points
+    line.forEach((p, i) => {
       if (i === 0) ctx.moveTo(toX(p.x), toY(p.y))
       else ctx.lineTo(toX(p.x), toY(p.y))
     })
@@ -222,7 +227,7 @@ function CurvePlot({ points, onChange, overlay }: { points: Array<{ x: number; y
       ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI * 2)
       ctx.fill()
     })
-  }, [points, overlay])
+  }, [points, overlay, smooth])
   return (
     <canvas
       ref={ref}
@@ -955,6 +960,7 @@ function AppContent(): JSX.Element {
   const [loadId, setLoadId] = useState(0)
   const [bitCustom, setBitCustom] = useState('')
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
+  const [flyId, setFlyId] = useState<FlyIdentity | null>(null)
   const [tab, setTab] = useState<'sticks' | 'device' | 'triggers' | 'gyro' | 'rc' | 'center' | 'bindings' | 'macros' | 'profiles' | 'lab' | 'steam' | 'calibrate' | 'firmware' | 'marius'>('sticks')
   // Virtual sticks for pad-less Steam shaping: real packets, never written
   // to hardware — the Steam exporter reads these when no profile is loaded.
@@ -965,6 +971,7 @@ function AppContent(): JSX.Element {
       p.setU8(2, 1)
       stick.setDeadzone(p, { begin: 0, end: 1000, beginAnti: 0, endAnti: 1000 })
       stick.setCurve(p, LINEAR_CURVE.map((c) => ({ ...c })))
+      stick.markCurveIdentity(p)
       p.setU8(27, 50)
       return p
     }
@@ -996,6 +1003,7 @@ function AppContent(): JSX.Element {
   // Free-point curve design (2–10 pts). The pad only stores 5, so this is a
   // design canvas — `quantized` is what actually gets written. Persisted per
   // slot+stick so a half-finished shape survives a reload.
+  const [spline, setSpline] = useState(false)
   const [design, setDesign] = useState<Array<{ x: number; y: number }>>([])
   const [, force] = useState(0)
   const bump = (): void => {
@@ -1063,7 +1071,23 @@ function AppContent(): JSX.Element {
         setMsg(`${pre.marketingName} detected — ${pre.supportNote}`)
         return
       }
+      if (pre?.id === 'Apex5') {
+        await flyTransport.connect()
+        const ident = await flyTransport.identify()
+        await api().disconnect()
+        setFlyId(ident)
+        setConnPath(path)
+        setConnected(true)
+        setInfo({ firmware: 'apex-link', dongle: '', currentProfile: 0 })
+        setPid(cand?.productId ?? null)
+        setModel(pre)
+        setBlob(null)
+        setMsg('Flydigi Apex 5 connected. Close Flydigi Space Station while tuning here.')
+        return
+      }
       const res = await api().connect(path)
+      await flyTransport.disconnect()
+      setFlyId(null)
       setConnPath(path)
       setConnected(true)
       setInfo(res)
@@ -1305,7 +1329,7 @@ function AppContent(): JSX.Element {
     }
   }, [design, designKey])
 
-  const quantized = design.length >= 2 ? resampleCurve(design) : pts
+  const quantized = design.length >= 2 ? (spline ? resampleSpline(design) : resampleCurve(design)) : pts
   const locked = connected && (!model || model.support !== 'full')
   const modelId = model?.id ?? 'G7ProCE'
   const modelLen = model && model.profileLength > 0 ? model.profileLength : PROFILE_LENGTH
@@ -1408,6 +1432,8 @@ function AppContent(): JSX.Element {
               className="btn ghost sm"
               onClick={() => {
                 void api().disconnect()
+                void flyTransport.disconnect()
+                setFlyId(null)
                 setConnPath(null)
                 setConnected(false)
                 setInfo(null)
@@ -1457,7 +1483,7 @@ function AppContent(): JSX.Element {
             <h2>{PAGE_INFO[tab][0]}</h2>
             <span className="sub">{PAGE_INFO[tab][1]}</span>
           </div>
-          {!['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles'].includes(tab) && <div className="row profile-toolbar" style={{ gap: 8 }}>
+          {modelId !== 'Apex5' && !['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles'].includes(tab) && <div className="row profile-toolbar" style={{ gap: 8 }}>
             <span className="label">Editing profile</span>
             {[1, 2, 3, 4].map((s) => (
               <button
@@ -1596,7 +1622,7 @@ function AppContent(): JSX.Element {
           {tab !== 'steam' && !connected && (
             <div className="msg"><h3>Connect a controller</h3><p>G7 Pro 8K · G7 Pro · Tarantula 8K (plus new 8K editions via auto-check). Rescan, then connect the vendor interface. Close GameSir Connect first — it holds the handle.</p></div>
           )}
-          {tab !== 'steam' && connected && !profile && (
+          {tab !== 'steam' && connected && modelId !== 'Apex5' && !profile && (
             !model || model.support !== 'full' ? (
               <div className="msg">
                 <h3>{model ? `${model.marketingName} — tuning locked` : 'Unknown controller — tuning locked'}</h3>
@@ -1607,6 +1633,7 @@ function AppContent(): JSX.Element {
               <div className="msg"><h3>Loading profile…</h3></div>
             )
           )}
+          {connected && modelId === 'Apex5' && (tab === 'sticks' ? <ApexSticks flyId={flyId} /> : tab === 'device' ? <ApexDevice flyId={flyId} rates={rates} /> : <div className="note">Flydigi tuning is available in Sticks and Device. Other tuning sections require a supported GameSir controller.</div>)}
           {connected && profile && pkt && dz && fd && (
             <>
               {(tab === 'sticks' || tab === 'device') && <div className="row" style={{ gap: 8, marginBottom: 12 }}>
@@ -1753,11 +1780,11 @@ function AppContent(): JSX.Element {
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
                     <div className="section-title"><h3>Custom curve designer — {design.length} points</h3><Help title="Control details">The pad stores exactly <strong>5 points</strong>, so this is a free-point canvas (2–10): <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the 5 bytes that will be written</span>. Dual-zone presets mimic a dynamic response — the pad has no speed sensing, so this is the static LUT a dynamic curve averages to.</Help></div>
-                    <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => setDesign(next)} overlay={quantized} />
+                    <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => setDesign(next)} overlay={quantized} smooth={spline} />
                     <div className="row" style={{ gap: 8, margin: '8px 0' }}>
                       <span className={curvePending ? 'pill warn' : 'pill good'}>{curvePending ? 'design ≠ pad — send it' : 'pad matches design'}</span>
                       <div style={{ flex: 1 }} />
-                      <button className="btn sm primary" disabled={!curvePending} onClick={() => edit(() => { if (pkt) stick.setCurve(pkt, quantized.map((p) => ({ ...p }))) })}>Send 5 to pad</button>
+                      <button className="btn sm primary" disabled={!curvePending} onClick={() => edit(() => { if (pkt) { stick.setCurve(pkt, quantized.map((p) => ({ ...p }))); stick.markCurveIdentity(pkt) } })}>Send 5 to pad</button>
                       <button className="btn sm ghost" onClick={reloadDesignFromPad}>Reload from pad</button>
                     </div>
                     <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
@@ -1786,12 +1813,13 @@ function AppContent(): JSX.Element {
                         onClick={() => {
                           if (!profile || !pkt) return
                           const other = profile.sticks[which === 0 ? 1 : 0]
-                          edit(() => stick.setCurve(other, stick.curve(pkt).map((p) => ({ ...p }))))
+                          edit(() => { stick.setCurve(other, stick.curve(pkt).map((p) => ({ ...p }))); stick.markCurveIdentity(other) })
                         }}
                       >
                         Copy pad curve → other stick
                       </button>
                     </div>
+                    <label className="row"><input type="checkbox" checked={spline} onChange={(e) => setSpline(e.target.checked)} />Smooth spline<Help title="Smooth spline">Uses a smooth curve between your design points, then samples the five points supported by the controller.</Help></label>
                     <details className="disclosure"><summary>Edit exact curve points</summary><table className="tbl" style={{ marginTop: 8 }}>
                       <thead><tr><th>#</th><th>X</th><th>Y</th><th /></tr></thead>
                       <tbody>
@@ -1861,6 +1889,7 @@ function AppContent(): JSX.Element {
                           profile.sticks.forEach((s, i) => {
                             stick.setDeadzone(s, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 })
                             stick.setCurve(s, LINEAR_CURVE.map((p) => ({ ...p })))
+                            stick.markCurveIdentity(s)
                             stick.setFlipX(s, false)
                             stick.setFlipY(s, false)
                             stick.setSquareGate(s, false)

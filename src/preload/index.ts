@@ -70,6 +70,10 @@ const api = {
   mariusReadRaw: () =>
     call<{ left: { x: number; y: number }; right: { x: number; y: number } }>('marius:raw'),
   mariusDisconnect: () => call<boolean>('marius:disconnect'),
+  flyOpen: () => call<boolean>('fly:open'),
+  flySend: (cmd: number, args: number[]) => call<number[]>('fly:send', cmd, args),
+  flyCollect: (cmd: number, args: number[], count: number) => call<number[][]>('fly:collect', cmd, args, count),
+  flyClose: () => call<boolean>('fly:close'),
   on: (channel: string, fn: (payload: any) => void): (() => void) => {
     const listener = (_e: unknown, payload: unknown): void => fn(payload)
     ipcRenderer.on(channel, listener)

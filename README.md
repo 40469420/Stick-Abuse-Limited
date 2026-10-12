@@ -14,7 +14,7 @@ Prefer the original app? [Official Stick Labs](https://github.com/Realkiyoshii/s
 
 | Section | Controls |
 | --- | --- |
-| Sticks | Deadzones, anti-deadzones, custom response curves, shape and linear full-range preset. |
+| Sticks | Deadzones, anti-deadzones, custom response curves with optional spline smoothing, shape and linear full-range preset. |
 | Device | Polling-rate settings, standard 8–12-bit resolution and experimental higher-bit requests. |
 | Center offsets | Independent stick-center adjustment with directional nudges, mouse dragging and live previews. |
 | Triggers | Separate LT/RT input and output ranges, adaptive/fixed hair triggers and response curves. |
@@ -22,7 +22,7 @@ Prefer the original app? [Official Stick Labs](https://github.com/Realkiyoshii/s
 | Keybindings | Controller, keyboard and mouse outputs; up to three simultaneous outputs, toggle and turbo. |
 | Macros | Button/key recording, editable hold and delay timings, step reordering and duplication, playback preview, and reusable files. |
 | Calibration | Sticks, triggers, combined calibration, motion sensor and guided fine stick tuning. |
-| RC filters | Independent −10 to +10 levels, noise comparisons, optional reconnect resets and an Apex force-close guard. |
+| RC filters | Independent −10 to +10 levels, noise comparisons, optional reconnect resets and independent force-close guards for Apex, The Finals, Battlefield, Rainbow Six Siege and Destiny 2. |
 | Profiles | Read, back up, restore and transfer controller profiles. |
 | Lab | Report timing, XInput state-change rates, center noise, range, snapback, trigger sweeps and saved comparisons. |
 | Bit-depth verification | Guided 12-bit versus higher-bit captures, per-axis output-step and noise comparisons, restoration and JSON export. |
@@ -31,6 +31,8 @@ Prefer the original app? [Official Stick Labs](https://github.com/Realkiyoshii/s
 | Marius | Read-only board discovery and configuration preview. |
 
 Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
+
+Flydigi Apex 5 also supports stick curves, deadzones and LED brightness through a Python hidapi bridge. It requires Python with the `hidapi` package installed. Close Flydigi Space Station before connecting. Unmapped controls stay disabled.
 
 ## Getting started
 

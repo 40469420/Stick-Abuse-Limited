@@ -19,6 +19,7 @@ import {
   VENDOR_USAGE,
   VENDOR_USAGE_PAGE
 } from '../shared/protocol'
+import { FLY_PID_APEX5, FLY_USAGE_CMD, FLY_VID } from '../shared/flydigi'
 
 export interface Candidate {
   path: string
@@ -70,7 +71,7 @@ export async function probeLiveness(path: string, windowMs = 600): Promise<boole
 export async function discoverLive(): Promise<Array<Candidate & { live: boolean | null }>> {
   const cands = discover()
   const lives = await Promise.all(
-    cands.map((c) => probeLiveness(c.path).catch(() => null as boolean | null))
+    cands.map((c) => c.productId === FLY_PID_APEX5 ? Promise.resolve(null) : probeLiveness(c.path).catch(() => null as boolean | null))
   )
   return cands.map((c, i) => ({ ...c, live: lives[i] }))
 }
@@ -95,7 +96,9 @@ const PREFERRED_PIDS = new Set([
   // G7 Pro (G7ProS): wired/wireless, black/white
   0x0908, 0x0909, 0x0921, 0x0922,
   // Tarantula (T3CE)
-  0x103d, 0x10ff, 0x090d
+  0x103d, 0x10ff, 0x090d,
+  // Flydigi Apex 5 command collection
+  FLY_PID_APEX5,
 ])
 
 function listDevices(): Device[] {
@@ -106,16 +109,18 @@ function listDevices(): Device[] {
   }
 }
 
-/** All vendor interfaces, no handle opened. */
+/** All vendor interfaces, no handle opened. GameSir 0xFFF0 plus the Flydigi Apex 5 command page (0xFFA0 — the 0xFFEF aux page takes no commands, so it stays unlisted). */
 export function discover(): Candidate[] {
+  const isGameSir = (d: { vendorId?: number; usagePage?: number; usage?: number }): boolean =>
+    d.vendorId === VENDOR_ID && d.usagePage === VENDOR_USAGE_PAGE && d.usage === VENDOR_USAGE
+  const isFlydigi = (d: { vendorId?: number; usagePage?: number; usage?: number }): boolean =>
+    d.vendorId === FLY_VID && d.usagePage === FLY_USAGE_CMD
   return listDevices()
     .filter(
       (d) =>
         typeof d.path === 'string' &&
         d.path.length > 0 &&
-        d.vendorId === VENDOR_ID &&
-        d.usagePage === VENDOR_USAGE_PAGE &&
-        d.usage === VENDOR_USAGE
+        (isGameSir(d) || isFlydigi(d))
     )
     .map((d) => ({
       path: d.path as string,
