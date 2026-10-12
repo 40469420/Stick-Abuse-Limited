@@ -14,6 +14,10 @@ Get the installer from [GitHub Releases](https://github.com/40469420/stick-labs-
 
 Prefer the original app? [Official Stick Labs](https://github.com/Realkiyoshii/stick-labs).
 
+## Shared profiles & configs
+
+Browse [Machixo’s profiles and configs](community/README.md) for downloadable backups, import instructions and shared settings.
+
 ## Features
 
 | Section | Controls |
