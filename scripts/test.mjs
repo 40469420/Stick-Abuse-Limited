@@ -21,6 +21,7 @@ const entry =
     ? tests
     : [
         'tests/apex-guard.ts',
+        'tests/game-guards.ts',
         'tests/bench.ts',
         'tests/precision.ts',
         'tests/rawbytes.ts',

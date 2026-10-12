@@ -1,3 +1,5 @@
+import { GUARDED_GAMES, isGuardedGame, type GuardedGame, type GameGuardStatuses } from '../shared/game-guards'
+import { listGame, killGame } from './game-guards'
 import { ApexGuard, listApex, killApex } from './apex-guard'
 /**
  * Stick Labs (Unlimited) — controller session, background RC reset and profile editing.
@@ -56,16 +58,25 @@ const resetStatus = (): RcResetStatus => ({ enabled: resetEnabled, running: rese
 let lastApexAlert: string | null = null
 const apexGuard = new ApexGuard({
   list: listApex, kill: killApex,
-  rc: async () => {
+  rc: readGuardRc,
+  changed: status => { send('apex:status',status); if(status.alert && status.alert !== lastApexAlert) showWindow(); lastApexAlert=status.alert }
+})
+async function readGuardRc(): Promise<boolean | null> {
     if (firmwareStatus.running || calibrationSession || resetting || ioJobs || reconnecting || recording || closeChecking || closePrompt || bench.active || !controller.isOpen) return null
     const device = discover().find(d => d.path === controller.transport.currentPath)
     if (!device || !['G7ProCE','G7ProS'].includes(identifyModel(device.product,device.productId)?.id ?? '')) return null
     ioJobs++
     try { const slot = await controller.getCurrentProfile(); return neutralRcProfile(await controller.readProfile(slot,1070)) !== null }
     finally { ioJobs-- }
-  },
-  changed: status => { send('apex:status',status); if(status.alert && status.alert !== lastApexAlert) showWindow(); lastApexAlert=status.alert }
-})
+  }
+const gameKeys = Object.keys(GUARDED_GAMES) as GuardedGame[]
+const gameAlerts: Partial<Record<GuardedGame, string | null>> = {}
+const gameGuards = Object.fromEntries(gameKeys.map(game => [game, new ApexGuard({
+  rc: readGuardRc, list: () => listGame(game), kill: target => killGame(game, target),
+  changed: status => { send('games:status', gameStatuses()); if (status.alert && status.alert !== gameAlerts[game]) showWindow(); gameAlerts[game] = status.alert }
+}, GUARDED_GAMES[game].name)])) as Record<GuardedGame, ApexGuard>
+function gameStatuses(): GameGuardStatuses { return Object.fromEntries(gameKeys.map(game => [game, {...gameGuards[game].status}])) as GameGuardStatuses }
+let gameEnabled: Partial<Record<GuardedGame, boolean>> = {}
 function reportReset(message: string): void {
   resetMessage = message
   send('rc:resetStatus', resetStatus())
@@ -73,7 +84,7 @@ function reportReset(message: string): void {
 }
 function savePreferences(): void {
   mkdirSync(app.getPath('userData'), { recursive: true })
-  writeFileSync(join(app.getPath('userData'), 'rc-preferences.json'), JSON.stringify({ resetRc: resetEnabled, apexGuard: apexEnabled }), 'utf8')
+  writeFileSync(join(app.getPath('userData'), 'rc-preferences.json'), JSON.stringify({ resetRc: resetEnabled, apexGuard: apexEnabled, gameGuards: gameEnabled }), 'utf8')
 }
 async function resetRcAfterConnect(force = false): Promise<boolean> {
   if ((!resetEnabled && !force) || resetting) return false
@@ -288,6 +299,17 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
   })
 }
 
+handle('games:status', gameStatuses)
+handle('games:set', (game: unknown, enabled: unknown) => {
+  if (!isGuardedGame(game) || typeof enabled !== 'boolean') throw new Error('Invalid game guard setting')
+  const previous = {...gameEnabled}; gameEnabled[game] = enabled
+  try { savePreferences() } catch (e) { gameEnabled = previous; throw e }
+  gameGuards[game].setEnabled(enabled); return gameStatuses()
+})
+handle('games:dismiss', (game: unknown) => {
+  if (!isGuardedGame(game)) throw new Error('Invalid game guard')
+  gameGuards[game].dismiss(); return gameStatuses()
+})
 handle('apex:status', () => ({...apexGuard.status}))
 handle('apex:dismiss', () => { apexGuard.dismiss(); return true })
 handle('apex:set', (enabled: boolean) => {
@@ -663,6 +685,7 @@ app.whenReady().then(() => {
     const prefs = JSON.parse(readFileSync(join(app.getPath('userData'), 'rc-preferences.json'), 'utf8'))
     resetEnabled = prefs.resetRc === true
     apexEnabled = prefs.apexGuard === true
+    for (const game of gameKeys) gameEnabled[game] = prefs.gameGuards?.[game] === true
     resetMessage = resetEnabled ? 'RC reset armed for the next connection/reconnection.' : 'Automatic RC reset is off.'
   } catch { /* First run uses the off default. */ }
   // A small in-memory icon also works in portable builds without external assets.
@@ -684,14 +707,20 @@ app.whenReady().then(() => {
     callback(false)
   })
   createWindow()
+  for (const game of gameKeys) gameGuards[game].setEnabled(gameEnabled[game] === true)
   apexGuard.setEnabled(apexEnabled)
-  const apexMonitor = setInterval(() => { if(!quitting) void apexGuard.tick() }, 1000)
+  let guardTickRunning = false
+  const apexMonitor = setInterval(() => {
+    if (quitting || guardTickRunning) return
+    guardTickRunning = true
+    void (async () => { await apexGuard.tick(); for (const game of gameKeys) { if (quitting) break; await gameGuards[game].tick() } })().finally(() => { guardTickRunning = false })
+  }, 1000)
   const receiverMonitor = setInterval(() => {
     if (!resetEnabled || !receiverResetPending || calibrationSession || resetting || ioJobs || reconnecting || recording || !controller.isOpen || !controller.latestInput?.live) return
     receiverResetPending = false
     void resetRcAfterConnect().then(() => { if (!quitting && controller.isOpen && connectedInfo) send('device:reconnected', connectedInfo) })
   }, 500)
-  app.once('will-quit', () => { clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); bench.stop() })
+  app.once('will-quit', () => { clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); for (const game of gameKeys) gameGuards[game].setEnabled(false); bench.stop() })
 
   // Self-update from GitHub Releases (packaged builds only — never in dev).
   if (app.isPackaged) {

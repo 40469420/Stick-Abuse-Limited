@@ -52,6 +52,13 @@ if (!process.argv.includes('--child')) {
   const call = async (channel, ...args) => m.handlers.get(channel)({}, ...args)
   const prompt = () => m.messages.filter((item) => item.channel === 'rc:quitPrompt').at(-1)?.payload
   assert.equal((await call('device:connect', 'test-pad')).ok, true)
+  const guardResult = await call('games:status')
+  const guardDefaults = guardResult.value ?? guardResult.data ?? guardResult.result
+  assert(Object.values(guardDefaults).every(s => !s.enabled), 'additional game guards default off')
+  assert.equal((await call('games:set', 'unknown', true)).ok, false)
+  assert.equal((await call('games:set', 'destiny', true)).ok, true)
+  assert.equal(JSON.parse(readFileSync(join(folder, scenario, 'rc-preferences.json'), 'utf8')).gameGuards.destiny, true)
+  assert.equal((await call('games:set', 'destiny', false)).ok, true)
   if (scenario === 'bench') {
     assert.equal((await call('lab:vendor','absent','rest',5)).ok,false,'closed Lab cannot collect');
     assert.equal((await call('lab:start','visible-page')).ok,true);

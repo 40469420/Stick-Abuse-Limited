@@ -1,3 +1,4 @@
+import { GameGuardWarning } from './GameGuards'
 import { ApexWarning } from './ApexWarning'
 import { TermsGate } from './TermsGate'
 import { Help, SectionTitle } from './Help'
@@ -923,7 +924,7 @@ function StickCross({ lx, ly, rx, ry }: { lx: number; ly: number; rx: number; ry
 }
 
 export default function App(): JSX.Element {
-  return <><QuitWarning /><ApexWarning /><TermsGate><AppContent /></TermsGate></>
+  return <><QuitWarning /><ApexWarning /><GameGuardWarning /><TermsGate><AppContent /></TermsGate></>
 }
 
 function AppContent(): JSX.Element {

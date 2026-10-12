@@ -58,6 +58,9 @@ interface LabApi {
   startMacroRecording(id: string): Promise<boolean>
   stopMacroRecording(id: string): Promise<import('../shared/macros').MacroStep[]>
   cancelMacroRecording(id: string): Promise<boolean>
+  gameGuardStatus(): Promise<import('../shared/game-guards').GameGuardStatuses>
+  setGameGuard(game: import('../shared/game-guards').GuardedGame, enabled: boolean): Promise<import('../shared/game-guards').GameGuardStatuses>
+  dismissGameGuard(game: import('../shared/game-guards').GuardedGame): Promise<import('../shared/game-guards').GameGuardStatuses>
   apexGuardStatus(): Promise<import('../main/apex-guard').ApexGuardStatus>
   setApexGuard(enabled: boolean): Promise<import('../main/apex-guard').ApexGuardStatus>
   dismissApexGuard(): Promise<boolean>
