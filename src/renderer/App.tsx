@@ -18,6 +18,7 @@ import {
   isOuterUnlimited
 } from '@shared/sticklab'
 import { keyLabel, displayMapping, REMAP_TARGETS } from '@shared/keymap'
+import { createPortal } from 'react-dom'
 import { LANGS, LangContext, tr, useLangState, useT } from './i18n'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
@@ -1861,6 +1862,116 @@ function KeyIcon({ value, tag, size = 18 }: { value: number; tag?: string; size?
   }
 }
 
+/**
+ * Icon dropdown for remap targets — native <select> cannot render icons,
+ * so this renders a button + a portal popup (position:fixed, so card and
+ * table scrolling cannot clip it). Closes on pick, Escape, outside click,
+ * scroll or resize. Only one row's popup is open at a time (lifted state).
+ */
+function KeySelect({ value, disabled, open, onToggle, onClose, onPick }: {
+  value: number
+  disabled?: boolean
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
+  onPick: (v: number) => void
+}): JSX.Element {
+  const t = useT()
+  const btnRef = useRef<HTMLButtonElement | null>(null)
+  const [pos, setPos] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null)
+  const [flip, setFlip] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const place = (): void => {
+      const r = btnRef.current?.getBoundingClientRect()
+      if (!r) return
+      setPos({ left: r.left, top: r.top, bottom: r.bottom, width: Math.max(r.width, 210) })
+      setFlip(r.bottom + 320 > window.innerHeight)
+    }
+    place()
+    const close = (): void => onClose()
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open, onClose])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose()
+    }
+    const onDown = (e: PointerEvent): void => {
+      if (!(e.target as HTMLElement).closest?.('[data-keyselect]')) onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('pointerdown', onDown)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('pointerdown', onDown)
+    }
+  }, [open, onClose])
+  const options = [{ value: 0, label: t('buttons.unmapped') }, ...REMAP_TARGETS.filter((k) => k.value !== 0)]
+  return (
+    <span data-keyselect style={{ display: 'inline-block' }}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="input"
+        disabled={disabled}
+        onClick={onToggle}
+        style={{ width: 210, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, cursor: disabled ? 'default' : 'pointer', textAlign: 'left', color: 'var(--text)' }}
+      >
+        <span className="row" style={{ gap: 7, alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          {value !== 0 && <KeyIcon value={value} />}
+          <span>{value === 0 ? t('buttons.unmapped') : keyLabel(value)}</span>
+        </span>
+        <span style={{ color: 'var(--text-3)', fontSize: 11 }}>▾</span>
+      </button>
+      {open && pos && createPortal(
+        <div
+          data-keyselect
+          style={{
+            position: 'fixed',
+            left: Math.max(8, Math.min(pos.left, window.innerWidth - pos.width - 8)),
+            ...(flip ? { bottom: window.innerHeight - pos.top + 4 } : { top: pos.bottom + 4 }),
+            width: pos.width,
+            maxHeight: 300,
+            overflowY: 'auto',
+            background: 'var(--bg-2)',
+            border: '1px solid var(--line-2)',
+            borderRadius: 'var(--radius-sm)',
+            padding: 4,
+            zIndex: 5000,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.55)'
+          }}
+        >
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onPick(o.value); onClose() }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '7px 9px', borderRadius: 5, border: 'none', cursor: 'pointer',
+                background: o.value === value ? 'var(--bg-3)' : 'transparent',
+                color: 'var(--text)', fontSize: 13, textAlign: 'left'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-3)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = o.value === value ? 'var(--bg-3)' : 'transparent' }}
+            >
+              <KeyIcon value={o.value} />
+              <span>{o.label}</span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </span>
+  )
+}
+
 function ResetEverythingCard({ profile, fd, edit, onReload, notify }: {
   profile: Profile | null
   fd: Packet | null
@@ -2005,6 +2116,8 @@ export default function App(): JSX.Element {
   // or the smoothed spline. Only changes the 5 bytes that get written —
   // the red design stays exactly as drawn.
   const [spline, setSpline] = useState(false)
+  // Which remap row's icon dropdown is open (row key, or null).
+  const [bindOpen, setBindOpen] = useState<string | null>(null)
   // User curve presets for 8K profiles — named designs kept in this browser.
   const [presets, setPresets] = useState<Array<{ name: string; pts: Array<{ x: number; y: number }> }>>(() => {
     try {
@@ -3024,21 +3137,14 @@ export default function App(): JSX.Element {
                       <tr key={row.name}>
                         <td><span className="row" style={{ gap: 7, alignItems: 'center' }}><KeyIcon value={row.value} tag={row.tag} />{row.name}</span></td>
                         <td>
-                          <select
-                            className="input"
-                            style={{ width: 190 }}
-                            disabled={busy || locked}
+                          <KeySelect
                             value={current}
-                            onChange={(e) => {
-                              const v = Number(e.target.value)
-                              edit(() => button.setMap(pkt, [v, 0, 0]))
-                            }}
-                          >
-                            <option value={0}>{t('buttons.unmapped')}</option>
-                            {REMAP_TARGETS.filter((k) => k.value !== 0).map((k) => (
-                              <option key={k.value} value={k.value}>{k.label}</option>
-                            ))}
-                          </select>
+                            disabled={busy || locked}
+                            open={bindOpen === row.name}
+                            onToggle={() => setBindOpen(bindOpen === row.name ? null : row.name)}
+                            onClose={() => setBindOpen(null)}
+                            onPick={(v) => edit(() => button.setMap(pkt, [v, 0, 0]))}
+                          />
                         </td>
                         <td><span className="row" style={{ gap: 7, alignItems: 'center' }}>{current !== 0 && <KeyIcon value={current} />}{displayMapping(values)}</span></td>
                       </tr>
