@@ -3183,6 +3183,7 @@ export default function App(): JSX.Element {
               <h3>{t('buttons.title')}</h3>
               <div className="hint">{t('buttons.hint')}</div>
               <div className="hint">{t('buttons.backs')}</div>
+              {modelId === 'G7ProCE' && <div className="hint">{t('buttons.backsExtra')}</div>}
               <table className="tbl" style={{ marginTop: 8 }}>
                 <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
                 <tbody>
@@ -3194,10 +3195,10 @@ export default function App(): JSX.Element {
                     ...(profile.functionKeys[1] && profile.functionKeys[1].length === 169
                       ? [{ name: 'FR1 · R4', value: 18, tag: 'R4', pkt: profile.functionKeys[1] as Packet | null }]
                       : []),
-                    ...(profile.functionKeys[2] && profile.functionKeys[2].length === 169
+                    ...(modelId === 'G7ProCE' && profile.functionKeys[2] && profile.functionKeys[2].length === 169
                       ? [{ name: 'FL2 · L5', value: 17, tag: 'L5', pkt: profile.functionKeys[2] as Packet | null }]
                       : []),
-                    ...(profile.functionKeys[3] && profile.functionKeys[3].length === 169
+                    ...(modelId === 'G7ProCE' && profile.functionKeys[3] && profile.functionKeys[3].length === 169
                       ? [{ name: 'FR2 · R5', value: 18, tag: 'R5', pkt: profile.functionKeys[3] as Packet | null }]
                       : [])
                   ] as Array<{ name: string; value: number; tag?: string; pkt: Packet | null }>).map((row) => {
