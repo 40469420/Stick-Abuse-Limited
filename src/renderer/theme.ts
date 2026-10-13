@@ -79,28 +79,6 @@ export const THEMES: ReadonlyArray<AppTheme> = [
     }
   },
   {
-    id: 'xbox',
-    label: 'Xbox',
-    vars: {
-      '--bg': '#0f0f0f', '--bg-1': '#161616', '--bg-2': '#1f1f1f', '--bg-3': '#2b2b2b',
-      '--line': '#2e2e2e', '--line-2': '#3d3d3d',
-      '--text': '#ffffff', '--text-2': '#b8b8b8', '--text-3': '#6e6e6e',
-      '--accent': '#16C60C', '--accent-2': '#6bf07d', '--on-accent': '#000000',
-      '--good': '#3ecf8e', '--warn': '#f5b544', '--bad': '#E81123', '--violet': '#A78BFA'
-    }
-  },
-  {
-    id: 'playstation',
-    label: 'PlayStation',
-    vars: {
-      '--bg': '#0a0e1a', '--bg-1': '#101828', '--bg-2': '#17233c', '--bg-3': '#1f2f52',
-      '--line': '#24365c', '--line-2': '#33507e',
-      '--text': '#f0f4fa', '--text-2': '#a9c0d8', '--text-3': '#5f7ba0',
-      '--accent': '#2E9BFF', '--accent-2': '#7cc4ff', '--on-accent': '#ffffff',
-      '--good': '#3ecf8e', '--warn': '#f5b544', '--bad': '#ff6b6b', '--violet': '#a78bfa'
-    }
-  },
-  {
     id: 'dracula',
     label: 'Dracula',
     vars: {
