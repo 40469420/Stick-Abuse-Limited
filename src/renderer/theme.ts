@@ -15,7 +15,8 @@ export interface AppTheme {
 const VARS = [
   '--bg', '--bg-1', '--bg-2', '--bg-3', '--line', '--line-2',
   '--text', '--text-2', '--text-3',
-  '--accent', '--accent-2', '--good', '--warn', '--bad', '--violet'
+  '--accent', '--accent-2', '--on-accent',
+  '--good', '--warn', '--bad', '--violet'
 ] as const
 
 export const THEMES: ReadonlyArray<AppTheme> = [
@@ -26,7 +27,7 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--bg': '#14090d', '--bg-1': '#1e1015', '--bg-2': '#2a151c', '--bg-3': '#361b24',
       '--line': '#40222c', '--line-2': '#552c38',
       '--text': '#f7ecef', '--text-2': '#c9a3ad', '--text-3': '#8f6470',
-      '--accent': '#f43f52', '--accent-2': '#ff8fa0',
+      '--accent': '#f43f52', '--accent-2': '#ff8fa0', '--on-accent': '#07101d',
       '--good': '#3ecf8e', '--warn': '#f5b544', '--bad': '#ff6b6b', '--violet': '#a78bfa'
     }
   },
@@ -37,7 +38,7 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--bg': '#0a0f1c', '--bg-1': '#101828', '--bg-2': '#16203a', '--bg-3': '#1f2c4d',
       '--line': '#26355a', '--line-2': '#35497a',
       '--text': '#eef3fc', '--text-2': '#a9bcd8', '--text-3': '#64779a',
-      '--accent': '#3f8cff', '--accent-2': '#9cc2ff',
+      '--accent': '#3f8cff', '--accent-2': '#9cc2ff', '--on-accent': '#ffffff',
       '--good': '#3ecf8e', '--warn': '#f5b544', '--bad': '#ff6b6b', '--violet': '#a78bfa'
     }
   },
@@ -48,7 +49,7 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--bg': '#0a120c', '--bg-1': '#0f1a12', '--bg-2': '#152619', '--bg-3': '#1d3524',
       '--line': '#27452f', '--line-2': '#38643f',
       '--text': '#ecf7ee', '--text-2': '#a9d4b2', '--text-3': '#5f8a68',
-      '--accent': '#34d17b', '--accent-2': '#9df0c0',
+      '--accent': '#34d17b', '--accent-2': '#9df0c0', '--on-accent': '#07130c',
       '--good': '#3ecf8e', '--warn': '#f5b544', '--bad': '#ff6b6b', '--violet': '#a78bfa'
     }
   },
@@ -59,7 +60,7 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--bg': '#150f1e', '--bg-1': '#1e1428', '--bg-2': '#2a1c38', '--bg-3': '#38254c',
       '--line': '#452e5e', '--line-2': '#5f407e',
       '--text': '#f7ecf5', '--text-2': '#cfa9d4', '--text-3': '#8a6490',
-      '--accent': '#f2762e', '--accent-2': '#ffc46b',
+      '--accent': '#f2762e', '--accent-2': '#ffc46b', '--on-accent': '#ffffff',
       '--good': '#3ecf8e', '--warn': '#ffd166', '--bad': '#ff6b6b', '--violet': '#c49bfa'
     }
   },
@@ -70,7 +71,7 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--bg': '#f2efe9', '--bg-1': '#e9e4da', '--bg-2': '#ded7c9', '--bg-3': '#d2c9b6',
       '--line': '#c4bba6', '--line-2': '#a89c82',
       '--text': '#1d1418', '--text-2': '#5c4f52', '--text-3': '#8f8078',
-      '--accent': '#d42a3d', '--accent-2': '#f06070',
+      '--accent': '#d42a3d', '--accent-2': '#f06070', '--on-accent': '#ffffff',
       '--good': '#1f9d5f', '--warn': '#b87a00', '--bad': '#d43a3a', '--violet': '#7a5fd0'
     }
   }
