@@ -41,7 +41,7 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--text': '#e8f0f2', '--text-2': '#9fb3bd', '--text-3': '#5a6b75',
       '--accent': '#fcee0a', '--accent-2': '#fff06b', '--on-accent': '#0b0b10',
       '--good': '#00e5a0', '--warn': '#ffb300', '--bad': '#ff003c', '--violet': '#ff2fb3',
-      '--radius': '3px', '--radius-sm': '1px'
+      '--radius': '0', '--radius-sm': '0'
     }
   },
   {
