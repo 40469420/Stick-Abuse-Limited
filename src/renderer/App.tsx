@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { api, b64ToBytes, bytesToB64, type Candidate, type DeviceInfo, type DeviceStats, type LiveSample, type PingResult } from './api'
-import { parseProfile, serializeProfile, fun, stick, button, LINEAR_CURVE, looksLikeCEProfile, type Packet, type Profile } from '@shared/profile'
+import { parseProfile, serializeProfile, fun, stick, button, trigger, LINEAR_CURVE, looksLikeCEProfile, type Packet, type Profile } from '@shared/profile'
 import { PROFILE_LENGTH, REPORT_RATE_OPTIONS, STICK_RESOLUTION_OPTIONS, STANDARD_BUTTONS, CENTER_NUDGE } from '@shared/protocol'
 import { identifyModel, MODELS, type ControllerModel } from '@shared/models'
 import {
@@ -2981,6 +2981,37 @@ export default function App(): JSX.Element {
                         <button className="btn sm ghost" onClick={() => setMeasuring(null)}>{t('common.dismiss')}</button>
                       </div>
                     )}
+                  </div>
+
+
+                  <div className="card">
+                    <h3>{t('trig.title')}</h3>
+                    <Hint>{t('trig.hint')}</Hint>
+                    {([0, 1] as const).map((ti) => {
+                      const tpkt = profile.triggers[ti]
+                      if (!tpkt) return null
+                      const tdz = trigger.deadzonePercent(trigger.deadzone(tpkt))
+                      const ten = trigger.deadEnabled(tpkt)
+                      return (
+                        <div key={ti} style={{ marginTop: 8 }}>
+                          <div className="row spread" style={{ marginBottom: 6, alignItems: 'center' }}>
+                            <span className="label">{ti === 0 ? 'LT' : 'RT'}</span>
+                            <button
+                              className={`choice-btn${ten ? ' active' : ''}`}
+                              onClick={() => edit(() => trigger.setDeadEnabled(tpkt, !ten))}
+                            >
+                              <span className="choice-label">{t('trig.enable')}</span>
+                            </button>
+                          </div>
+                          <div className="stack" style={{ gap: 12 }}>
+                            <Slider label={t('sticks.start')} value={tdz.begin} min={0} max={20} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                            <Slider label={t('sticks.end')} value={tdz.end} min={10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                            <Slider label={t('sticks.antiStart')} value={tdz.beginAnti} min={0} max={50} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), beginAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                            <Slider label={t('sticks.antiEnd')} value={tdz.endAnti} min={50} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), endAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
 
 
