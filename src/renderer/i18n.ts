@@ -86,6 +86,8 @@ const STR: Dict = {
   'device.polling': { en: 'Polling rate', zh: '回报率', ja: 'ポーリングレート', ru: 'Частота опроса' },
   'device.bits': { en: 'Bit depth', zh: '位深', ja: 'ビット深度', ru: 'Разрядность' },
   'device.rate': { en: 'Controller Rate', zh: '控制器速率', ja: 'コントローラーレート', ru: 'Скорость контроллера' },
+  'device.smoothing': { en: 'Smoothing (RC filter)', zh: '平滑 (RC 滤波)', ja: 'スムージング (RCフィルター)', ru: 'Сглаживание (RC-фильтр)' },
+  'device.smoothingHint': { en: 'Per-stick smoothing — the GameSir equivalent of Marius Stick Sampling (Extreme to Robust). Negative levels are sharper with more jitter, positive levels are calmer with a touch more lag. Still one-to-one: no macros, no turbo.', zh: '分摇杆平滑——相当于 Marius 的 Stick Sampling（Extreme 到 Robust）。负值更锐但抖动更多，正值更稳但延迟稍增。仍是一对一：无宏、无连发。', ja: 'スティック別スムージング — MariusのStick Sampling (Extreme〜Robust)相当。マイナスは鋭くジッター多め、プラスは穏やかでわずかに遅延。1対1のまま：マクロ・連射なし。', ru: 'Сглаживание для каждого стика — аналог Marius Stick Sampling (от Extreme до Robust). Отрицательные уровни резче, но с дрожанием, положительные спокойнее, но с небольшой задержкой. Всё равно один к одному: без макросов и турбо.' },
   'cal.bench': { en: 'Calibration bench', zh: '校准台', ja: 'キャリブレーションベンチ', ru: 'Стенд калибровки' },
   'cal.quick': { en: 'Quick calibrate', zh: '快速校准', ja: 'クイック調整', ru: 'Быстрая калибровка' },
   'cal.step': { en: 'Step-by-step', zh: '分步校准', ja: 'ステップ調整', ru: 'По шагам' },
