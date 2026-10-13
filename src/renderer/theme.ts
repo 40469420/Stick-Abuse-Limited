@@ -16,7 +16,8 @@ const VARS = [
   '--bg', '--bg-1', '--bg-2', '--bg-3', '--line', '--line-2',
   '--text', '--text-2', '--text-3',
   '--accent', '--accent-2', '--on-accent',
-  '--good', '--warn', '--bad', '--violet'
+  '--good', '--warn', '--bad', '--violet',
+  '--radius', '--radius-sm'
 ] as const
 
 export const THEMES: ReadonlyArray<AppTheme> = [
@@ -35,11 +36,12 @@ export const THEMES: ReadonlyArray<AppTheme> = [
     id: 'cyberpunk',
     label: 'Cyberpunk 2077',
     vars: {
-      '--bg': '#0b0b10', '--bg-1': '#121218', '--bg-2': '#1a1a24', '--bg-3': '#242433',
+      '--bg': '#050508', '--bg-1': '#121218', '--bg-2': '#1a1a24', '--bg-3': '#242433',
       '--line': '#2e2e3d', '--line-2': '#4a4a5e',
       '--text': '#e8f0f2', '--text-2': '#9fb3bd', '--text-3': '#5a6b75',
       '--accent': '#fcee0a', '--accent-2': '#fff06b', '--on-accent': '#0b0b10',
-      '--good': '#00e5a0', '--warn': '#ffb300', '--bad': '#ff3b3b', '--violet': '#ff2fb3'
+      '--good': '#00e5a0', '--warn': '#ffb300', '--bad': '#ff003c', '--violet': '#ff2fb3',
+      '--radius': '3px', '--radius-sm': '1px'
     }
   },
   {
