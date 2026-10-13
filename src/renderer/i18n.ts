@@ -86,6 +86,8 @@ const STR: Dict = {
   'device.polling': { en: 'Polling rate', zh: '回报率', ja: 'ポーリングレート', ru: 'Частота опроса' },
   'device.bits': { en: 'Bit depth', zh: '位深', ja: 'ビット深度', ru: 'Разрядность' },
   'device.rate': { en: 'Controller Rate', zh: '控制器速率', ja: 'コントローラーレート', ru: 'Скорость контроллера' },
+  'device.smoothing': { en: 'Smoothing (RC filter)', zh: '平滑 (RC 滤波)', ja: 'スムージング (RCフィルター)', ru: 'Сглаживание (RC-фильтр)' },
+  'device.smoothingHint': { en: 'Per-stick smoothing, positive levels only (Off to Max). Higher levels are calmer with a touch more lag. Negative sharpening levels are deliberately not offered. Still one-to-one: no macros, no turbo.', zh: '分摇杆平滑——仅提供正值（关闭到最大）。数值越大越稳，但延迟稍增。负值锐化档位一律不提供。仍是一对一：无宏、无连发。', ja: 'スティック別スムージング — 正のレベルのみ（オフ〜最大）。上げるほど穏やかになり、わずかに遅延。マイナスのシャープ化は提供しません。1対1のまま：マクロ・連射なし。', ru: 'Сглаживание для каждого стика — только положительные уровни (от выкл. до макс.). Чем выше, тем спокойнее, но с небольшой задержкой. Отрицательные уровни не предлагаются. Всё равно один к одному: без макросов и турбо.' },
   'cal.bench': { en: 'Calibration bench', zh: '校准台', ja: 'キャリブレーションベンチ', ru: 'Стенд калибровки' },
   'cal.quick': { en: 'Quick calibrate', zh: '快速校准', ja: 'クイック調整', ru: 'Быстрая калибровка' },
   'cal.step': { en: 'Step-by-step', zh: '分步校准', ja: 'ステップ調整', ru: 'По шагам' },
