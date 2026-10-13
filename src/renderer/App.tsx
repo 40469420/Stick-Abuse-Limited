@@ -2227,7 +2227,20 @@ export default function App(): JSX.Element {
   // Slot sampling mode for the curve designer: straight segments (linear)
   // or the smoothed spline. Only changes the 5 bytes that get written —
   // the red design stays exactly as drawn.
-  const [spline, setSpline] = useState(false)
+  const [spline, setSpline] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem('sticklabs.spline') === '1'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('sticklabs.spline', spline ? '1' : '0')
+    } catch {
+      /* storage full/blocked — sampling mode still works for the session */
+    }
+  }, [spline])
   // Which remap row's icon dropdown is open (row key, or null).
   const [bindOpen, setBindOpen] = useState<string | null>(null)
   // Per-stick output lock: locked sticks are forced back to normal stick
