@@ -3431,8 +3431,8 @@ export default function App(): JSX.Element {
                   <div className="card">
                     <h3>{t('device.bits')} - 8-24</h3>
                     <Hint>{t('device.bitHint')}</Hint>
-                    <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
-                      {STICK_RESOLUTION_OPTIONS.map((o) => (
+                    <div className="choice" style={{ margin: '10px 0 6px' }}>
+                      {STICK_RESOLUTION_OPTIONS.filter((o) => o.bits === 12).map((o) => (
                         <button
                           key={o.bits}
                           className={`choice-btn${resBits === o.bits ? ' active' : ''}`}
@@ -3442,6 +3442,20 @@ export default function App(): JSX.Element {
                           <span className="choice-label">{o.bits === 12 ? 'Unlimited (12-bit)' : `${o.bits}-bit`}</span>
                         </button>
                       ))}
+                    </div>
+                    <div className="choice" style={{ margin: '0 0 6px' }}>
+                      {[...STICK_RESOLUTION_OPTIONS].filter((o) => o.bits !== 12).sort((a, b) => b.bits - a.bits).map((o) => (
+                        <button
+                          key={o.bits}
+                          className={`choice-btn${resBits === o.bits ? ' active' : ''}`}
+                          title={o.bits === 12 ? 'Full sensor resolution — the Marius Unlimited equivalent' : `Step ${o.step}`}
+                          onClick={() => edit(() => fun.extend.setStickResolutionBits(fd, o.bits))}
+                        >
+                          <span className="choice-label">{o.bits === 12 ? 'Unlimited (12-bit)' : `${o.bits}-bit`}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="row wrap" style={{ gap: 8, margin: '0 0 10px' }}>
                       {EXTENDED_BITS.map((bits) => (
                         <button
                           key={bits}
