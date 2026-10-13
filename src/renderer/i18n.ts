@@ -280,7 +280,6 @@ const STR: Dict = {
   'sticks.shapeHintRound': { en: 'Uniform reach all directions (FPS aim)', zh: '各方向均匀触达（FPS 瞄准）', ja: '全方向均一（FPSエイム）', ru: 'Равномерный охват во все стороны (FPS-аим)' },
   'sticks.shapeHintSquare': { en: 'Diagonals reach full deflection (hotter corners)', zh: '斜向可达满偏转（更热的角）', ja: '対角はフル偏位（ホットな角）', ru: 'Диагонали достают до полного отклонения (горячие углы)' },
   'sticks.shapeHintRaw': { en: 'Untouched sensor output — no processing, true circularity', zh: '未经处理的传感器原始输出——无处理，真实圆度', ja: '手つかずのセンサー出力 — 処理なし、真の真円度', ru: 'Нетронутый выход сенсора — без обработки, истинная круговизна' },
-  'device.gear': { en: 'Gear', zh: '档位', ja: 'ギア', ru: 'Ступень' },
   'device.stored': { en: 'stored', zh: '已存', ja: '保存値', ru: 'сохранено' },
   'device.levels': { en: 'levels', zh: '级', ja: 'レベル', ru: 'уровней' },
   'device.beyondSilicon': { en: 'Beyond silicon — writes the implied raw wire, expect clamp/ignore', zh: '超出硬件——写入隐含原生线值，可能被钳制或忽略', ja: 'シリコン超え — 想定ワイヤ値を書き込み、クランプ/無視の可能性', ru: 'За пределами кремния — пишется вычисленное raw-значение, возможны обрезка/игнор' },

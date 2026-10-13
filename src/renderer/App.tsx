@@ -2609,6 +2609,9 @@ export default function App(): JSX.Element {
   const resBits = fd ? fun.extend.stickResolutionBits(fd) : 12
   const gear = fd ? fun.extend.reportRateGear(fd) : 5
   const rates = model && model.reportRates.length > 0 ? model.reportRates : REPORT_RATE_OPTIONS
+  // One row for every gear: model gears first (their proof state wins),
+  // then any missing standard gears, always flagged unconfirmed here.
+  const allRates = [...rates, ...REPORT_RATE_OPTIONS.filter((o) => !rates.some((r) => r.gear === o.gear)).map((o) => ({ ...o, confirmed: false }))].sort((a, b) => a.hz - b.hz)
   const gearHz = rates.find((o) => o.gear === gear)?.hz ?? 0
   const resWire = fd ? fun.extend.stickResolution(fd) : 0
   const resInfo = describeRawResolution(fd ? fun.extend.stickResolution(fd) : 0)
@@ -3211,33 +3214,17 @@ export default function App(): JSX.Element {
               <div className="two" style={{ alignItems: 'start' }}>
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
-                    <h3>{t('device.polling')} - {rates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
-                    <Hint>Report-rate gear (Fun_Data +14){model ? ` · ${model.marketingName} offers ${rates.length} gears` : ''}. Hz labels are the vendor's claim; measured input stays ~250–500/s.</Hint>
-                    <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
-                      {rates.filter((o) => o.hz >= 1000).map((o) => (
+                    <h3>{t('device.polling')} - {allRates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
+                    <Hint>Report-rate gear (Fun_Data +14){model ? ` · ${model.marketingName} offers ${allRates.length} gears` : ''}. Hz labels are the vendor's claim; measured input stays ~250–500/s.</Hint>
+                    <div className="choice" style={{ margin: '10px 0' }}>
+                      {allRates.map((o) => (
                         <button
                           key={o.gear}
                           className={`choice-btn${fun.extend.reportRateGear(fd) === o.gear ? ' active' : ''}`}
-                          title={o.confirmed ? `gear ${o.gear}` : `gear ${o.gear} (inferred — no vendor label)`}
+                          title={o.confirmed ? `gear ${o.gear}` : `gear ${o.gear} (unconfirmed on this model)`}
                           onClick={() => edit(() => fun.extend.setReportRateGear(fd, o.gear))}
                         >
                           <span className="choice-label">{o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz} Hz`}{o.confirmed ? '' : '*'}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="row spread">
-                      <span className="label">{t('device.gear')}: {fun.extend.reportRateGear(fd)}</span>
-                      <span className="mono">*2K inferred — completes the 250/500/1000/…/4000/8000 ladder</span>
-                    </div>
-                    <div className="row wrap" style={{ gap: 8, marginTop: 8 }}>
-                      {rates.filter((o) => o.hz < 1000).map((o) => (
-                        <button
-                          key={o.gear}
-                          className={`choice-btn${fun.extend.reportRateGear(fd) === o.gear ? ' active' : ''}`}
-                          title={`gear ${o.gear}`}
-                          onClick={() => edit(() => fun.extend.setReportRateGear(fd, o.gear))}
-                        >
-                          <span className="choice-label">{o.hz} Hz</span>
                         </button>
                       ))}
                     </div>
