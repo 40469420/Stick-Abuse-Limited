@@ -3292,29 +3292,31 @@ export default function App(): JSX.Element {
                     ...(modelId === 'G7ProCE' && profile.functionKeys[3] && profile.functionKeys[3].length === 169
                       ? [{ name: 'FR2 · R5', value: 18, tag: 'R5', pkt: profile.functionKeys[3] as Packet | null }]
                       : []),
-                    // Tarantula extras share the same map head. Packet order is
-                    // Connect's own key list [FL1,FR1,T1,T3,T2,C1,C2,C3,C4] —
-                    // note T3 sits before T2 in storage order.
+                    // Tarantula extras, packet order proven on hardware: press
+                    // C1/C2/C3 fires packets 2/3/4, so the C block comes
+                    // first: [FL1,FR1,C1,C2,C3,C4,T1,T2,T3]. (Connect's own
+                    // key list orders them differently — that list is UI
+                    // order, not storage order.)
                     ...(modelId === 'T3CE' && profile.functionKeys[2] && profile.functionKeys[2].length === 169
-                      ? [{ name: 'T1', value: 17, tag: 'T1', pkt: profile.functionKeys[2] as Packet | null }]
+                      ? [{ name: 'C1', value: 17, tag: 'C1', pkt: profile.functionKeys[2] as Packet | null }]
                       : []),
                     ...(modelId === 'T3CE' && profile.functionKeys[3] && profile.functionKeys[3].length === 169
-                      ? [{ name: 'T3', value: 17, tag: 'T3', pkt: profile.functionKeys[3] as Packet | null }]
+                      ? [{ name: 'C2', value: 17, tag: 'C2', pkt: profile.functionKeys[3] as Packet | null }]
                       : []),
                     ...(modelId === 'T3CE' && profile.functionKeys[4] && profile.functionKeys[4].length === 169
-                      ? [{ name: 'T2', value: 17, tag: 'T2', pkt: profile.functionKeys[4] as Packet | null }]
+                      ? [{ name: 'C3', value: 17, tag: 'C3', pkt: profile.functionKeys[4] as Packet | null }]
                       : []),
                     ...(modelId === 'T3CE' && profile.functionKeys[5] && profile.functionKeys[5].length === 169
-                      ? [{ name: 'C1', value: 17, tag: 'C1', pkt: profile.functionKeys[5] as Packet | null }]
+                      ? [{ name: 'C4', value: 17, tag: 'C4', pkt: profile.functionKeys[5] as Packet | null }]
                       : []),
                     ...(modelId === 'T3CE' && profile.functionKeys[6] && profile.functionKeys[6].length === 169
-                      ? [{ name: 'C2', value: 17, tag: 'C2', pkt: profile.functionKeys[6] as Packet | null }]
+                      ? [{ name: 'T1', value: 17, tag: 'T1', pkt: profile.functionKeys[6] as Packet | null }]
                       : []),
                     ...(modelId === 'T3CE' && profile.functionKeys[7] && profile.functionKeys[7].length === 169
-                      ? [{ name: 'C3', value: 17, tag: 'C3', pkt: profile.functionKeys[7] as Packet | null }]
+                      ? [{ name: 'T2', value: 17, tag: 'T2', pkt: profile.functionKeys[7] as Packet | null }]
                       : []),
                     ...(modelId === 'T3CE' && profile.functionKeys[8] && profile.functionKeys[8].length === 169
-                      ? [{ name: 'C4', value: 17, tag: 'C4', pkt: profile.functionKeys[8] as Packet | null }]
+                      ? [{ name: 'T3', value: 17, tag: 'T3', pkt: profile.functionKeys[8] as Packet | null }]
                       : [])
                   ] as Array<{ name: string; value: number; tag?: string; pkt: Packet | null }>).map((row) => {
                     const pkt = row.pkt
