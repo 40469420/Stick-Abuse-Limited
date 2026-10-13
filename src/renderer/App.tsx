@@ -20,6 +20,7 @@ import {
 import { keyLabel, displayMapping, REMAP_TARGETS } from '@shared/keymap'
 import { createPortal } from 'react-dom'
 import { LANGS, LangContext, tr, useLangState, useT } from './i18n'
+import { THEMES, ThemeContext, useThemeState } from './theme'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
 import { flyTransport, type FlyIdentity } from './flydigiUsb'
@@ -2202,7 +2203,7 @@ export default function App(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [loadId, setLoadId] = useState(0)
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
-  const [tab, setTab] = useState<'sticks' | 'device' | 'buttons' | 'profiles' | 'lab' | 'calibrate' | 'marius' | 'language'>('sticks')
+  const [tab, setTab] = useState<'sticks' | 'device' | 'buttons' | 'profiles' | 'lab' | 'calibrate' | 'marius' | 'language' | 'theme'>('sticks')
   const [measuring, setMeasuring] = useState<{ left: number; suggestion: { dev: number; pct10: number } | null } | null>(null)
   const wanderRef = useRef(0)
   const modelLenRef = useRef(PROFILE_LENGTH)
@@ -2292,6 +2293,7 @@ export default function App(): JSX.Element {
     }
   }, [presets])
   const [lang, setLang] = useLangState()
+  const [theme, setTheme] = useThemeState()
   const t = (key: string): string => tr(lang, key)
   const [, force] = useState(0)
   const bump = (): void => {
@@ -2659,6 +2661,7 @@ export default function App(): JSX.Element {
 
   return (
     <LangContext.Provider value={{ lang, setLang }}>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
@@ -2699,6 +2702,9 @@ export default function App(): JSX.Element {
             <h4>{t('nav.app')}</h4>
             <button type="button" className={`nav-item${tab === 'language' ? ' active' : ''}`} onClick={() => setTab('language')}>
               {t('nav.language')}
+            </button>
+            <button type="button" className={`nav-item${tab === 'theme' ? ' active' : ''}`} onClick={() => setTab('theme')}>
+              {t('nav.theme')}
             </button>
           </div>
         </nav>
@@ -3391,6 +3397,9 @@ export default function App(): JSX.Element {
           {tab === 'language' && (
             <LanguagePanel />
           )}
+          {tab === 'theme' && (
+            <ThemePanel />
+          )}
           {tab === 'lab' && (
           <>
           <AnalyticsPanel
@@ -3406,7 +3415,37 @@ export default function App(): JSX.Element {
         </div>
       </main>
     </div>
+    </ThemeContext.Provider>
     </LangContext.Provider>
+  )
+}
+
+function ThemePanel(): JSX.Element {
+  const { theme, setTheme } = useContext(ThemeContext)
+  const t = useT()
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h3>{t('theme.title')}</h3>
+      <Hint>{t('theme.hint')}</Hint>
+      <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
+        {THEMES.map((o) => (
+          <button
+            key={o.id}
+            className={`btn sm${theme === o.id ? ' primary' : ' ghost'}`}
+            onClick={() => setTheme(o.id)}
+          >
+            <span className="row" style={{ gap: 6, alignItems: 'center' }}>
+              <span style={{ display: 'inline-flex', gap: 3 }}>
+                {[o.vars['--bg-2'] ?? '#000', o.vars['--accent'] ?? '#888', o.vars['--good'] ?? '#888'].map((c) => (
+                  <span key={c} style={{ width: 12, height: 12, borderRadius: '50%', background: c, border: '1px solid var(--line-2)' }} />
+                ))}
+              </span>
+              {o.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
