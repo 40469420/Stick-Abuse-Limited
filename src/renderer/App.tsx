@@ -2071,6 +2071,44 @@ function KeySelect({ value, disabled, open, onToggle, onClose, onPick }: {
   )
 }
 
+function TriggerDeadzoneCard({ profile, edit }: {
+  profile: Profile
+  edit: (fn: () => void) => void
+}): JSX.Element {
+  const t = useT()
+  return (
+    <div className="card">
+      <h3>{t('trig.title')}</h3>
+      <Hint>{t('trig.hint')}</Hint>
+      {([0, 1] as const).map((ti) => {
+        const tpkt = profile.triggers[ti]
+        if (!tpkt) return null
+        const tdz = trigger.deadzonePercent(trigger.deadzone(tpkt))
+        const ten = trigger.deadEnabled(tpkt)
+        return (
+          <div key={ti} style={{ marginTop: 8 }}>
+            <div className="row spread" style={{ marginBottom: 6, alignItems: 'center' }}>
+              <span className="label">{ti === 0 ? 'LT' : 'RT'}</span>
+              <button
+                className={`choice-btn${ten ? ' active' : ''}`}
+                onClick={() => edit(() => trigger.setDeadEnabled(tpkt, !ten))}
+              >
+                <span className="choice-label">{t('trig.enable')}</span>
+              </button>
+            </div>
+            <div className="stack" style={{ gap: 12 }}>
+              <Slider label={t('sticks.start')} value={tdz.begin} min={0} max={20} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+              <Slider label={t('sticks.end')} value={tdz.end} min={10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+              <Slider label={t('sticks.antiStart')} value={tdz.beginAnti} min={0} max={50} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), beginAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+              <Slider label={t('sticks.antiEnd')} value={tdz.endAnti} min={50} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), endAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function ResetEverythingCard({ profile, fd, edit, onReload, notify }: {
   profile: Profile | null
   fd: Packet | null
@@ -2984,35 +3022,7 @@ export default function App(): JSX.Element {
                   </div>
 
 
-                  <div className="card">
-                    <h3>{t('trig.title')}</h3>
-                    <Hint>{t('trig.hint')}</Hint>
-                    {([0, 1] as const).map((ti) => {
-                      const tpkt = profile.triggers[ti]
-                      if (!tpkt) return null
-                      const tdz = trigger.deadzonePercent(trigger.deadzone(tpkt))
-                      const ten = trigger.deadEnabled(tpkt)
-                      return (
-                        <div key={ti} style={{ marginTop: 8 }}>
-                          <div className="row spread" style={{ marginBottom: 6, alignItems: 'center' }}>
-                            <span className="label">{ti === 0 ? 'LT' : 'RT'}</span>
-                            <button
-                              className={`choice-btn${ten ? ' active' : ''}`}
-                              onClick={() => edit(() => trigger.setDeadEnabled(tpkt, !ten))}
-                            >
-                              <span className="choice-label">{t('trig.enable')}</span>
-                            </button>
-                          </div>
-                          <div className="stack" style={{ gap: 12 }}>
-                            <Slider label={t('sticks.start')} value={tdz.begin} min={0} max={20} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-                            <Slider label={t('sticks.end')} value={tdz.end} min={10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-                            <Slider label={t('sticks.antiStart')} value={tdz.beginAnti} min={0} max={50} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), beginAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-                            <Slider label={t('sticks.antiEnd')} value={tdz.endAnti} min={50} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), endAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <TriggerDeadzoneCard profile={profile} edit={edit} />
 
 
                   <div className="card">
@@ -3335,13 +3345,17 @@ export default function App(): JSX.Element {
             </>
           )}
           {tab === 'buttons' && connected && profile && (
+            <>
+            <TriggerDeadzoneCard profile={profile} edit={edit} />
             <div className="card" style={{ marginTop: 16 }}>
               <h3>{t('buttons.title')}</h3>
-              <Hint>{t('buttons.hint')}</Hint>
-              <Hint>{t('buttons.backs')}</Hint>
-              {modelId === 'G7ProCE' && <Hint>{t('buttons.backsExtra')}</Hint>}
-              {modelId === 'T3CE' && <Hint>{t('buttons.frontExtra')}</Hint>}
-              {modelId === 'T3CE' && <Hint>{t('buttons.tExtra')}</Hint>}
+              <Hint>
+                {t('buttons.hint')}
+                <br /><br />
+                {t('buttons.backs')}
+                {modelId === 'G7ProCE' && (<><br /><br />{t('buttons.backsExtra')}</>)}
+                {modelId === 'T3CE' && (<><br /><br />{t('buttons.frontExtra')}<br /><br />{t('buttons.tExtra')}</>)}
+              </Hint>
               <table className="tbl" style={{ marginTop: 8 }}>
                 <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
                 <tbody>
@@ -3413,6 +3427,7 @@ export default function App(): JSX.Element {
                 </tbody>
               </table>
             </div>
+            </>
           )}
           {tab === 'profiles' && (
             <ProfilesPanel connected={connected} activeSlot={info?.currentProfile ?? null} locked={locked} modelId={modelId} modelLen={modelLen} dumpLength={model?.dumpLength ?? 0} modelName={model?.marketingName ?? null} />
