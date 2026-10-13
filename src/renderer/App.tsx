@@ -3292,11 +3292,12 @@ export default function App(): JSX.Element {
                     ...(modelId === 'G7ProCE' && profile.functionKeys[3] && profile.functionKeys[3].length === 169
                       ? [{ name: 'FR2 · R5', value: 18, tag: 'R5', pkt: profile.functionKeys[3] as Packet | null }]
                       : []),
-                    // Tarantula extras, packet order proven on hardware: press
-                    // C1/C2/C3 fires packets 2/3/4, so the C block comes
-                    // first: [FL1,FR1,C1,C2,C3,C4,T1,T2,T3]. (Connect's own
-                    // key list orders them differently — that list is UI
-                    // order, not storage order.)
+                    // Tarantula extras, packet order proven two ways: press
+                    // C1/C2/C3 fires packets 2/3/4 on live hardware, and
+                    // Connect's own T3CE config maps Ext1..Ext7 to
+                    // C1,C2,C3,C4,T1,T2,T3 — 7 names plus FL1/FR1 is exactly
+                    // the 9 function packets. Full order:
+                    // [FL1,FR1,C1,C2,C3,C4,T1,T2,T3].
                     ...(modelId === 'T3CE' && profile.functionKeys[2] && profile.functionKeys[2].length === 169
                       ? [{ name: 'C1', value: 17, tag: 'C1', pkt: profile.functionKeys[2] as Packet | null }]
                       : []),
