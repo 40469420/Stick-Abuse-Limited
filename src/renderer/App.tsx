@@ -3273,6 +3273,7 @@ export default function App(): JSX.Element {
               <Hint>{t('buttons.hint')}</Hint>
               <Hint>{t('buttons.backs')}</Hint>
               {modelId === 'G7ProCE' && <Hint>{t('buttons.backsExtra')}</Hint>}
+              {modelId === 'T3CE' && <Hint>{t('buttons.frontExtra')}</Hint>}
               <table className="tbl" style={{ marginTop: 8 }}>
                 <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
                 <tbody>
@@ -3289,6 +3290,21 @@ export default function App(): JSX.Element {
                       : []),
                     ...(modelId === 'G7ProCE' && profile.functionKeys[3] && profile.functionKeys[3].length === 169
                       ? [{ name: 'FR2 · R5', value: 18, tag: 'R5', pkt: profile.functionKeys[3] as Packet | null }]
+                      : []),
+                    // Tarantula C1–C4: function packets 5–8 per Connect's key
+                    // order [FL1,FR1,T1,T3,T2,C1,C2,C3,C4], and every packet on
+                    // live hardware carries the same 7-byte map head.
+                    ...(modelId === 'T3CE' && profile.functionKeys[5] && profile.functionKeys[5].length === 169
+                      ? [{ name: 'C1', value: 17, tag: 'C1', pkt: profile.functionKeys[5] as Packet | null }]
+                      : []),
+                    ...(modelId === 'T3CE' && profile.functionKeys[6] && profile.functionKeys[6].length === 169
+                      ? [{ name: 'C2', value: 17, tag: 'C2', pkt: profile.functionKeys[6] as Packet | null }]
+                      : []),
+                    ...(modelId === 'T3CE' && profile.functionKeys[7] && profile.functionKeys[7].length === 169
+                      ? [{ name: 'C3', value: 17, tag: 'C3', pkt: profile.functionKeys[7] as Packet | null }]
+                      : []),
+                    ...(modelId === 'T3CE' && profile.functionKeys[8] && profile.functionKeys[8].length === 169
+                      ? [{ name: 'C4', value: 17, tag: 'C4', pkt: profile.functionKeys[8] as Packet | null }]
                       : [])
                   ] as Array<{ name: string; value: number; tag?: string; pkt: Packet | null }>).map((row) => {
                     const pkt = row.pkt

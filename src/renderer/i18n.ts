@@ -131,6 +131,7 @@ const STR: Dict = {
   'buttons.unmapped': { en: 'Unmapped (self)', zh: '未映射（自身）', ja: '未設定（自身）' },
   'buttons.backs': { en: 'FL1 / FR1 are the back paddles (L4 / R4).', zh: 'FL1 / FR1 为背部拨片（L4 / R4）。', ja: 'FL1 / FR1 は背面パドル（L4 / R4）。' },
   'buttons.backsExtra': { en: 'FL2 / FR2 are the extra top bumpers (L5 / R5, G7 Pro 8K only).', zh: 'FL2 / FR2 为顶部额外肩键（L5 / R5，仅 G7 Pro 8K）。', ja: 'FL2 / FR2 は追加の上部バンパー（L5 / R5、G7 Pro 8Kのみ）。' },
+  'buttons.frontExtra': { en: 'C1 – C4 are the extra front buttons (Tarantula 8K only).', zh: 'C1–C4 为额外前置按键（仅 Tarantula 8K）。', ja: 'C1–C4 は追加の前面ボタン（Tarantula 8Kのみ）。' },
   'profiles.readAll': { en: 'Read all from controller', zh: '从手柄读取全部', ja: '全部読み込み' },
   'profiles.write': { en: 'Write', zh: '写入', ja: '書き込み' },
   'steam.title': { en: 'Export to Steam', zh: '导出到 Steam', ja: 'Steamへエクスポート' },
