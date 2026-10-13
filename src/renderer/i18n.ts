@@ -86,8 +86,6 @@ const STR: Dict = {
   'device.polling': { en: 'Polling rate', zh: '回报率', ja: 'ポーリングレート', ru: 'Частота опроса' },
   'device.bits': { en: 'Bit depth', zh: '位深', ja: 'ビット深度', ru: 'Разрядность' },
   'device.rate': { en: 'Controller Rate', zh: '控制器速率', ja: 'コントローラーレート', ru: 'Скорость контроллера' },
-  'device.smoothing': { en: 'Smoothing', zh: '平滑', ja: 'スムージング', ru: 'Сглаживание' },
-  'device.smoothingHint': { en: 'Per-stick output smoothing, positive levels only (Off to Max). Higher levels are steadier but duller, with a touch more lag. Negative sharpening levels are deliberately not offered. Still one-to-one: no macros, no turbo.', zh: '分摇杆输出平滑，仅提供正值（关闭到最大）。数值越大越稳但越顿，延迟稍增。负值锐化档位一律不提供。仍是一对一：无宏、无连发。', ja: 'スティック別出力スムージング — 正のレベルのみ（オフ〜最大）。上げるほど安定するが鈍くなり、わずかに遅延。マイナスのシャープ化は提供しません。1対1のまま：マクロ・連射なし。', ru: 'Сглаживание вывода каждого стика — только положительные уровни (от выкл. до макс.). Выше уровень — стабильнее, но ватнее, с небольшой задержкой. Отрицательные уровни не предлагаются. Всё равно один к одному: без макросов и турбо.' },
   'trig.title': { en: 'Trigger deadzones', zh: '扳机死区', ja: 'トリガーデッドゾーン', ru: 'Мёртвые зоны триггеров' },
   'trig.hint': { en: 'LT/RT input window. Begin/end trim the pull; the switch gates the whole block (off = factory 5–100%). Still one-to-one: no macros, no turbo.', zh: 'LT/RT 输入窗口。起点/终点裁剪行程；开关控制整个模块（关闭=出厂 5–100%）。仍是一对一：无宏、无连发。', ja: 'LT/RT入力ウィンドウ。開始/終了で行程を調整。有効化で全体を適用（オフ=工場出荷5–100%）。1対1のまま：マクロ・連射なし。', ru: 'Окно ввода LT/RT. Начало/конец подрезают ход; выключатель управляет всем блоком (выкл. = заводские 5–100%). Всё равно один к одному: без макросов и турбо.' },
   'trig.enable': { en: 'Deadzone enabled', zh: '启用死区', ja: 'デッドゾーン有効', ru: 'Мёртвая зона вкл.' },

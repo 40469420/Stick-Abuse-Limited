@@ -17,8 +17,7 @@ import {
   outerBufferFromBytes,
   isOuterUnlimited,
   linFrontier, linTremor, linResolution, linResample, linMedian,
-  linRepresentative, linLinearity, LIN_MIN_PASSES,
-  RC_PRESETS
+  linRepresentative, linLinearity, LIN_MIN_PASSES
 } from '@shared/sticklab'
 import { keyLabel, displayMapping, REMAP_TARGETS } from '@shared/keymap'
 import { createPortal } from 'react-dom'
@@ -3478,30 +3477,6 @@ export default function App(): JSX.Element {
                     )}
                   </div>
 
-                  <div className="card">
-                    <h3>{t('device.smoothing')} — L {fun.extend.lsRcLevel(fd) > 0 ? `+${fun.extend.lsRcLevel(fd)}` : fun.extend.lsRcLevel(fd)} · R {fun.extend.rsRcLevel(fd) > 0 ? `+${fun.extend.rsRcLevel(fd)}` : fun.extend.rsRcLevel(fd)}</h3>
-                    <Hint>{t('device.smoothingHint')}</Hint>
-                    {([
-                      { stick: t('cal.left') as string, get: () => fun.extend.lsRcLevel(fd), set: (v: number) => fun.extend.setLsRcLevel(fd, v) },
-                      { stick: t('cal.right') as string, get: () => fun.extend.rsRcLevel(fd), set: (v: number) => fun.extend.setRsRcLevel(fd, v) }
-                    ]).map((row) => (
-                      <div key={row.stick} style={{ marginTop: 8 }}>
-                        <div className="label" style={{ marginBottom: 6 }}>{row.stick}: {row.get() > 0 ? `+${row.get()}` : row.get()}</div>
-                        <div className="choice">
-                          {RC_PRESETS.filter((p) => p.level >= 0).map((p) => (
-                            <button
-                              key={`${row.stick}-${p.level}`}
-                              className={`choice-btn${row.get() === p.level ? ' active' : ''}`}
-                              title={p.hint}
-                              onClick={() => edit(() => row.set(p.level))}
-                            >
-                              <span className="choice-label">{p.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
 
 
                 </div>
