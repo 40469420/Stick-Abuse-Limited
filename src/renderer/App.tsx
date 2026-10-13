@@ -3020,9 +3020,6 @@ export default function App(): JSX.Element {
                   </div>
 
 
-                  <TriggerDeadzoneCard profile={profile} edit={edit} />
-
-
                   <div className="card">
                     <h3>{t('sticks.outer')} — {outerUnlimited ? t('sticks.noLimitTitle') : t('sticks.custom')}</h3>
                     <Hint>{t('sticks.outerHint')}</Hint>
