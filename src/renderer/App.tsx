@@ -2176,7 +2176,22 @@ export default function App(): JSX.Element {
   const [info, setInfo] = useState<DeviceInfo | null>(null)
   const [pid, setPid] = useState<number | null>(null)
   const [model, setModel] = useState<ControllerModel | null>(null)
-  const [slot, setSlot] = useState(3)
+  const [slot, setSlot] = useState<number>(() => {
+    try {
+      const saved = Number(window.localStorage.getItem('sticklabs.slot'))
+      if (Number.isInteger(saved) && saved >= 1 && saved <= 4) return saved
+    } catch {
+      /* fresh — default slot */
+    }
+    return 3
+  })
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('sticklabs.slot', String(slot))
+    } catch {
+      /* storage full/blocked — slot still works for the session */
+    }
+  }, [slot])
   const [flyId, setFlyId] = useState<FlyIdentity | null>(null)
   const [blob, setBlob] = useState<Uint8Array | null>(null)
   const [dirty, setDirty] = useState(false)
