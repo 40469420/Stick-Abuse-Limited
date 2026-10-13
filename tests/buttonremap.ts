@@ -67,6 +67,7 @@ function blankButton(): Packet {
   check('203 is Mouse Button 5 (non-sequential)', keyLabel(203) === 'Mouse Button 5')
   check('255 is No change', keyLabel(255) === 'No change (NC)')
   check('29 shows raw (unverified TP)', keyLabel(29) === '#29')
+  check('37 is Screenshot (observed on T3CE)', keyLabel(37) === 'Screenshot')
   check('unknown shows #n', keyLabel(999) === '#999')
 }
 

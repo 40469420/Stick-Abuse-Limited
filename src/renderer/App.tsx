@@ -3296,8 +3296,10 @@ export default function App(): JSX.Element {
                     // C1/C2/C3 fires packets 2/3/4 on live hardware, and
                     // Connect's own T3CE config maps Ext1..Ext7 to
                     // C1,C2,C3,C4,T1,T2,T3 — 7 names plus FL1/FR1 is exactly
-                    // the 9 function packets. Full order:
-                    // [FL1,FR1,C1,C2,C3,C4,T1,T2,T3].
+                    // the 9 function packets. T1/T2/T3 confirmed the same
+                    // way: T1 fires packet 6 (D-pad Up), T2's packet holds
+                    // inert index 36 (unbound), T3's holds 37 (Screenshot).
+                    // Full order: [FL1,FR1,C1,C2,C3,C4,T1,T2,T3].
                     ...(modelId === 'T3CE' && profile.functionKeys[2] && profile.functionKeys[2].length === 169
                       ? [{ name: 'C1', value: 17, tag: 'C1', pkt: profile.functionKeys[2] as Packet | null }]
                       : []),

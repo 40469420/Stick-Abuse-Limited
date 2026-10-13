@@ -212,11 +212,12 @@ const MOUSE: Array<[number, string]> = [
   [206, 'Mouse Wheel Down']
 ]
 
-/** Special function keys. */
+/** Special function keys. 37 = Screenshot, observed on T3CE hardware. */
 const SPECIAL: Array<[number, string]> = [
   [230, 'Mute'],
   [231, 'Shift'],
-  [255, 'No change (NC)']
+  [255, 'No change (NC)'],
+  [37, 'Screenshot']
 ]
 
 function build(
