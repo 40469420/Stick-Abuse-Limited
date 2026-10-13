@@ -133,7 +133,9 @@ function encodeName(name: string): Uint8Array {
  * Per-model blob geometry. The packet *codecs* (Packet + accessors below)
  * are offset-agnostic; only section starts/counts differ per model.
  *
- * G7ProCE/G7ProS: 1070 bytes (proven against hardware fixtures).
+ * G7ProCE: 1070 bytes (proven against hardware fixtures).
+ * (The non-8K G7 Pro is intentionally unlisted — unproven on hardware,
+ * so it resolves as unknown and stays locked.)
  * T3CE (Tarantula): 1935 bytes — Name/Fun/Mapping/FunctionKeys/Triggers/
  *   Sticks/Motion/Ext8/Ext9, resolved from the GameSir bundle's own
  *   sequential parser (Name32, Fun32, 16x7, 9x169, 2x32, 2x36, 2x41,
@@ -151,15 +153,6 @@ export interface ModelGeometry {
 
 export const GEOMETRIES: Record<string, ModelGeometry> = {
   G7ProCE: {
-    total: 1070,
-    funOffset: 0x020,
-    buttons: { offset: 0x040, count: 16, len: 7 },
-    functionKeys: [{ offset: 0x0b0, count: 4, len: 169 }],
-    triggers: { offset: 0x354, count: 2, len: 32 },
-    sticks: { offset: 0x394, count: 2, len: 36 },
-    motion: { offset: 0x3dc, count: 2, len: 41 }
-  },
-  G7ProS: {
     total: 1070,
     funOffset: 0x020,
     buttons: { offset: 0x040, count: 16, len: 7 },

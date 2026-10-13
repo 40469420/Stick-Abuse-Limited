@@ -93,8 +93,6 @@ interface ReportedInput {
 /** Matches the receiver-vs-pad ambiguity in the wild. */
 const PREFERRED_PIDS = new Set([
   0x10c5, 0x10c6, 0x10b7, 0x10b9, 0x10cd, 0x10ce,
-  // G7 Pro (G7ProS): wired/wireless, black/white
-  0x0908, 0x0909, 0x0921, 0x0922,
   // Tarantula (T3CE)
   0x103d, 0x10ff, 0x090d,
   // Flydigi Apex 5 command collection

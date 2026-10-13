@@ -65,24 +65,6 @@ export const MODELS: ReadonlyArray<ControllerModel> = [
     supportNote: 'Profile codec proven byte-exact against hardware fixtures.'
   },
   {
-    id: 'G7ProS',
-    marketingName: 'GameSir G7 Pro',
-    vendorId: 0x3537,
-    usagePage: 0xfff0,
-    usage: 0x40,
-    pids: [0x0908, 0x0909, 0x0921, 0x0922],
-    productHints: ['G7 Pro S', 'G7ProS'],
-    reportRates: [
-      { gear: 0, hz: 250, confirmed: false },
-      { gear: 1, hz: 500, confirmed: false },
-      { gear: 2, hz: 1000, confirmed: false }
-    ],
-    profileLength: 1070,
-    dumpLength: 1070,
-    support: 'full',
-    supportNote: 'Reuses the G7ProCE proxy wholesale in the GameSir bundle: identical 1070-byte profile, 36-byte stick packet, Fun_Data offsets and 0xFE calibration. Only the gear table (250/500/1000) differs.'
-  },
-  {
     id: 'Apex5',
     marketingName: 'Flydigi Apex 5',
     vendorId: 0x37d7,

@@ -271,7 +271,7 @@ const STR: Dict = {
   'profiles.subtitle': { en: 'backup & transfer', zh: '备份与传输', ja: 'バックアップと転送', ru: 'бэкап и перенос' },
   'profiles.reading': { en: 'reading…', zh: '读取中…', ja: '読み込み中…', ru: 'чтение…' },
   'side.copyTitle': { en: 'Copy device + app details for support (nothing personal)', zh: '复制设备与应用详情以便支持（不含个人信息）', ja: 'サポート用に詳細をコピー（個人情報なし）', ru: 'Скопировать данные устройства и приложения для поддержки (без личного)' },
-  'msg.models': { en: 'G7 Pro 8K · G7 Pro · Tarantula 8K · Flydigi Apex 5 (plus new 8K editions via auto-check).', zh: 'G7 Pro 8K · G7 Pro · Tarantula 8K · Flydigi Apex 5（新的 8K 版本通过自动检测支持）。', ja: 'G7 Pro 8K · G7 Pro · Tarantula 8K · Flydigi Apex 5（新しい8K版は自動判定で対応）。', ru: 'G7 Pro 8K · G7 Pro · Tarantula 8K · Flydigi Apex 5 (новые 8K-версии через автопроверку).' },
+  'msg.models': { en: 'G7 Pro 8K · Tarantula 8K · Flydigi Apex 5 (plus new 8K editions via auto-check).', zh: 'G7 Pro 8K · Tarantula 8K · Flydigi Apex 5（新的 8K 版本通过自动检测支持）。', ja: 'G7 Pro 8K · Tarantula 8K · Flydigi Apex 5（新しい8K版は自動判定で対応）。', ru: 'G7 Pro 8K · Tarantula 8K · Flydigi Apex 5 (новые 8K-версии через автопроверку).' },
   'msg.unsaved': { en: 'Unsaved', zh: '未保存', ja: '未保存', ru: 'Не сохранено' },
   'msg.saved': { en: 'Saved ✓', zh: '已保存 ✓', ja: '保存済み ✓', ru: 'Сохранено ✓' },
   'msg.verifiedTitle': { en: 'Last verified write, read back from the pad', zh: '上次写入已从手柄读回验证', ja: '最後の書き込みはパッドから確認済み', ru: 'Последняя запись проверена чтением с геймпада' },

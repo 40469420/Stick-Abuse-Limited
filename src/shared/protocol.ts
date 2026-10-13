@@ -505,9 +505,9 @@ export function parseFirmwareVersion(raw: Uint8Array): { firmware: string; dongl
 
 /**
  * Report-rate gears. The profile stores a gear index (Fun_Data +14), never Hz;
- * GameSir's `reportRateList` supplies the labels, and they differ per model:
+ * GameSir's `reportRateList` supplies the labels, and they differ per model
+ * (the non-8K G7 Pro table is omitted with the model — unsupported):
  *
- *   G7ProS  `[{250Hz,0},{500Hz,1},{1000Hz,2}]`
  *   default `[{250Hz,0},{1000Hz,2},{4000Hz,4},{8000Hz,5}]`
  *
  * Gear 3 carries no label anywhere in their bundle. 2000 Hz is the only value
