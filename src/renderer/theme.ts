@@ -79,14 +79,14 @@ export const THEMES: ReadonlyArray<AppTheme> = [
     }
   },
   {
-    id: 'dracula',
-    label: 'Dracula',
+    id: 'halloween',
+    label: 'Halloween',
     vars: {
-      '--bg': '#21222C', '--bg-1': '#282A36', '--bg-2': '#343746', '--bg-3': '#44475A',
-      '--line': '#3d4152', '--line-2': '#6272A4',
-      '--text': '#F8F8F2', '--text-2': '#c2c6d8', '--text-3': '#6272A4',
-      '--accent': '#FF79C6', '--accent-2': '#ffaedc', '--on-accent': '#282A36',
-      '--good': '#50FA7B', '--warn': '#F1FA8C', '--bad': '#FF5555', '--violet': '#BD93F9'
+      '--bg': '#0e0813', '--bg-1': '#171020', '--bg-2': '#221530', '--bg-3': '#2e1d42',
+      '--line': '#3d2547', '--line-2': '#5c3a6e',
+      '--text': '#f5ecdf', '--text-2': '#c9a86a', '--text-3': '#7a5f8f',
+      '--accent': '#ff7518', '--accent-2': '#ffa94d', '--on-accent': '#1a0d02',
+      '--good': '#3EE87E', '--warn': '#FFC42E', '--bad': '#C1121F', '--violet': '#A855F7'
     }
   },
   {
