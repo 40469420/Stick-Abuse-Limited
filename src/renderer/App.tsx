@@ -3216,9 +3216,10 @@ export default function App(): JSX.Element {
                         <button
                           key={o.bits}
                           className={`btn sm${resBits === o.bits ? ' primary' : ' ghost'}`}
+                          title={o.bits === 12 ? 'Full sensor resolution — the Marius Unlimited equivalent' : `Step ${o.step}`}
                           onClick={() => edit(() => fun.extend.setStickResolutionBits(fd, o.bits))}
                         >
-                          {o.bits}-bit
+                          {o.bits === 12 ? 'Unlimited (12-bit)' : `${o.bits}-bit`}
                         </button>
                       ))}
                       {EXTENDED_BITS.map((bits) => (
