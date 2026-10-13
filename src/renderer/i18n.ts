@@ -181,6 +181,7 @@ const STR: Dict = {
   'device.rateNote': { en: 'Picks always write (100 / 150 / 200 / 250 / 255-max shown as 300*), but the pad only honors the byte while Output is Mouse. *300 exceeds the byte — the pad stores 255.', zh: '选项始终写入（100/150/200/250/255 上限显示为 300*），但手柄仅在鼠标输出时采用。*300 超出单字节——实际存 255。', ja: '選択は常に書き込まれます（100/150/200/250/255上限を300*と表示）が、マウス出力時のみ有効。*300は1バイト超え — 実際は255保存。' },
   'device.none': { en: 'None', zh: '无', ja: 'なし' },
   'lab.hzNow': { en: 'Hz now', zh: '当前 Hz', ja: '現在Hz' },
+  'lab.setPoll': { en: 'Polling set', zh: '设定轮询', ja: '設定ポーリング' },
   'lab.hzAvg': { en: 'Hz avg', zh: '平均 Hz', ja: '平均Hz' },
   'lab.frames': { en: 'frames', zh: '帧', ja: 'フレーム' },
   'lab.pause': { en: 'Pause', zh: '暂停', ja: '一時停止' },

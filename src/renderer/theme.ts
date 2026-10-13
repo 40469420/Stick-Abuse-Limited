@@ -77,6 +77,50 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--good': '#1ED760', '--warn': '#eab308', '--bad': '#E91429', '--violet': '#AFB1FF',
       '--radius': '12px', '--radius-sm': '8px'
     }
+  },
+  {
+    id: 'xbox',
+    label: 'Xbox',
+    vars: {
+      '--bg': '#0f0f0f', '--bg-1': '#161616', '--bg-2': '#1f1f1f', '--bg-3': '#2b2b2b',
+      '--line': '#2e2e2e', '--line-2': '#3d3d3d',
+      '--text': '#ffffff', '--text-2': '#b8b8b8', '--text-3': '#6e6e6e',
+      '--accent': '#16C60C', '--accent-2': '#6bf07d', '--on-accent': '#000000',
+      '--good': '#3ecf8e', '--warn': '#f5b544', '--bad': '#E81123', '--violet': '#A78BFA'
+    }
+  },
+  {
+    id: 'playstation',
+    label: 'PlayStation',
+    vars: {
+      '--bg': '#0a0e1a', '--bg-1': '#101828', '--bg-2': '#17233c', '--bg-3': '#1f2f52',
+      '--line': '#24365c', '--line-2': '#33507e',
+      '--text': '#f0f4fa', '--text-2': '#a9c0d8', '--text-3': '#5f7ba0',
+      '--accent': '#2E9BFF', '--accent-2': '#7cc4ff', '--on-accent': '#ffffff',
+      '--good': '#3ecf8e', '--warn': '#f5b544', '--bad': '#ff6b6b', '--violet': '#a78bfa'
+    }
+  },
+  {
+    id: 'dracula',
+    label: 'Dracula',
+    vars: {
+      '--bg': '#21222C', '--bg-1': '#282A36', '--bg-2': '#343746', '--bg-3': '#44475A',
+      '--line': '#3d4152', '--line-2': '#6272A4',
+      '--text': '#F8F8F2', '--text-2': '#c2c6d8', '--text-3': '#6272A4',
+      '--accent': '#FF79C6', '--accent-2': '#ffaedc', '--on-accent': '#282A36',
+      '--good': '#50FA7B', '--warn': '#F1FA8C', '--bad': '#FF5555', '--violet': '#BD93F9'
+    }
+  },
+  {
+    id: 'nord',
+    label: 'Nord',
+    vars: {
+      '--bg': '#2E3440', '--bg-1': '#3B4252', '--bg-2': '#434C5E', '--bg-3': '#4C566A',
+      '--line': '#434C5E', '--line-2': '#4C566A',
+      '--text': '#ECEFF4', '--text-2': '#D8DEE9', '--text-3': '#7e8aa5',
+      '--accent': '#88C0D0', '--accent-2': '#a9d6e5', '--on-accent': '#2E3440',
+      '--good': '#A3BE8C', '--warn': '#EBCB8B', '--bad': '#BF616A', '--violet': '#B48EAD'
+    }
   }
 ]
 

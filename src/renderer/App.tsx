@@ -329,7 +329,7 @@ const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: 
 }
 
 
-function AnalyticsPanel({ context }: { context: string }): JSX.Element {  const t = useT()
+function AnalyticsPanel({ context, setHz, gear }: { context: string; setHz: number; gear: number }): JSX.Element {  const t = useT()
   const [rate, setRate] = useState(0)
   const [frames, setFrames] = useState(0)
   const [history, setHistory] = useState<number[]>([])
@@ -428,6 +428,7 @@ function AnalyticsPanel({ context }: { context: string }): JSX.Element {  const 
       <div className="two" style={{ alignItems: 'start', marginTop: 10 }}>
         <div className="stack" style={{ gap: 10 }}>
           <div className="row" style={{ gap: 8 }}>
+            <span className="pill">{t('lab.setPoll')}: {setHz > 0 ? `${setHz.toLocaleString()} Hz (gear ${gear})` : '—'}</span>
             <span className={`pill${rate >= 480 ? ' good' : rate > 0 ? ' warn' : ''}`}>{rate || '—'} {t('lab.hzNow')}</span>
             <span className="pill">{avg || '—'} {t('lab.hzAvg')}</span>
             <span className="pill">{frames.toLocaleString()} {t('lab.frames')}</span>
@@ -3408,6 +3409,8 @@ export default function App(): JSX.Element {
                 ? 'Now editing P' + slot + ': set ' + gearHz.toLocaleString() + ' Hz (gear ' + gear + ') · ' + resBits + '-bit (' + bitsToLevels(resBits).toLocaleString() + ' levels) — green chart is measured input, not the set rate.'
                 : 'Connect and load a slot — then switch gear, write, and watch this chart.'
             }
+            setHz={profile && fd ? gearHz : 0}
+            gear={profile && fd ? gear : 0}
           />
           <ResetEverythingCard profile={profile} fd={fd} edit={edit} onReload={reloadDesignFromPad} notify={setMsg} />
           </>
