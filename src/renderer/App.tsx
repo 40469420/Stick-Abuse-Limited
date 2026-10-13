@@ -1601,8 +1601,8 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}{stamp ? ` · last write ${stamp}` : ''}</div>}
         <div className="row" style={{ gap: 8, margin: '10px 0' }}>
           {(['Left', 'Right'] as const).map((n, i) => (
-            <button key={n} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
-              {n} stick
+            <button key={n} className={`choice-btn${i === which ? ' active' : ''}`} onClick={() => setWhich(i)}>
+              <span className="choice-label">{n} stick</span>
             </button>
           ))}
           <div style={{ flex: 1 }} />
@@ -1616,14 +1616,14 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
         </div>
         <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
           {[{ t: 3, label: 'Custom' }, { t: 1, label: 'Quick' }, { t: 2, label: 'Slow' }].map((o) => (
-            <button key={o.t} className={`btn sm${ptype === o.t ? ' primary' : ' ghost'}`} onClick={() => setPtype(o.t)}>{o.label}</button>
+            <button key={o.t} className={`choice-btn${ptype === o.t ? ' active' : ''}`} onClick={() => setPtype(o.t)}><span className="choice-label">{o.label}</span></button>
           ))}
         </div>
         <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
           {Object.entries(AIM_CURVES).map(([key, c]) => (
             <button
               key={key}
-              className="btn sm ghost"
+              className="choice-btn"
               title={`${c.hint} (resampled to 9 points)`}
               onClick={() => {
                 setDesign(flyToDesign(flyResampleAim(c.pts)))
@@ -1635,8 +1635,8 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
           ))}
         </div>
         <div className="row wrap" style={{ gap: 8 }}>
-          <button className="btn sm ghost" onClick={() => fillPreset(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}>Slow</button>
-          <button className="btn sm ghost" onClick={() => fillPreset(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}>Quick</button>
+          <button className="choice-btn" onClick={() => fillPreset(2, [50, 56, 63, 69, 75, 94, 113, 131, 150])}><span className="choice-label">Slow</span></button>
+          <button className="choice-btn" onClick={() => fillPreset(1, [50, 69, 88, 107, 126, 132, 138, 144, 150])}><span className="choice-label">Quick</span></button>
           <button
             className="btn sm ghost"
             title="Copy this stick's pad curve to the other stick"
@@ -2805,11 +2805,11 @@ export default function App(): JSX.Element {
             {[1, 2, 3, 4].map((s) => (
               <button
                 key={s}
-                className={`btn sm${s === slot ? ' primary' : ' ghost'}`}
+                className={`choice-btn${s === slot ? ' active' : ''}`}
                 disabled={!connected || busy || locked}
                 onClick={() => void loadSlot(s)}
               >
-                P{s}
+                <span className="choice-label">P{s}</span>
               </button>
             ))}
             <button className="btn sm primary" disabled={!connected || !dirty || busy || locked} onClick={() => void write()}>
@@ -2886,8 +2886,8 @@ export default function App(): JSX.Element {
             <>
               <div className="row" style={{ gap: 8, marginBottom: 12 }}>
                 {(['Left', 'Right'] as const).map((n, i) => (
-                  <button key={n} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
-                    {(n === 'Left' ? t('cal.left') : t('cal.right'))} {t('sticks.stick')}
+                  <button key={n} className={`choice-btn${i === which ? ' active' : ''}`} onClick={() => setWhich(i)}>
+                    <span className="choice-label">{(n === 'Left' ? t('cal.left') : t('cal.right'))} {t('sticks.stick')}</span>
                   </button>
                 ))}
                 <div style={{ flex: 1 }} />
@@ -2947,12 +2947,12 @@ export default function App(): JSX.Element {
                     </div>
                     <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
                       <button className="btn sm" onClick={() => edit(() => stick.applyPhysics(pkt))}>{t('sticks.physics')}</button>
-                      <button className="btn sm ghost" onClick={() => edit(() => stick.setDeadzone(pkt, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 }))}>{t('sticks.factory')}</button>
-                      <button className="btn sm ghost" title={t('sticks.tAim')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: 800 }))}>{t('sticks.aimEnd')}</button>
-                      <button className="btn sm ghost" title={t('sticks.tFlick')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: 650 }))}>{t('sticks.flickEnd')}</button>
-                      <button className="btn sm ghost" title={t('sticks.tSnap')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: 80 }))}>{t('sticks.antiSnap')}</button>
-                      <button className="btn sm ghost" title={t('sticks.tMax')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: 150 }))}>{t('sticks.antiMax')}</button>
-                      <button className="btn sm ghost" title={t('sticks.tOff')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: 0, endAnti: 1000 }))}>{t('sticks.antiOff')}</button>
+                      <button className="choice-btn" onClick={() => edit(() => stick.setDeadzone(pkt, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 }))}><span className="choice-label">{t('sticks.factory')}</span></button>
+                      <button className="choice-btn" title={t('sticks.tAim')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: 800 }))}><span className="choice-label">{t('sticks.aimEnd')}</span></button>
+                      <button className="choice-btn" title={t('sticks.tFlick')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: 650 }))}><span className="choice-label">{t('sticks.flickEnd')}</span></button>
+                      <button className="choice-btn" title={t('sticks.tSnap')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: 80 }))}><span className="choice-label">{t('sticks.antiSnap')}</span></button>
+                      <button className="choice-btn" title={t('sticks.tMax')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: 150 }))}><span className="choice-label">{t('sticks.antiMax')}</span></button>
+                      <button className="choice-btn" title={t('sticks.tOff')} onClick={() => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: 0, endAnti: 1000 }))}><span className="choice-label">{t('sticks.antiOff')}</span></button>
                       <button
                         className="btn sm ghost"
                         title={t('sticks.watchTitle')}
@@ -2996,7 +2996,7 @@ export default function App(): JSX.Element {
                         </div>
                       </div>
                       <button
-                        className={`btn sm${outerUnlimited ? ' primary' : ' ghost'}`}
+                        className={`choice-btn${outerUnlimited ? ' active' : ''}`}
                         onClick={() => {
                           if (outerUnlimited) {
                             edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: 900, endAnti: 1000 }))
@@ -3005,7 +3005,7 @@ export default function App(): JSX.Element {
                           }
                         }}
                       >
-                        {outerUnlimited ? t('sticks.infiniteOn') : t('sticks.setInfinite')}
+                        <span className="choice-label">{outerUnlimited ? t('sticks.infiniteOn') : t('sticks.setInfinite')}</span>
                       </button>
                     </div>
                     <Hint>
@@ -3028,19 +3028,19 @@ export default function App(): JSX.Element {
                     <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => stageDesign(next)} overlay={quantized} smooth={spline} />
                     <div className="row" style={{ gap: 8, margin: '8px 0' }}>
                       <div style={{ flex: 1 }} />
-                      <button className={`btn sm${!spline ? ' primary' : ' ghost'}`} onClick={() => { setSpline(false); stageDesign(design, false) }}>{t('sticks.linear')}</button>
-                      <button className={`btn sm${spline ? ' primary' : ' ghost'}`} onClick={() => { setSpline(true); stageDesign(design, true) }}>{t('sticks.spline')}</button>
+                      <button className={`choice-btn${!spline ? ' active' : ''}`} onClick={() => { setSpline(false); stageDesign(design, false) }}><span className="choice-label">{t('sticks.linear')}</span></button>
+                      <button className={`choice-btn${spline ? ' active' : ''}`} onClick={() => { setSpline(true); stageDesign(design, true) }}><span className="choice-label">{t('sticks.spline')}</span></button>
                       <button className="btn sm ghost" onClick={reloadDesignFromPad}>{t('sticks.reload')}</button>
                     </div>
                     <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
                       {Object.entries(AIM_CURVES).map(([key, c]) => (
                         <button
                           key={key}
-                          className="btn sm ghost"
+                          className="choice-btn"
                           title={c.hint}
                           onClick={() => stageDesign(c.pts.map((p) => ({ ...p })))}
                         >
-                          {c.label}
+                          <span className="choice-label">{c.label}</span>
                         </button>
                       ))}
                     </div>
@@ -3146,7 +3146,7 @@ export default function App(): JSX.Element {
                         return (
                           <button
                             key={s.key}
-                            className={`btn sm${active ? ' primary' : ' ghost'}`}
+                            className={`choice-btn${active ? ' active' : ''}`}
                             title={t(s.hintKey)}
                             onClick={() => {
                               edit(() => {
@@ -3162,7 +3162,7 @@ export default function App(): JSX.Element {
                               })
                             }}
                           >
-                            {label}
+                            <span className="choice-label">{label}</span>
                           </button>
                         )
                       })}
@@ -3182,11 +3182,11 @@ export default function App(): JSX.Element {
                       {rates.filter((o) => o.hz >= 1000).map((o) => (
                         <button
                           key={o.gear}
-                          className={`btn sm${fun.extend.reportRateGear(fd) === o.gear ? ' primary' : ' ghost'}`}
+                          className={`choice-btn${fun.extend.reportRateGear(fd) === o.gear ? ' active' : ''}`}
                           title={o.confirmed ? `gear ${o.gear}` : `gear ${o.gear} (inferred — no vendor label)`}
                           onClick={() => edit(() => fun.extend.setReportRateGear(fd, o.gear))}
                         >
-                          {o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz} Hz`}{o.confirmed ? '' : '*'}
+                          <span className="choice-label">{o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz} Hz`}{o.confirmed ? '' : '*'}</span>
                         </button>
                       ))}
                     </div>
@@ -3198,11 +3198,11 @@ export default function App(): JSX.Element {
                       {rates.filter((o) => o.hz < 1000).map((o) => (
                         <button
                           key={o.gear}
-                          className={`btn sm${fun.extend.reportRateGear(fd) === o.gear ? ' primary' : ' ghost'}`}
+                          className={`choice-btn${fun.extend.reportRateGear(fd) === o.gear ? ' active' : ''}`}
                           title={`gear ${o.gear}`}
                           onClick={() => edit(() => fun.extend.setReportRateGear(fd, o.gear))}
                         >
-                          {o.hz} Hz
+                          <span className="choice-label">{o.hz} Hz</span>
                         </button>
                       ))}
                     </div>
@@ -3216,21 +3216,21 @@ export default function App(): JSX.Element {
                       {STICK_RESOLUTION_OPTIONS.map((o) => (
                         <button
                           key={o.bits}
-                          className={`btn sm${resBits === o.bits ? ' primary' : ' ghost'}`}
+                          className={`choice-btn${resBits === o.bits ? ' active' : ''}`}
                           title={o.bits === 12 ? 'Full sensor resolution — the Marius Unlimited equivalent' : `Step ${o.step}`}
                           onClick={() => edit(() => fun.extend.setStickResolutionBits(fd, o.bits))}
                         >
-                          {o.bits === 12 ? 'Unlimited (12-bit)' : `${o.bits}-bit`}
+                          <span className="choice-label">{o.bits === 12 ? 'Unlimited (12-bit)' : `${o.bits}-bit`}</span>
                         </button>
                       ))}
                       {EXTENDED_BITS.map((bits) => (
                         <button
                           key={bits}
-                          className={`btn sm${resWire === bitsToWireRaw(bits) ? ' primary' : ' ghost'}`}
+                          className={`choice-btn${resWire === bitsToWireRaw(bits) ? ' active' : ''}`}
                           title={t('device.beyondSilicon')}
                           onClick={() => edit(() => fun.extend.setStickResolution(fd, bitsToWireRaw(bits)))}
                         >
-                          {bits}-bit*
+                          <span className="choice-label">{bits}-bit*</span>
                         </button>
                       ))}
                     </div>
@@ -3294,11 +3294,11 @@ export default function App(): JSX.Element {
                           return (
                             <button
                               key={label}
-                              className={`btn sm${active ? ' primary' : ' ghost'}`}
+                              className={`choice-btn${active ? ' active' : ''}`}
                               title={opt.rate === null ? t('device.stock50') : opt.rate > 255 ? `Firmware byte caps at 255 — stores ${wire}` : `Stores ${wire}`}
                               onClick={() => edit(() => stick.setMouseDpi(pkt, wire))}
                             >
-                              {label}
+                              <span className="choice-label">{label}</span>
                             </button>
                           )
                         })}
@@ -3314,11 +3314,11 @@ export default function App(): JSX.Element {
                       </div>
                       <div className="row" style={{ gap: 8, marginTop: 8 }}>
                         <button
-                          className={`btn sm${outLock[which] ? ' primary' : ' ghost'}`}
+                          className={`choice-btn${outLock[which] ? ' active' : ''}`}
                           title={t('device.lockOutTitle')}
                           onClick={() => setOutLock((prev) => (which === 0 ? [!prev[0], prev[1]] : [prev[0], !prev[1]]))}
                         >
-                          {t('device.lockOut')}
+                          <span className="choice-label">{t('device.lockOut')}</span>
                         </button>
                       </div>
                       <Hint>{t('device.rateNote')}</Hint>
@@ -3462,7 +3462,7 @@ function ThemePanel(): JSX.Element {
         {THEMES.map((o) => (
           <button
             key={o.id}
-            className={`btn sm${theme === o.id ? ' primary' : ' ghost'}`}
+            className={`choice-btn${theme === o.id ? ' active' : ''}`}
             onClick={() => setTheme(o.id)}
           >
             <span className="row" style={{ gap: 6, alignItems: 'center' }}>
@@ -3490,7 +3490,7 @@ function LanguagePanel(): JSX.Element {
         {LANGS.map((o) => (
           <button
             key={o.id}
-            className={`btn sm${lang === o.id ? ' primary' : ' ghost'}`}
+            className={`choice-btn${lang === o.id ? ' active' : ''}`}
             onClick={() => setLang(o.id)}
           >
             {o.label}
