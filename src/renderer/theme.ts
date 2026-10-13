@@ -65,6 +65,18 @@ export const THEMES: ReadonlyArray<AppTheme> = [
       '--accent': '#5865F2', '--accent-2': '#8f9bf3', '--on-accent': '#ffffff',
       '--good': '#57F287', '--warn': '#FEE75C', '--bad': '#ED4245', '--violet': '#EB459E'
     }
+  },
+  {
+    id: 'spotify',
+    label: 'Spotify',
+    vars: {
+      '--bg': '#121212', '--bg-1': '#181818', '--bg-2': '#242424', '--bg-3': '#2e2e2e',
+      '--line': '#2b2b2b', '--line-2': '#3e3e3e',
+      '--text': '#ffffff', '--text-2': '#b3b3b3', '--text-3': '#6a6a6a',
+      '--accent': '#1DB954', '--accent-2': '#1ED760', '--on-accent': '#000000',
+      '--good': '#1ED760', '--warn': '#eab308', '--bad': '#E91429', '--violet': '#AFB1FF',
+      '--radius': '12px', '--radius-sm': '8px'
+    }
   }
 ]
 
