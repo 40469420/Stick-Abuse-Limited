@@ -87,7 +87,7 @@ const STR: Dict = {
   'device.bits': { en: 'Bit depth', zh: '位深', ja: 'ビット深度', ru: 'Разрядность' },
   'device.rate': { en: 'Controller Rate', zh: '控制器速率', ja: 'コントローラーレート', ru: 'Скорость контроллера' },
   'trig.title': { en: 'Trigger deadzones', zh: '扳机死区', ja: 'トリガーデッドゾーン', ru: 'Мёртвые зоны триггеров' },
-  'trig.hint': { en: 'LT/RT input window, same fields as sticks. Begin/end trim the pull; the switch gates the whole block (off = factory 5–100%). Still one-to-one: no macros, no turbo.', zh: 'LT/RT 输入窗口，与摇杆字段相同。起点/终点裁剪行程；开关控制整个模块（关闭=出厂 5–100%）。仍是一对一：无宏、无连发。', ja: 'LT/RT入力ウィンドウ、スティックと同じ項目。開始/終了で行程を調整。有効化で全体を適用（オフ=工場出荷5–100%）。1対1のまま：マクロ・連射なし。', ru: 'Окно ввода LT/RT, те же поля, что у стиков. Начало/конец подрезают ход; выключатель управляет всем блоком (выкл. = заводские 5–100%). Всё равно один к одному: без макросов и турбо.' },
+  'trig.hint': { en: 'LT/RT input window. Begin/end trim the pull; the switch gates the whole block (off = factory 5–100%). Still one-to-one: no macros, no turbo.', zh: 'LT/RT 输入窗口。起点/终点裁剪行程；开关控制整个模块（关闭=出厂 5–100%）。仍是一对一：无宏、无连发。', ja: 'LT/RT入力ウィンドウ。開始/終了で行程を調整。有効化で全体を適用（オフ=工場出荷5–100%）。1対1のまま：マクロ・連射なし。', ru: 'Окно ввода LT/RT. Начало/конец подрезают ход; выключатель управляет всем блоком (выкл. = заводские 5–100%). Всё равно один к одному: без макросов и турбо.' },
   'trig.enable': { en: 'Deadzone enabled', zh: '启用死区', ja: 'デッドゾーン有効', ru: 'Мёртвая зона вкл.' },
   'cal.bench': { en: 'Calibration bench', zh: '校准台', ja: 'キャリブレーションベンチ', ru: 'Стенд калибровки' },
   'cal.quick': { en: 'Quick calibrate', zh: '快速校准', ja: 'クイック調整', ru: 'Быстрая калибровка' },

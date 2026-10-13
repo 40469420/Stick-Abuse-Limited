@@ -2099,8 +2099,6 @@ function TriggerDeadzoneCard({ profile, edit }: {
             <div className="stack" style={{ gap: 12 }}>
               <Slider label={t('sticks.start')} value={tdz.begin} min={0} max={20} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
               <Slider label={t('sticks.end')} value={tdz.end} min={10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-              <Slider label={t('sticks.antiStart')} value={tdz.beginAnti} min={0} max={50} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), beginAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-              <Slider label={t('sticks.antiEnd')} value={tdz.endAnti} min={50} max={100} step={0.1} unit="%" onChange={(v) => edit(() => trigger.setDeadzone(tpkt, { ...trigger.deadzone(tpkt), endAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
             </div>
           </div>
         )
