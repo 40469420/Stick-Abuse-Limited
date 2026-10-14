@@ -1502,26 +1502,29 @@ function ApexCalibrate(): JSX.Element {
 function ApexButtons(): JSX.Element {
   const t = useT()
   const [m1, setM1] = useState<number | null>(null)
+  const [m2, setM2] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  async function loadM1(): Promise<void> {
+  async function loadBinds(): Promise<void> {
     if (!flyTransport.connected) return
     try {
       const store = await flyTransport.readStore()
       setM1(store.mapM1)
+      setM2(store.mapM2)
     } catch {
       setM1(null)
+      setM2(null)
     }
   }
 
   useEffect(() => {
-    if (flyTransport.connected) void loadM1()
+    if (flyTransport.connected) void loadBinds()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function writeM1(value: number): Promise<void> {
+  async function writeBind(source: 'M1' | 'M2', value: number): Promise<void> {
     setErr(null)
     setMsg(null)
     if (!flyTransport.connected) {
@@ -1529,21 +1532,46 @@ function ApexButtons(): JSX.Element {
       return
     }
     const label = FLY_MAP_TARGETS.find((o) => o.value === value)?.label ?? String(value)
-    if (!window.confirm(`Remap M1 to ${label}? 1:1 remap only — verified against store@82 after the write.`)) return
+    if (!window.confirm(`Remap ${source} to ${label}? 1:1 remap only — M1/M2 carry over, other custom binds reset to default. Verified against the pad readback.`)) return
     setBusy(true)
     try {
-      await flyTransport.writeMapM1(value)
-      setM1(value)
-      setMsg(`M1 remapped to ${label}, verified by pad readback. Test feel in game.`)
+      if (source === 'M1') await flyTransport.writeMapM1(value)
+      else await flyTransport.writeMapM2(value)
+      const store = await flyTransport.readStore()
+      setM1(store.mapM1)
+      setM2(store.mapM2)
+      setMsg(`${source} remapped to ${label}, verified by pad readback. Test feel in game.`)
     } catch (e) {
       setErr((e as Error).message)
-      await loadM1()
+      await loadBinds()
     } finally {
       setBusy(false)
     }
   }
 
   const m1Label = FLY_MAP_TARGETS.find((o) => o.value === m1)?.label
+  const m2Label = FLY_MAP_TARGETS.find((o) => o.value === m2)?.label
+  const bindRow = (source: 'M1' | 'M2', cur: number | null, curLabel: string | undefined): JSX.Element => (
+    <tr>
+      <td>{source}</td>
+      <td>
+        <div className="row wrap" style={{ gap: 6 }}>
+          {FLY_MAP_TARGETS.map((o) => (
+            <button
+              key={o.value}
+              className={`choice-btn${cur === o.value ? ' active' : ''}`}
+              disabled={busy}
+              title={`k5 id ${o.value}`}
+              onClick={() => void writeBind(source, o.value)}
+            >
+              <span className="choice-label">{o.label}</span>
+            </button>
+          ))}
+        </div>
+      </td>
+      <td>{cur === null ? '—' : (curLabel ?? `id ${cur}`)}</td>
+    </tr>
+  )
   return (
     <>
       <div className="card">
@@ -1558,29 +1586,12 @@ function ApexButtons(): JSX.Element {
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <h3>{t('buttons.title')}</h3>
-        <Hint>{t('buttons.hint')} M1 is proven live (select-ack + pack-ack + save + store readback). Other buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
+        <Hint>{t('buttons.hint')} M1/M2 are proven live (select-ack + pack-ack + save + store readback, managed values carry over). Other buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
           <tbody>
-            <tr>
-              <td>M1</td>
-              <td>
-                <div className="row wrap" style={{ gap: 6 }}>
-                  {FLY_MAP_TARGETS.map((o) => (
-                    <button
-                      key={o.value}
-                      className={`choice-btn${m1 === o.value ? ' active' : ''}`}
-                      disabled={busy}
-                      title={`k5 id ${o.value}`}
-                      onClick={() => void writeM1(o.value)}
-                    >
-                      <span className="choice-label">{o.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </td>
-              <td>{m1 === null ? '—' : (m1Label ?? `id ${m1}`)}</td>
-            </tr>
+            {bindRow('M1', m1, m1Label)}
+            {bindRow('M2', m2, m2Label)}
           </tbody>
         </table>
         {(msg || err) && <div style={{ marginTop: 8 }}>{msg && <div className="note">{msg}</div>}{err && <div className="note bad">{err}</div>}</div>}
@@ -1588,7 +1599,7 @@ function ApexButtons(): JSX.Element {
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
           <tbody>
-            {['M2', 'M3', 'M4', 'LT', 'RT'].map((n) => (
+            {['M3', 'M4', 'LT', 'RT'].map((n) => (
               <tr key={n}>
                 <td>{n}</td>
                 <td>—</td>

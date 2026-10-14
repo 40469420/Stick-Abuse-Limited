@@ -9,6 +9,8 @@
 import { api } from './api'
 import {
   FLY_MAP_LEN,
+  FLY_MAP_SLOT_M1,
+  FLY_MAP_SLOT_M2,
   FLY_MAP_TARGETS,
   FLY_PRECISION_BITS,
   FLY_SEC_LEFT,
@@ -20,6 +22,8 @@ import {
   FLY_SEC_RIGHT_LEN,
   FLY_STORE_CHUNKS,
   FLY_STORE_LEN,
+  FLY_STORE_MAP_M1,
+  FLY_STORE_MAP_M2,
   FlyCmd,
   FlyStore,
   flyAnnounce,
@@ -27,6 +31,7 @@ import {
   flyLedWindow,
   flyMapSelectAck,
   flyMapSelectArgs,
+  flyMapTable,
   flyMapWindow,
   flyNonce,
   flyPrecisionAck,
@@ -201,19 +206,31 @@ class FlyTransport {
   }
 
   /**
-   * Remap M1 to a k5 button ID — the one proven slot (B→X→B round trip,
-   * pad-confirmed both legs). Select-ack + pack-ack checked, save with
-   * stamp retry (mapping saves reboot the pad, so the first stamp read
-   * can race), then verified against store@82. Throws otherwise.
+   * Remap a managed bind slot to a k5 button ID (M1/M2 proven).
+   * Reads the live values of every managed slot first so nothing managed
+   * is reset; unmanaged custom binds (set in Space Station) DO reset to
+   * default — the UI confirm says so. Ack-checked, save with stamp retry,
+   * verified against the store offsets. Throws otherwise.
    */
-  async writeMapM1(value: number): Promise<{ value: number }> {
+  async writeMapButton(slot: number, storeOffset: number, value: number): Promise<{ value: number }> {
     const target = FLY_MAP_TARGETS.find((o) => o.value === (value & 0xff))
-    if (!target) throw new Error(`M1 target ${value} is not offered`)
+    if (!target) throw new Error(`bind target ${value} is not offered`)
+    const managed: ReadonlyArray<{ slot: number; storeOffset: number }> = [
+      { slot: FLY_MAP_SLOT_M1, storeOffset: FLY_STORE_MAP_M1 },
+      { slot: FLY_MAP_SLOT_M2, storeOffset: FLY_STORE_MAP_M2 }
+    ]
+    if (!managed.some((m) => m.slot === slot)) throw new Error(`bind slot ${slot} is not unlocked yet`)
+    const live = await this.readStore().catch(() => null)
+    if (!live) throw new Error('pad store would not re-read — connect it and close Space Station first')
+    const assign: Record<number, number> = {}
+    for (const m of managed) {
+      const cur = m.slot === slot ? target.value : (m.storeOffset === FLY_STORE_MAP_M1 ? live.mapM1 : live.mapM2)
+      if (cur < 0) throw new Error('live bind value unreadable — aborting, nothing sent')
+      assign[m.slot] = cur
+    }
     const sel = await this.send(FlyCmd.MapSelect, flyMapSelectArgs())
     if (!flyMapSelectAck(sel)) throw new Error('pad refused the mapping select')
-    await this.writePack(FLY_SEC_MAP, FLY_MAP_LEN, flyMapWindow(target.value))
-    // Mapping saves reboot the pad — the stamp read can race the reboot,
-    // so retry it (reopening if the handle dropped) before giving up.
+    await this.writePack(FLY_SEC_MAP, FLY_MAP_LEN, flyMapTable(assign))
     let saved = false
     let lastErr: unknown = null
     for (let attempt = 0; attempt < 3 && !saved; attempt++) {
@@ -233,10 +250,21 @@ class FlyTransport {
     if (!saved) throw new Error(`bind saved but unconfirmed (${lastErr instanceof Error ? lastErr.message : 'stamp race'}) — verify feel in game`)
     const back = await this.readStore().catch(() => null)
     if (!back) throw new Error('saved but the store would not re-read — verify feel in game')
-    if (back.mapM1 !== target.value) {
-      throw new Error(`bind did not stick (wanted ${target.value}, pad reports ${back.mapM1}) — restore in Space Station`)
+    const got = storeOffset === FLY_STORE_MAP_M1 ? back.mapM1 : back.mapM2
+    if (got !== target.value) {
+      throw new Error(`bind did not stick (wanted ${target.value}, pad reports ${got}) — restore in Space Station`)
     }
     return { value: target.value }
+  }
+
+  /** Remap M1 (proven slot 2, verified at store@82). */
+  async writeMapM1(value: number): Promise<{ value: number }> {
+    return this.writeMapButton(FLY_MAP_SLOT_M1, FLY_STORE_MAP_M1, value)
+  }
+
+  /** Remap M2 (proven slot 3, verified at store@85). */
+  async writeMapM2(value: number): Promise<{ value: number }> {
+    return this.writeMapButton(FLY_MAP_SLOT_M2, FLY_STORE_MAP_M2, value)
   }
 }
 

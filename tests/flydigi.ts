@@ -22,6 +22,7 @@ import {
   flyMapChecksum,
   flyMapSelectAck,
   flyMapSelectArgs,
+  flyMapTable,
   flyMapWindow,
   flyPrecisionAck,
   flyPrecisionArgs,
@@ -254,6 +255,13 @@ check(
 )
 check('map checksum X', flyMapChecksum(flyMapWindow(7).slice(0, 23)) === 0xbd)
 check('map checksum B', flyMapChecksum(flyMapWindow(5).slice(0, 23)) === 0xbb)
+check(
+  'map table M1=A M2=B byte-exact (captured y-pcap)',
+  JSON.stringify(flyMapTable({ 2: 4, 3: 5 })) === JSON.stringify([0, 0xff, 0, 0, 0xff, 0, 0, 4, 0, 0, 5, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0xc0, 0, 0, 0])
+)
+check('map table checksum C0', flyMapChecksum(flyMapTable({ 2: 4, 3: 5 }).slice(0, 23)) === 0xc0)
+check('map table rejects bad slot', (() => { try { flyMapTable({ 7: 4 }); return false } catch { return true } })())
+check('map table rejects bad value', (() => { try { flyMapTable({ 2: 300 }); return false } catch { return true } })())
 check('map targets exclude turbo', !FLY_MAP_TARGETS.some((o) => o.value === 25))
 check('map targets carry A/B/X', JSON.stringify(FLY_MAP_TARGETS.filter((o) => ['A', 'B', 'X'].includes(o.label)).map((o) => o.value)) === JSON.stringify([4, 5, 7]))
 

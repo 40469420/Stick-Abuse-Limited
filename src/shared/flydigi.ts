@@ -190,6 +190,8 @@ export interface FlyStore {
   rightPoints: number[]
   /** M1 bind target (k5 button ID) at store offset 82. */
   mapM1: number
+  /** M2 bind target (k5 button ID) at store offset 85. */
+  mapM2: number
 }
 
 /**
@@ -211,6 +213,7 @@ export function parseFlyStore(store: Uint8Array): FlyStore | null {
     rightType: store[FLY_STORE_RIGHT_TYPE] ?? 0,
     rightPoints,
     mapM1: store[FLY_STORE_MAP_M1] ?? -1,
+    mapM2: store[FLY_STORE_MAP_M2] ?? -1,
   }
 }
 
@@ -314,9 +317,11 @@ export function flyPrecisionValue(reply: Uint8Array): number {
  * sections 07–0B (M1 at 229/203/179/157/151) and store@82 — every write
  * is verified against store@82, never trusted blindly.
  *
- * Window layout: seven (00, value, 00) triplets, M1 in slot 2; other
- * slots read FF (default) on this pad. Other buttons' slots are NOT
- * mapped yet — one flip per button through the same diff pipeline.
+ * Window layout: seven assignable (00, value, 00) triplets, M1 in
+ * slot 2, M2 in slot 3; an eighth constant-headed (00, FF) triplet
+ * carries the checksum in its value seat, then three zeros.
+ * Other buttons' slots are NOT mapped yet — one flip per button
+ * through the same diff pipeline.
  * Values are k5 button IDs (A=4, B=5, X=7 …).
  * Checksum: (0xBD + Σwindow[0:23]) & 0xFF (additive vendor idiom;
  * X→BD captured, B→BB predicted and pad-accepted).
@@ -336,8 +341,9 @@ export function flyMapSelectAck(reply: Uint8Array): boolean {
   return reply.length >= 8 && reply[4] === 0x01 && reply[5] === 0x00 && reply[6] === 0x01 && reply[7] === 0x00
 }
 
-/** Triplet slot of M1 inside the 27 B mapping window. */
-export const FLY_MAP_M1_SLOT = 2
+/** Triplet slots inside the 27 B mapping window (record 00). */
+export const FLY_MAP_SLOT_M1 = 2
+export const FLY_MAP_SLOT_M2 = 3
 /** Checksum constant folding the window's covered bytes. */
 export const FLY_MAP_CK = 0xbd
 
@@ -348,17 +354,36 @@ export function flyMapChecksum(data23: ArrayLike<number>): number {
   return sum
 }
 
-/** Build the 27 B mapping window for an M1 target value (k5 button ID). */
-export function flyMapWindow(value: number): number[] {
-  const v = value & 0xff
-  const w = [0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, v,
-    0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00,
-    0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff]
+/** Build the 27 B mapping window: value into a triplet slot, rest default. */
+export function flyMapWindow(value: number, slot: number = FLY_MAP_SLOT_M1): number[] {
+  return flyMapTable({ [slot]: value & 0xff })
+}
+
+/**
+ * Build the 27 B mapping window from explicit slot assignments
+ * (slot → k5 button ID); every other triplet stays FF (default).
+ * Multi-button writes must carry the live values of all managed slots —
+ * anything omitted resets to default, so callers read them first.
+ */
+export function flyMapTable(assign: Readonly<Record<number, number>>): number[] {
+  const w: number[] = []
+  for (let i = 0; i < 7; i++) {
+    const v = assign[i]
+    if (v !== undefined && (v < 0 || v > 255)) throw new Error(`map value ${v} out of range`)
+    w.push(0x00, v === undefined ? 0xff : v & 0xff, 0x00)
+  }
+  // Eighth triplet is constant-headed (00, FF) with the checksum in its
+  // value seat (captured X/B/M1+M2 windows agree).
+  w.push(0x00, 0xff)
+  const slots = Object.keys(assign).map(Number)
+  if (slots.some((s) => !Number.isInteger(s) || s < 0 || s > 6)) throw new Error('map slot out of range')
   return [...w, flyMapChecksum(w), 0x00, 0x00, 0x00]
 }
 
 /** Store offset tracking the M1 bind (proven live: ?→A silent, A→B→X→B tracked). */
 export const FLY_STORE_MAP_M1 = 82
+/** Store offset tracking the M2 bind (proven live: FF→Y→B tracked). */
+export const FLY_STORE_MAP_M2 = 85
 
 /** k5 button IDs for 1:1 remap targets (device_config_k5; Turbo excluded — never). */
 export const FLY_MAP_TARGETS: ReadonlyArray<{ label: string; value: number }> = [

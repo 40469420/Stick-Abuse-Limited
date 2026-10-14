@@ -117,5 +117,11 @@ Until then this file is the complete, honest state of knowledge.
   stamp read can race, so the app retries it; ack + store@82
   readback verify every write.
 - Store `@280-281` follows every save (save-stamp words, benign).
+- M2 proven the same way (FF→Y→B tracked at mirrors + store@85;
+  Y→B pcap showed M1+M2 sharing record 00, triplet slots 2+3, cksum
+  C0 — the additive rule re-confirmed on a two-ID sample).
+- Multi-button writes carry the live values of all managed slots
+  (M1/M2); anything unmanaged resets to default, and the UI confirm
+  says so. Turbo is excluded from targets by policy — never.
 - Open: other buttons' triplet slots (one flip each through the same
-  diff pipeline — M2→Y decodes the next), sensitivity/trigger bytes.
+  diff pipeline — M3→? decodes the next), sensitivity/trigger bytes.
