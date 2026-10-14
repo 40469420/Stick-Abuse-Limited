@@ -26,7 +26,7 @@ import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import type { DeepPollResult } from '@shared/deeppoll'
 import { mariusDisplayName } from '@shared/marius'
 import { flyTransport, type FlyIdentity } from './flydigiUsb'
-import { flyTypeName } from '@shared/flydigi'
+import { flyTypeName, FLY_PRECISION_BITS } from '@shared/flydigi'
 import { axisToByte, useFlyLive } from './flydigiLive'
 
 
@@ -1483,6 +1483,45 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [precBits, setPrecBits] = useState<number | null>(null)
+  const [precBusy, setPrecBusy] = useState(false)
+
+  async function loadPrecision(): Promise<void> {
+    if (!flyTransport.connected) return
+    try {
+      const v = await flyTransport.readPrecision()
+      const hit = FLY_PRECISION_BITS.find((o) => o.value === v)
+      setPrecBits(hit ? hit.bits : null)
+    } catch {
+      setPrecBits(null)
+    }
+  }
+
+  useEffect(() => {
+    if (flyTransport.connected) void loadPrecision()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function writePrecision(bits: number): Promise<void> {
+    setErr(null)
+    setMsg(null)
+    if (!flyTransport.connected) {
+      setErr('Apex 5 not connected — connect it from the sidebar first, and close Space Station.')
+      return
+    }
+    if (!window.confirm(`Set stick precision to ${bits}-bit? Verified against the pad's own state read.`)) return
+    setPrecBusy(true)
+    try {
+      await flyTransport.writePrecision(bits)
+      setPrecBits(bits)
+      setMsg(`Precision ${bits}-bit written and verified by pad readback. Test feel in game.`)
+    } catch (e) {
+      setErr((e as Error).message)
+      await loadPrecision()
+    } finally {
+      setPrecBusy(false)
+    }
+  }
 
   async function write(): Promise<void> {
     setErr(null)
@@ -1507,7 +1546,7 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
     <div className="stack" style={{ gap: 16 }}>
       <div className="card">
         <h3>{t('nav.device')} — Apex 5</h3>
-        <Hint>1000 Hz max on this pad — nothing faster is offered. Polling-rate switching, bit depth (precision) and shapes are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</Hint>
+        <Hint>1000 Hz max on this pad — nothing faster is offered. Polling-rate switching and shapes are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</Hint>
         {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
       </div>
       <div className="card">
@@ -1528,19 +1567,21 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
       </div>
       <div className="card">
         <h3>{t('device.bits')} - 8-12</h3>
-        <Hint>Precision switching is unmapped on this pad — the sensor runs its stock resolution.</Hint>
-        <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
-          {STICK_RESOLUTION_OPTIONS.map((o) => (
+        <Hint>Stick precision, decoded from live USB captures: write is ack-checked and verified against the pad's own state read. Same 12/11/10/9/8 options Space Station offers.</Hint>
+        <div className="choice" style={{ margin: '10px 0' }}>
+          {FLY_PRECISION_BITS.map((o) => (
             <button
               key={o.bits}
-              className="btn sm ghost"
-              disabled
-              title="Precision switching is unmapped on this pad"
+              className={`choice-btn${precBits === o.bits ? ' active' : ''}`}
+              disabled={precBusy}
+              title={`firmware value ${o.value}`}
+              onClick={() => void writePrecision(o.bits)}
             >
-              {o.bits}-bit
+              <span className="choice-label">{o.bits}-bit</span>
             </button>
           ))}
         </div>
+        {precBits === null && <div className="label">Pad precision unread — connect, then reload.</div>}
       </div>
       <div className="card">
         <h3>{t('device.rate')}</h3>

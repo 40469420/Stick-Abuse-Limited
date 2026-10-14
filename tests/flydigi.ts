@@ -5,6 +5,7 @@
  */
 import {
   FLY_CURVE_POINTS,
+  FLY_PRECISION_BITS,
   FLY_REPORT_LEN,
   FLY_SEC_LEFT,
   FLY_SEC_LEFT_LEN,
@@ -17,6 +18,9 @@ import {
   flyFrame,
   flyLedChecksum,
   flyLedWindow,
+  flyPrecisionAck,
+  flyPrecisionArgs,
+  flyPrecisionValue,
   flyRightChecksum,
   flyRightWindow,
   parseFlyStore,
@@ -184,6 +188,44 @@ check(
   JSON.stringify(ledBuilt) ===
     JSON.stringify([0, 3, 0, 0, 9, 4, 40, 0x0c, 0x07, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02, 0, 0, 0, 0, 0])
 )
+
+// --- precision write path (live USB captures 2026-10-14) ----------------------
+// 12->11->12 flip: [03,05,1d]/ack 05, [03,03,1b]/ack 03; 10-bit: [03,02,1a]/ack 02.
+// 0x03 HwFunction replies carried the enum at index 12 (03 at 12-bit, 02 at 10-bit).
+check(
+  'precision domain is the Space Station picker',
+  JSON.stringify(FLY_PRECISION_BITS) === JSON.stringify([
+    { bits: 12, value: 3 },
+    { bits: 11, value: 5 },
+    { bits: 10, value: 2 },
+    { bits: 9, value: 4 },
+    { bits: 8, value: 1 }
+  ])
+)
+check('precision args 12-bit', JSON.stringify(flyPrecisionArgs(3)) === JSON.stringify([3, 3, 0x1b]))
+check('precision args 11-bit', JSON.stringify(flyPrecisionArgs(5)) === JSON.stringify([3, 5, 0x1d]))
+check('precision args 10-bit', JSON.stringify(flyPrecisionArgs(2)) === JSON.stringify([3, 2, 0x1a]))
+check(
+  'precision ack accepts value echo',
+  flyPrecisionAck(hex('04-5a-a5-15-01-00-02-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00'), 2)
+)
+check(
+  'precision ack rejects wrong value',
+  !flyPrecisionAck(hex('04-5a-a5-15-01-00-02-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00'), 3)
+)
+check(
+  'precision ack rejects short',
+  !flyPrecisionAck(hex('04-5a-a5-15-01-00'), 2)
+)
+check(
+  'precision read 12-bit',
+  flyPrecisionValue(hex('04-5a-a5-03-01-00-fb-72-01-01-0f-00-03-11-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00')) === 3
+)
+check(
+  'precision read 10-bit',
+  flyPrecisionValue(hex('04-5a-a5-03-01-00-fb-72-01-01-0f-00-02-11-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00')) === 2
+)
+check('precision read rejects short', flyPrecisionValue(new Uint8Array(8)) === -1)
 
 if (failures > 0) {
   console.error(`${failures} FAILURES`)

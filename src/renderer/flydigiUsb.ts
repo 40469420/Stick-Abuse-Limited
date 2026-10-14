@@ -8,6 +8,7 @@
  */
 import { api } from './api'
 import {
+  FLY_PRECISION_BITS,
   FLY_SEC_LEFT,
   FLY_SEC_LEFT_LEN,
   FLY_SEC_RGB,
@@ -22,6 +23,9 @@ import {
   flyCurveWindow,
   flyLedWindow,
   flyNonce,
+  flyPrecisionAck,
+  flyPrecisionArgs,
+  flyPrecisionValue,
   flyReplyOk,
   flyRightWindow,
   flySaveArgs,
@@ -163,6 +167,31 @@ class FlyTransport {
   async writeLed(brightness: number): Promise<{ stamp: string }> {
     await this.writePack(FLY_SEC_RGB, FLY_SEC_RGB_LEN, flyLedWindow(brightness))
     return this.saveCommit()
+  }
+
+  /** Current precision enum via the 0x03 hardware-function query. */
+  async readPrecision(): Promise<number> {
+    const r = await this.send(FlyCmd.HwFunction, [0x02, 0x05])
+    const v = flyPrecisionValue(r)
+    if (v < 0) throw new Error('precision unreadable — unexpected HwFunction reply')
+    return v
+  }
+
+  /**
+   * Set stick precision by bit depth (Space Station picker domain).
+   * Ack-checked, then verified against the pad's own 0x03 state read.
+   * Throws otherwise — never silently assume.
+   */
+  async writePrecision(bits: number): Promise<{ value: number }> {
+    const entry = FLY_PRECISION_BITS.find((o) => o.bits === bits)
+    if (!entry) throw new Error(`precision ${bits}-bit is not offered`)
+    const a15 = await this.send(FlyCmd.PrecisionWrite, flyPrecisionArgs(entry.value))
+    if (!flyPrecisionAck(a15, entry.value)) throw new Error('pad refused the precision write')
+    const back = await this.readPrecision()
+    if (back !== entry.value) {
+      throw new Error(`precision did not stick (wanted ${entry.value}, pad reports ${back}) — restore in Space Station`)
+    }
+    return { value: entry.value }
   }
 }
 

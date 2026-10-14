@@ -85,3 +85,18 @@ direction changes.
 Apex 5 hardware on the desk: set polling/precision in Space Station
 while capturing USB (or drive our A-channel writes and read back).
 Until then this file is the complete, honest state of knowledge.
+
+## PROVEN 2026-10-14 (precision write path, live hardware)
+
+- Write: command `0x15`, args `[0x03, value, (value + 0x18) & 0xFF]`
+  (12→`[03,03,1B]`, 11→`[03,05,1D]`, 10→`[03,02,1A]` — all three
+  captured from Space Station flips).
+- Ack: reply `[0x01, 0x00, value]`.
+- Read: command `0x03` args `[0x02, 0x05]`; precision enum at reply
+  index 12 (3 = 12-bit, 2 = 10-bit, live-verified).
+- Our byte sequence proven on hardware: wrote 12-bit, ack matched,
+  0x03 readback confirmed enum 3. UI picker unlocked on this proof.
+- Behaviorally confirmed separately: 11-bit output sits on a mod-32
+  grid (2048 levels), 12-bit on mod-16 (4096) — XInput sweep analysis.
+- Still open: report-rate USB bytes (polling fixed at 1000 Hz on k5,
+  nothing to write), sensitivity preset bytes, trigger bytes.

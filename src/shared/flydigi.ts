@@ -42,6 +42,7 @@ export enum FlyCmd {
   RgbRead = 0xa7,
   RgbStart = 0xa8,
   RgbPack = 0xa9,
+  PrecisionWrite = 0x15,
 }
 
 /** Mapping sections (A4 announce [06][00][section][01][14][len]). */
@@ -254,4 +255,47 @@ export function flyPackPadOk(window: Uint8Array): boolean {
 /** UID reply body (after [04, 5A, A5, 04, ...]): [01, 00, ...13 uid bytes]. */
 export function flyUidHex(body: Uint8Array): string {
   return Array.from(body.subarray(2, 15), (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * Precision (bit depth) write path — decoded from live USB captures
+ * (2026-10-14): Space Station 12→11→12 and 10-bit flips, byte-exact.
+ *
+ * Write: command 0x15, args [0x03, value, (value + 0x18) & 0xFF].
+ * The third byte fits value+0x18 on all three captures (05→1d, 03→1b,
+ * 02→1a); the 9/8-bit third bytes are extrapolated by the same rule and
+ * verified at write time by ack + readback, never trusted blindly.
+ * Reply ack: [0x01, 0x00, value].
+ *
+ * Read: command 0x03 args [0x02, 0x05]; precision enum at reply index 12
+ * (0x03 at 12-bit, 0x02 at 10-bit, live-verified).
+ */
+
+/** Precision subcommand byte. */
+export const FLY_PRECISION_SUB = 0x03
+
+/** Space Station picker domain: bits → firmware enum value. */
+export const FLY_PRECISION_BITS: ReadonlyArray<{ bits: number; value: number }> = [
+  { bits: 12, value: 3 },
+  { bits: 11, value: 5 },
+  { bits: 10, value: 2 },
+  { bits: 9, value: 4 },
+  { bits: 8, value: 1 }
+]
+
+/** Precision write args for a firmware enum value. */
+export function flyPrecisionArgs(value: number): number[] {
+  const v = value & 0xff
+  return [FLY_PRECISION_SUB, v, (v + 0x18) & 0xff]
+}
+
+/** True when the 0x15 reply acks the value: [0x01, 0x00, value]. */
+export function flyPrecisionAck(reply: Uint8Array, value: number): boolean {
+  return reply.length >= 7 && reply[4] === 0x01 && reply[5] === 0x00 && reply[6] === (value & 0xff)
+}
+
+/** Precision enum from a 0x03 HwFunction reply (index 12); -1 when unreadable. */
+export function flyPrecisionValue(reply: Uint8Array): number {
+  if (reply.length < 13) return -1
+  return reply[12] ?? -1
 }
