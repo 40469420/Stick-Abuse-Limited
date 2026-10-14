@@ -676,10 +676,13 @@ export const stick = {
    * `dead_en` stays on with `begin = 0`, so the input window becomes
    * `[0,100] → [0,100]`: nothing is clipped at the bottom and full output still
    * arrives only at full deflection. The output window is left neutral and
-   * `axis_ratio` neutral, so the composed transform is the identity end to end.
-   * The curve transform bytes are reset to identity too (type 0 / rate 100) —
-   * without that, a stale curvature from a previous preset keeps bending the
-   * linear points and the stick does not feel raw.
+   * `axis_ratio` neutral, and the curve transform bytes reset to identity
+   * (type 0 / rate 100) — without that, a stale curvature from a previous
+   * preset keeps bending the linear points and the stick does not feel raw.
+   *
+   * Deliberately preserves the orthogonal axes: shape gate, flips, output
+   * mapping and mouse rate are left alone, so this preset linearises
+   * response without disturbing gate or output choices.
    *
    * These are EEPROM bytes in the stick packet, not an app-side transform —
    * PROTOCOL §4.5 and §12.5. Lives here rather than in the page so the exact

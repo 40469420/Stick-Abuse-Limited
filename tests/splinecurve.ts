@@ -84,4 +84,16 @@ if (failed > 0) {
   console.log(`${failed} FAILURES`)
   process.exit(1)
 }
+
+// addDesignPoint never aliases its input (React state safety)
+{
+  const { addDesignPoint, DESIGN_MAX_POINTS } = await import('../src/shared/sticklab')
+  const full = HW_CURVE_XS.concat([10, 20, 30, 40, 50].map((x) => ({ x, y: x }))).slice(0, DESIGN_MAX_POINTS)
+  check('full design returns a copy, not the input ref', addDesignPoint(full) !== full)
+  check('full design keeps its points', JSON.stringify(addDesignPoint(full)) === JSON.stringify(full))
+  const two = [{ x: 0, y: 0 }, { x: 255, y: 255 }]
+  const three = addDesignPoint(two)
+  check('midpoint inserted', three.length === 3 && three[1].x === 128 && three[1].y === 128)
+  check('original untouched', two.length === 2)
+}
 console.log('ALL SPLINE TESTS PASSED')

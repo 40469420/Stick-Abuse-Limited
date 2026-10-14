@@ -264,8 +264,9 @@ export function traceSpline(
   return out
 }
 
-/** Insert a point at the middle of the longest segment (up to MAX). */
-export function addDesignPoint(design: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {  if (design.length >= DESIGN_MAX_POINTS) return design
+/** Insert a point at the middle of the longest segment (up to MAX). Always returns a new array — never the input reference. */
+export function addDesignPoint(design: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (design.length >= DESIGN_MAX_POINTS) return [...design]
   const pts = [...design].sort((a, b) => a.x - b.x)
   let best = 0
   let bestGap = -1
