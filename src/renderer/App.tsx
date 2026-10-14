@@ -24,6 +24,7 @@ import { createPortal } from 'react-dom'
 import { LANGS, LangContext, tr, useLangState, useT } from './i18n'
 import { THEMES, ThemeContext, useThemeState } from './theme'
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
+import type { DeepPollResult } from '@shared/deeppoll'
 import { mariusDisplayName } from '@shared/marius'
 import { flyTransport, type FlyIdentity } from './flydigiUsb'
 import { flyTypeName } from '@shared/flydigi'
@@ -660,6 +661,90 @@ function LinearityBench({ live, connected }: { live: LiveSample | null; connecte
           {phase === 'done' && (
             <div className="mono" style={{ fontSize: 12, color: 'var(--accent-2)' }}>
               {t('lab.linAvg')} · {t('lab.linTremor')} {avg(scored.map((m) => m.tremor)).toFixed(1)}% · {t('lab.linLinearity')} {avg(scored.map((m) => m.linearity)).toFixed(1)}% · {t('lab.linRes')} {Math.round(avg(scored.map((m) => m.res)))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DeepPollCard({ vid, pid, setHz, connected }: { vid: number; pid: number | null; setHz: number; connected: boolean }): JSX.Element {
+  const t = useT()
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<DeepPollResult | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const run = (): void => {
+    if (pid === null || running) return
+    setRunning(true)
+    setResult(null)
+    setFailed(null)
+    void api().deeppoll(vid, pid, 8).then(
+      (r) => {
+        setResult(r)
+        setRunning(false)
+      },
+      (e) => {
+        setFailed((e as Error).message)
+        setRunning(false)
+      }
+    )
+  }
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h3>{t('lab.dpTitle')}</h3>
+      <Hint>{t('lab.dpHint')}</Hint>
+      <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
+        <button className="btn sm primary" disabled={!connected || pid === null || running} onClick={run}>
+          {running ? t('lab.dpRunning') : t('lab.dpRun')}
+        </button>
+        <span className="label">{t('lab.dpAdmin')}</span>
+      </div>
+      {failed && (
+        <div className="note bad" style={{ marginTop: 8 }}>
+          {t('lab.dpFailed')} <span className="mono">{failed}</span>
+        </div>
+      )}
+      {result && !result.ok && (
+        <div className="note warn" style={{ marginTop: 8 }}>
+          {/declined|admin/i.test(result.error ?? '') ? t('lab.dpDenied') : t('lab.dpFailed')}{' '}
+          {result.error && <span className="mono">{result.error}</span>}
+        </div>
+      )}
+      {result && result.ok && (
+        <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+          <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
+            <span className="pill accent">{Math.round(result.rateHz).toLocaleString()} Hz</span>
+            <span className="pill">{result.samples.toLocaleString()} {t('lab.dpSamples')}</span>
+            {result.vidPid && <span className="mono">{result.vidPid}</span>}
+            {result.stalls > 0 && (
+              <span className="pill warn">{t('lab.dpStalls').replace('{n}', String(result.stalls))} · {result.stallMs.toFixed(0)} ms</span>
+            )}
+          </div>
+          {setHz > 0 && (
+            <div className="label">
+              {t('lab.dpGear').replace('{hz}', setHz.toLocaleString())} → {t('lab.dpTitle')}: {Math.round(result.rateHz).toLocaleString()} Hz
+            </div>
+          )}
+          <div className="stack" style={{ gap: 4 }}>
+            {result.bins.map((b) => (
+              <div key={b.label} className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <span className="mono" style={{ width: 110, fontSize: 11.5 }}>{b.label}</span>
+                <div style={{ flex: 1, height: 8, background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ width: `${Math.max(0, Math.min(100, b.pct))}%`, height: '100%', background: 'var(--accent)', borderRadius: 'var(--radius-sm)' }} />
+                </div>
+                <span className="mono" style={{ width: 52, textAlign: 'right', fontSize: 11.5 }}>{b.pct.toFixed(1)}%</span>
+              </div>
+            ))}
+          </div>
+          {result.devices.length > 1 && (
+            <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+              <div className="label">{t('lab.dpOthers')}</div>
+              {result.devices.filter((d) => d.vidPid !== result.vidPid).slice(0, 6).map((d) => (
+                <div key={d.vidPid} className="mono" style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+                  {d.vidPid} · {Math.round(d.rateHz).toLocaleString()} Hz · {d.samples.toLocaleString()} {t('lab.dpSamples')}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -3654,6 +3739,7 @@ export default function App(): JSX.Element {
             gear={profile && fd ? gear : 0}
           />
           <LinearityBench live={live} connected={connected} />
+          <DeepPollCard vid={model?.vendorId ?? 0x3537} pid={pid} setHz={profile && fd ? gearHz : 0} connected={connected} />
           <ResetEverythingCard profile={profile} fd={fd} edit={edit} onReload={reloadDesignFromPad} notify={setMsg} />
           </>
           )}

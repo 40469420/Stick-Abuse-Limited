@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { MariusConfig, MariusIdentity } from '../shared/marius'
+import type { DeepPollResult } from '../shared/deeppoll'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   const result = (await ipcRenderer.invoke(channel, ...args)) as {
@@ -35,6 +36,8 @@ const api = {
     call<{ games: Array<{ appId: number; name: string }>; result: { games: Array<{ appId: number; name: string; ok: boolean; detail: string }> } }>('steam:exportAll', left, right, mouseRate, curveExp),
   ping: (count: number) =>
     call<{ count: number; samples: number[]; min: number; max: number; median: number; mean: number }>('diag:ping', count),
+  deeppoll: (vid: number, pid: number, seconds?: number) =>
+    call<DeepPollResult>('diag:deeppoll', vid, pid, seconds),
   mariusDiscover: () =>
     call<Array<{ path: string; productId: number; product: string | undefined; manufacturer: string | undefined }>>('marius:discover'),
   mariusConnect: (path: string) =>

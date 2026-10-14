@@ -8,6 +8,7 @@ export interface Candidate {
 }
 // Marius types live in the shared protocol module (type-only — no runtime pull).
 import type { MariusConfig, MariusIdentity } from '@shared/marius'
+import type { DeepPollResult } from '@shared/deeppoll'
 export interface DeviceInfo {
   firmware: string
   dongle: string
@@ -79,6 +80,8 @@ interface LabApi {
   flySend(cmd: number, args: number[]): Promise<number[]>
   flyCollect(cmd: number, args: number[], count: number): Promise<number[][]>
   flyClose(): Promise<boolean>
+  /** Kernel USB poll check (elevated ETW trace, UAC prompts once per run). */
+  deeppoll(vid: number, pid: number, seconds?: number): Promise<DeepPollResult>
   on(channel: string, fn: (payload: never) => void): () => void
 }
 

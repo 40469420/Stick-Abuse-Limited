@@ -11,6 +11,7 @@ import { PROFILE_LENGTH } from '../shared/protocol'
 import { MariusReader, discoverMarius } from './marius'
 import { flyBridge } from './flybridge'
 import { flyFrame } from '../shared/flydigi'
+import { runDeepPoll } from './deeppoll'
 
 const controller = new Controller()
 /** MARIUS preview reader — read-only driver, no write path exists. */
@@ -221,6 +222,10 @@ handle('diag:ping', async (count: number) => {
     median: sorted[Math.floor(sorted.length / 2)],
     mean: samples.reduce((a, b) => a + b, 0) / samples.length
   }
+})
+handle('diag:deeppoll', async (vid: number, pid: number, seconds?: number) => {
+  if (!Number.isInteger(vid) || !Number.isInteger(pid)) throw new Error('refusing deep poll without VID:PID')
+  return runDeepPoll({ vid, pid, seconds })
 })
 
 function createWindow(): void {
