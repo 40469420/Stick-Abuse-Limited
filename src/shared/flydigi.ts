@@ -31,7 +31,7 @@ export enum FlyCmd {
   HwFunction = 0x03,
   Uid = 0x04,
   RawStatus = 0x10,
-  Unknown11 = 0x11,
+  MapSelect = 0x11,
   Unknown51 = 0x51,
   Version = 0xa1,
   ApplyByCfgId = 0xa2,
@@ -188,6 +188,8 @@ export interface FlyStore {
   leftPoints: number[]
   rightType: number
   rightPoints: number[]
+  /** M1 bind target (k5 button ID) at store offset 82. */
+  mapM1: number
 }
 
 /**
@@ -208,6 +210,7 @@ export function parseFlyStore(store: Uint8Array): FlyStore | null {
     leftPoints,
     rightType: store[FLY_STORE_RIGHT_TYPE] ?? 0,
     rightPoints,
+    mapM1: store[FLY_STORE_MAP_M1] ?? -1,
   }
 }
 
@@ -299,3 +302,78 @@ export function flyPrecisionValue(reply: Uint8Array): number {
   if (reply.length < 13) return -1
   return reply[12] ?? -1
 }
+
+/**
+ * M1 remap write path — decoded from a live USB capture (2026-10-14,
+ * Space Station B→X save, byte-exact) and proven with our own bytes on
+ * hardware: B→X→B round trip, pad-confirmed both legs, curves intact.
+ *
+ * Save chain: 0x11 select [07 FF 00 FF FF FF 14] (ack [01,00,01,00]),
+ * A4 announce section 0x03 len 0xC2, one A5 patch (27 B window below),
+ * A6 save with fresh nonce. The pad fans the patch out to the mirror
+ * sections 07–0B (M1 at 229/203/179/157/151) and store@82 — every write
+ * is verified against store@82, never trusted blindly.
+ *
+ * Window layout: seven (00, value, 00) triplets, M1 in slot 2; other
+ * slots read FF (default) on this pad. Other buttons' slots are NOT
+ * mapped yet — one flip per button through the same diff pipeline.
+ * Values are k5 button IDs (A=4, B=5, X=7 …).
+ * Checksum: (0xBD + Σwindow[0:23]) & 0xFF (additive vendor idiom;
+ * X→BD captured, B→BB predicted and pad-accepted).
+ */
+
+/** Mapping master section + write length from the captured A4. */
+export const FLY_SEC_MAP = 0x03
+export const FLY_MAP_LEN = 0xc2
+
+/** 0x11 mapping-select args for record 00 (captured). */
+export function flyMapSelectArgs(): number[] {
+  return [0x07, 0xff, 0x00, 0xff, 0xff, 0xff, 0x14]
+}
+
+/** True when the 0x11 reply selects the record: [01,00,01,00]. */
+export function flyMapSelectAck(reply: Uint8Array): boolean {
+  return reply.length >= 8 && reply[4] === 0x01 && reply[5] === 0x00 && reply[6] === 0x01 && reply[7] === 0x00
+}
+
+/** Triplet slot of M1 inside the 27 B mapping window. */
+export const FLY_MAP_M1_SLOT = 2
+/** Checksum constant folding the window's covered bytes. */
+export const FLY_MAP_CK = 0xbd
+
+/** Mapping checksum over the 23 data bytes before it. */
+export function flyMapChecksum(data23: ArrayLike<number>): number {
+  let sum = FLY_MAP_CK
+  for (let i = 0; i < 23; i++) sum = (sum + (data23[i] & 0xff)) & 0xff
+  return sum
+}
+
+/** Build the 27 B mapping window for an M1 target value (k5 button ID). */
+export function flyMapWindow(value: number): number[] {
+  const v = value & 0xff
+  const w = [0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, v,
+    0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00,
+    0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff]
+  return [...w, flyMapChecksum(w), 0x00, 0x00, 0x00]
+}
+
+/** Store offset tracking the M1 bind (proven live: ?→A silent, A→B→X→B tracked). */
+export const FLY_STORE_MAP_M1 = 82
+
+/** k5 button IDs for 1:1 remap targets (device_config_k5; Turbo excluded — never). */
+export const FLY_MAP_TARGETS: ReadonlyArray<{ label: string; value: number }> = [
+  { label: 'A', value: 4 },
+  { label: 'B', value: 5 },
+  { label: 'X', value: 7 },
+  { label: 'Y', value: 8 },
+  { label: 'Up', value: 0 },
+  { label: 'Right', value: 1 },
+  { label: 'Down', value: 2 },
+  { label: 'Left', value: 3 },
+  { label: 'LB', value: 10 },
+  { label: 'RB', value: 11 },
+  { label: 'LT', value: 12 },
+  { label: 'RT', value: 13 },
+  { label: 'Select', value: 6 },
+  { label: 'Start', value: 9 }
+]

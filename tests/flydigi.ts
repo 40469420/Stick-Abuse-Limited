@@ -5,6 +5,7 @@
  */
 import {
   FLY_CURVE_POINTS,
+  FLY_MAP_TARGETS,
   FLY_PRECISION_BITS,
   FLY_REPORT_LEN,
   FLY_SEC_LEFT,
@@ -18,6 +19,10 @@ import {
   flyFrame,
   flyLedChecksum,
   flyLedWindow,
+  flyMapChecksum,
+  flyMapSelectAck,
+  flyMapSelectArgs,
+  flyMapWindow,
   flyPrecisionAck,
   flyPrecisionArgs,
   flyPrecisionValue,
@@ -226,6 +231,31 @@ check(
   flyPrecisionValue(hex('04-5a-a5-03-01-00-fb-72-01-01-0f-00-02-11-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00')) === 2
 )
 check('precision read rejects short', flyPrecisionValue(new Uint8Array(8)) === -1)
+
+// --- M1 remap path (live USB capture 2026-10-14, B->X->B round trip proven) ---
+// 0x11 select [07 FF 00 FF FF FF 14] / ack [01,00,01,00]; A4 sec 03 len C2;
+// A5 27 B window with M1 value at [7], checksum (0xBD + sum[0:23]) at [23].
+check('map select args captured', JSON.stringify(flyMapSelectArgs()) === JSON.stringify([7, 0xff, 0, 0xff, 0xff, 0xff, 0x14]))
+check(
+  'map select ack accepts record 00',
+  flyMapSelectAck(hex('04-5a-a5-11-01-00-01-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00'))
+)
+check(
+  'map select ack rejects record 01',
+  !flyMapSelectAck(hex('04-5a-a5-11-01-00-01-01-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00'))
+)
+check(
+  'map window X byte-exact (captured)',
+  JSON.stringify(flyMapWindow(7)) === JSON.stringify([0, 0xff, 0, 0, 0xff, 0, 0, 7, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0xbd, 0, 0, 0])
+)
+check(
+  'map window B byte-exact (pad-accepted)',
+  JSON.stringify(flyMapWindow(5)) === JSON.stringify([0, 0xff, 0, 0, 0xff, 0, 0, 5, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0xbb, 0, 0, 0])
+)
+check('map checksum X', flyMapChecksum(flyMapWindow(7).slice(0, 23)) === 0xbd)
+check('map checksum B', flyMapChecksum(flyMapWindow(5).slice(0, 23)) === 0xbb)
+check('map targets exclude turbo', !FLY_MAP_TARGETS.some((o) => o.value === 25))
+check('map targets carry A/B/X', JSON.stringify(FLY_MAP_TARGETS.filter((o) => ['A', 'B', 'X'].includes(o.label)).map((o) => o.value)) === JSON.stringify([4, 5, 7]))
 
 if (failures > 0) {
   console.error(`${failures} FAILURES`)

@@ -100,3 +100,22 @@ Until then this file is the complete, honest state of knowledge.
   grid (2048 levels), 12-bit on mod-16 (4096) — XInput sweep analysis.
 - Still open: report-rate USB bytes (polling fixed at 1000 Hz on k5,
   nothing to write), sensitivity preset bytes, trigger bytes.
+
+## PROVEN 2026-10-14 (M1 remap write path, live hardware)
+
+- M1 field: one byte in each mirror section 07–0B (offsets
+  229/203/179/157/151); values are k5 button IDs (A=4, B=5, X=7 —
+  three points). Store offset 82 tracks M1 in the 1092 B store.
+- Save chain (Space Station B→X pcap, byte-exact): 0x11 select
+  `[07 FF 00 FF FF FF 14]` (ack `[01,00,01,00]`), A4 announce section
+  `0x03` len `0xC2`, one A5 patch (27 B window: seven (00,value,00)
+  triplets, M1 in slot 2, checksum `(0xBD + sum[0:23]) & 0xFF`),
+  A6 save with fresh nonce. Pad fans out to 07–0B mirrors.
+- Our bytes proven: no-op B-rewrite acked end to end, then B→X→B
+  round trip pad-confirmed both legs (mirrors + store@82), curves
+  intact, store parses. Mapping saves reboot the pad — the version
+  stamp read can race, so the app retries it; ack + store@82
+  readback verify every write.
+- Store `@280-281` follows every save (save-stamp words, benign).
+- Open: other buttons' triplet slots (one flip each through the same
+  diff pipeline — M2→Y decodes the next), sensitivity/trigger bytes.

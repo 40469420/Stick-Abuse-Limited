@@ -26,7 +26,7 @@ import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import type { DeepPollResult } from '@shared/deeppoll'
 import { mariusDisplayName } from '@shared/marius'
 import { flyTransport, type FlyIdentity } from './flydigiUsb'
-import { flyTypeName, FLY_PRECISION_BITS } from '@shared/flydigi'
+import { flyTypeName, FLY_MAP_TARGETS, FLY_PRECISION_BITS } from '@shared/flydigi'
 import { axisToByte, useFlyLive } from './flydigiLive'
 
 
@@ -1501,6 +1501,49 @@ function ApexCalibrate(): JSX.Element {
 /** Same Buttons tab, same cards — remap/trigger bytes unmapped on Apex, so Locked. */
 function ApexButtons(): JSX.Element {
   const t = useT()
+  const [m1, setM1] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function loadM1(): Promise<void> {
+    if (!flyTransport.connected) return
+    try {
+      const store = await flyTransport.readStore()
+      setM1(store.mapM1)
+    } catch {
+      setM1(null)
+    }
+  }
+
+  useEffect(() => {
+    if (flyTransport.connected) void loadM1()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function writeM1(value: number): Promise<void> {
+    setErr(null)
+    setMsg(null)
+    if (!flyTransport.connected) {
+      setErr('Apex 5 not connected — connect it from the sidebar first, and close Space Station.')
+      return
+    }
+    const label = FLY_MAP_TARGETS.find((o) => o.value === value)?.label ?? String(value)
+    if (!window.confirm(`Remap M1 to ${label}? 1:1 remap only — verified against store@82 after the write.`)) return
+    setBusy(true)
+    try {
+      await flyTransport.writeMapM1(value)
+      setM1(value)
+      setMsg(`M1 remapped to ${label}, verified by pad readback. Test feel in game.`)
+    } catch (e) {
+      setErr((e as Error).message)
+      await loadM1()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const m1Label = FLY_MAP_TARGETS.find((o) => o.value === m1)?.label
   return (
     <>
       <div className="card">
@@ -1515,12 +1558,37 @@ function ApexButtons(): JSX.Element {
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <h3>{t('buttons.title')}</h3>
-        <Hint>{t('buttons.hint')} Remap bytes unmapped on this pad — same table, same place.</Hint>
+        <Hint>{t('buttons.hint')} M1 is proven live (select-ack + pack-ack + save + store readback). Other buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
+        <table className="tbl" style={{ marginTop: 8 }}>
+          <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>M1</td>
+              <td>
+                <div className="row wrap" style={{ gap: 6 }}>
+                  {FLY_MAP_TARGETS.map((o) => (
+                    <button
+                      key={o.value}
+                      className={`choice-btn${m1 === o.value ? ' active' : ''}`}
+                      disabled={busy}
+                      title={`k5 id ${o.value}`}
+                      onClick={() => void writeM1(o.value)}
+                    >
+                      <span className="choice-label">{o.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </td>
+              <td>{m1 === null ? '—' : (m1Label ?? `id ${m1}`)}</td>
+            </tr>
+          </tbody>
+        </table>
+        {(msg || err) && <div style={{ marginTop: 8 }}>{msg && <div className="note">{msg}</div>}{err && <div className="note bad">{err}</div>}</div>}
         <Locked>
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
           <tbody>
-            {['A', 'B', 'X', 'Y'].map((n) => (
+            {['M2', 'M3', 'M4', 'LT', 'RT'].map((n) => (
               <tr key={n}>
                 <td>{n}</td>
                 <td>—</td>

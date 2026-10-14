@@ -8,9 +8,12 @@
  */
 import { api } from './api'
 import {
+  FLY_MAP_LEN,
+  FLY_MAP_TARGETS,
   FLY_PRECISION_BITS,
   FLY_SEC_LEFT,
   FLY_SEC_LEFT_LEN,
+  FLY_SEC_MAP,
   FLY_SEC_RGB,
   FLY_SEC_RGB_LEN,
   FLY_SEC_RIGHT,
@@ -22,6 +25,9 @@ import {
   flyAnnounce,
   flyCurveWindow,
   flyLedWindow,
+  flyMapSelectAck,
+  flyMapSelectArgs,
+  flyMapWindow,
   flyNonce,
   flyPrecisionAck,
   flyPrecisionArgs,
@@ -192,6 +198,45 @@ class FlyTransport {
       throw new Error(`precision did not stick (wanted ${entry.value}, pad reports ${back}) — restore in Space Station`)
     }
     return { value: entry.value }
+  }
+
+  /**
+   * Remap M1 to a k5 button ID — the one proven slot (B→X→B round trip,
+   * pad-confirmed both legs). Select-ack + pack-ack checked, save with
+   * stamp retry (mapping saves reboot the pad, so the first stamp read
+   * can race), then verified against store@82. Throws otherwise.
+   */
+  async writeMapM1(value: number): Promise<{ value: number }> {
+    const target = FLY_MAP_TARGETS.find((o) => o.value === (value & 0xff))
+    if (!target) throw new Error(`M1 target ${value} is not offered`)
+    const sel = await this.send(FlyCmd.MapSelect, flyMapSelectArgs())
+    if (!flyMapSelectAck(sel)) throw new Error('pad refused the mapping select')
+    await this.writePack(FLY_SEC_MAP, FLY_MAP_LEN, flyMapWindow(target.value))
+    // Mapping saves reboot the pad — the stamp read can race the reboot,
+    // so retry it (reopening if the handle dropped) before giving up.
+    let saved = false
+    let lastErr: unknown = null
+    for (let attempt = 0; attempt < 3 && !saved; attempt++) {
+      try {
+        if (!this.open) await this.connect()
+        const nonce = flyNonce()
+        const a6 = await this.send(FlyCmd.Save, flySaveArgs(nonce))
+        if (!flyReplyOk(a6, FlyCmd.Save)) throw new Error('pad refused the save')
+        const ver = await this.send(FlyCmd.Version)
+        const st = flyVersionStamp(ver)
+        if (st.b0 !== (nonce[1] ?? -1) || st.b1 !== (nonce[2] ?? -1)) throw new Error('stamp race')
+        saved = true
+      } catch (err) {
+        lastErr = err
+      }
+    }
+    if (!saved) throw new Error(`bind saved but unconfirmed (${lastErr instanceof Error ? lastErr.message : 'stamp race'}) — verify feel in game`)
+    const back = await this.readStore().catch(() => null)
+    if (!back) throw new Error('saved but the store would not re-read — verify feel in game')
+    if (back.mapM1 !== target.value) {
+      throw new Error(`bind did not stick (wanted ${target.value}, pad reports ${back.mapM1}) — restore in Space Station`)
+    }
+    return { value: target.value }
   }
 }
 
