@@ -2711,7 +2711,13 @@ export default function App(): JSX.Element {
       }
       if (pre?.id === 'Apex5') {
         // Flydigi speaks WebHID interrupt reports, not the GameSir channel —
-        // handshake + tuning run renderer-side over flyTransport.
+        // handshake + tuning run renderer-side over flyTransport. A GameSir
+        // working copy must not survive the switch: the tabs would keep
+        // editing the other pad's bytes under the Apex name.
+        flyTransport.disconnect()
+        setFlyId(null)
+        setBlob(null)
+        setDirty(false)
         try {
           await flyTransport.connect()
           const ident = await flyTransport.identify()
@@ -2728,6 +2734,10 @@ export default function App(): JSX.Element {
         return
       }
       const res = await api().connect(path)
+      // Leaving a Flydigi session live would keep the Apex panels rendered
+      // next to a GameSir working copy — same confusion in reverse.
+      flyTransport.disconnect()
+      setFlyId(null)
       setConnPath(path)
       setConnected(true)
       setInfo(res)
@@ -3110,6 +3120,8 @@ export default function App(): JSX.Element {
                 setPid(null)
                 setModel(null)
                 setFlyId(null)
+                setBlob(null)
+                setDirty(false)
               }}
             >
               {t('side.disconnect')}
