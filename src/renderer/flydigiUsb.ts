@@ -11,6 +11,8 @@ import {
   FLY_MAP2_LEN,
   FLY_MAP2_SLOT_RM,
   FLY_MAP_LEN,
+  FLY_MAP_RECORD_BUTTONS,
+  FLY_MAP_RECORD_TRIGGERS,
   FLY_MAP_SLOT_LM,
   FLY_MAP_SLOT_M1,
   FLY_MAP_SLOT_M2,
@@ -26,6 +28,7 @@ import {
   FLY_SEC_RGB_LEN,
   FLY_SEC_RIGHT,
   FLY_SEC_RIGHT_LEN,
+  FLY_SEC_TRIG,
   FLY_STORE_CHUNKS,
   FLY_STORE_LEN,
   FLY_STORE_MAP_LM,
@@ -34,6 +37,11 @@ import {
   FLY_STORE_MAP_M3,
   FLY_STORE_MAP_M4,
   FLY_STORE_MAP_RM,
+  FLY_STORE_TRIG_LT,
+  FLY_STORE_TRIG_RT,
+  FLY_TRIG_LEN,
+  FLY_TRIG_SLOT_LT,
+  FLY_TRIG_SLOT_RT,
   FlyCmd,
   FlyStore,
   flyAnnounce,
@@ -65,17 +73,20 @@ export interface FlyIdentity {
 const MAP_MANAGED: ReadonlyArray<{
   key: string
   slot: number
+  record: number
   section: number
   len: number
   get: (s: FlyStore) => number
   window: (assign: Readonly<Record<number, number>>) => number[]
 }> = [
-  { key: 'M1', slot: FLY_MAP_SLOT_M1, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM1, window: flyMapTable },
-  { key: 'M2', slot: FLY_MAP_SLOT_M2, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM2, window: flyMapTable },
-  { key: 'M3', slot: FLY_MAP_SLOT_M3, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM3, window: flyMapTable },
-  { key: 'M4', slot: FLY_MAP_SLOT_M4, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM4, window: flyMapTable },
-  { key: 'LM', slot: FLY_MAP_SLOT_LM, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapLM, window: flyMapTable },
-  { key: 'RM', slot: FLY_MAP2_SLOT_RM, section: FLY_SEC_MAP2, len: FLY_MAP2_LEN, get: (s) => s.mapRM, window: flyMap2Table }
+  { key: 'M1', slot: FLY_MAP_SLOT_M1, record: FLY_MAP_RECORD_BUTTONS, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM1, window: flyMapTable },
+  { key: 'M2', slot: FLY_MAP_SLOT_M2, record: FLY_MAP_RECORD_BUTTONS, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM2, window: flyMapTable },
+  { key: 'M3', slot: FLY_MAP_SLOT_M3, record: FLY_MAP_RECORD_BUTTONS, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM3, window: flyMapTable },
+  { key: 'M4', slot: FLY_MAP_SLOT_M4, record: FLY_MAP_RECORD_BUTTONS, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM4, window: flyMapTable },
+  { key: 'LM', slot: FLY_MAP_SLOT_LM, record: FLY_MAP_RECORD_BUTTONS, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapLM, window: flyMapTable },
+  { key: 'RM', slot: FLY_MAP2_SLOT_RM, record: FLY_MAP_RECORD_BUTTONS, section: FLY_SEC_MAP2, len: FLY_MAP2_LEN, get: (s) => s.mapRM, window: flyMap2Table },
+  { key: 'LT', slot: FLY_TRIG_SLOT_LT, record: FLY_MAP_RECORD_TRIGGERS, section: FLY_SEC_TRIG, len: FLY_TRIG_LEN, get: (s) => s.mapLT, window: flyMapTable },
+  { key: 'RT', slot: FLY_TRIG_SLOT_RT, record: FLY_MAP_RECORD_TRIGGERS, section: FLY_SEC_TRIG, len: FLY_TRIG_LEN, get: (s) => s.mapRT, window: flyMapTable }
 ]
 
 class FlyTransport {
@@ -255,8 +266,8 @@ class FlyTransport {
       if (cur < 0) throw new Error('live bind value unreadable — aborting, nothing sent')
       assign[m.slot] = cur
     }
-    const sel = await this.send(FlyCmd.MapSelect, flyMapSelectArgs())
-    if (!flyMapSelectAck(sel)) throw new Error('pad refused the mapping select')
+    const sel = await this.send(FlyCmd.MapSelect, flyMapSelectArgs(entry.record))
+    if (!flyMapSelectAck(sel, entry.record)) throw new Error('pad refused the mapping select')
     await this.writePack(entry.section, entry.len, entry.window(assign))
     let saved = false
     let lastErr: unknown = null
@@ -312,6 +323,16 @@ class FlyTransport {
   /** Remap RM (section-04 slot 0, verified at store@102). */
   async writeMapRM(value: number): Promise<{ value: number }> {
     return this.writeMapButton('RM', value)
+  }
+
+  /** Remap LT (trigger-record slot 3, verified at store@59). */
+  async writeMapLT(value: number): Promise<{ value: number }> {
+    return this.writeMapButton('LT', value)
+  }
+
+  /** Remap RT (trigger-record slot 4, verified at store@62). */
+  async writeMapRT(value: number): Promise<{ value: number }> {
+    return this.writeMapButton('RT', value)
   }
 }
 

@@ -123,6 +123,10 @@ Until then this file is the complete, honest state of knowledge.
 - LM proven in record-00 slot 6 (store@94); RM proven in a second
   table, section 0x04 len 0xC3, slot 0 (store@102) — same 0xBD
   checksum idiom over 21 bytes, five confirmations total.
+- LT/RT proven in a trigger record: 0x11 select record 01
+  ([07 FF 01 FF FF FF 15], ack [01,00,01,01]), section 0x02 len 0xC1,
+  same triplet window (LT slot 3, RT slot 4; store@59/@62).
+  Checksums C3/C0 re-confirm the rule a sixth and seventh time.
 - Multi-button writes carry the live values of all managed slots
   (M1-M4); anything unmanaged resets to default, and the UI confirm
   says so. Turbo is excluded from targets by policy — never.

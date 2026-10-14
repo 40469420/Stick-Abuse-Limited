@@ -1507,6 +1507,8 @@ function ApexButtons(): JSX.Element {
   const [m4, setM4] = useState<number | null>(null)
   const [lm, setLm] = useState<number | null>(null)
   const [rm, setRm] = useState<number | null>(null)
+  const [lt, setLt] = useState<number | null>(null)
+  const [rt, setRt] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -1521,6 +1523,8 @@ function ApexButtons(): JSX.Element {
       setM4(store.mapM4)
       setLm(store.mapLM)
       setRm(store.mapRM)
+      setLt(store.mapLT)
+      setRt(store.mapRT)
     } catch {
       setM1(null)
       setM2(null)
@@ -1528,6 +1532,8 @@ function ApexButtons(): JSX.Element {
       setM4(null)
       setLm(null)
       setRm(null)
+      setLt(null)
+      setRt(null)
     }
   }
 
@@ -1536,7 +1542,7 @@ function ApexButtons(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function writeBind(source: 'M1' | 'M2' | 'M3' | 'M4' | 'LM' | 'RM', value: number): Promise<void> {
+  async function writeBind(source: 'M1' | 'M2' | 'M3' | 'M4' | 'LM' | 'RM' | 'LT' | 'RT', value: number): Promise<void> {
     setErr(null)
     setMsg(null)
     if (!flyTransport.connected) {
@@ -1552,7 +1558,9 @@ function ApexButtons(): JSX.Element {
       else if (source === 'M3') await flyTransport.writeMapM3(value)
       else if (source === 'M4') await flyTransport.writeMapM4(value)
       else if (source === 'LM') await flyTransport.writeMapLM(value)
-      else await flyTransport.writeMapRM(value)
+      else if (source === 'RM') await flyTransport.writeMapRM(value)
+      else if (source === 'LT') await flyTransport.writeMapLT(value)
+      else await flyTransport.writeMapRT(value)
       const store = await flyTransport.readStore()
       setM1(store.mapM1)
       setM2(store.mapM2)
@@ -1560,6 +1568,8 @@ function ApexButtons(): JSX.Element {
       setM4(store.mapM4)
       setLm(store.mapLM)
       setRm(store.mapRM)
+      setLt(store.mapLT)
+      setRt(store.mapRT)
       setMsg(`${source} remapped to ${label}, verified by pad readback. Test feel in game.`)
     } catch (e) {
       setErr((e as Error).message)
@@ -1575,7 +1585,9 @@ function ApexButtons(): JSX.Element {
   const m4Label = FLY_MAP_TARGETS.find((o) => o.value === m4)?.label
   const lmLabel = FLY_MAP_TARGETS.find((o) => o.value === lm)?.label
   const rmLabel = FLY_MAP_TARGETS.find((o) => o.value === rm)?.label
-  const bindRow = (source: 'M1' | 'M2' | 'M3' | 'M4' | 'LM' | 'RM', cur: number | null, curLabel: string | undefined): JSX.Element => (
+  const ltLabel = FLY_MAP_TARGETS.find((o) => o.value === lt)?.label
+  const rtLabel = FLY_MAP_TARGETS.find((o) => o.value === rt)?.label
+  const bindRow = (source: 'M1' | 'M2' | 'M3' | 'M4' | 'LM' | 'RM' | 'LT' | 'RT', cur: number | null, curLabel: string | undefined): JSX.Element => (
     <tr>
       <td>{source}</td>
       <td>
@@ -1600,7 +1612,7 @@ function ApexButtons(): JSX.Element {
     <>
       <div className="card">
         <h3>{t('trig.title')}</h3>
-        <Hint>{t('trig.hint')} No trigger-byte equivalent mapped on this pad.</Hint>
+        <Hint>{t('trig.hint')} LT/RT remap rows live below (proven record-01 path). Trigger deadzone percentages are unmapped.</Hint>
         <Locked>
         <div className="stack" style={{ gap: 12, marginTop: 8 }}>
           <Slider label={t('sticks.start')} value={0} min={0} max={20} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
@@ -1610,7 +1622,7 @@ function ApexButtons(): JSX.Element {
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <h3>{t('buttons.title')}</h3>
-        <Hint>{t('buttons.hint')} M1-M4, LM and RM are proven live (select-ack + pack-ack + save + store readback, managed values carry over). Remaining buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
+        <Hint>{t('buttons.hint')} M1-M4, LM, RM, LT and RT are proven live (select-ack + pack-ack + save + store readback, managed values carry over). Remaining buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
           <tbody>
@@ -1620,6 +1632,8 @@ function ApexButtons(): JSX.Element {
             {bindRow('M4', m4, m4Label)}
             {bindRow('LM', lm, lmLabel)}
             {bindRow('RM', rm, rmLabel)}
+            {bindRow('LT', lt, ltLabel)}
+            {bindRow('RT', rt, rtLabel)}
           </tbody>
         </table>
         {(msg || err) && <div style={{ marginTop: 8 }}>{msg && <div className="note">{msg}</div>}{err && <div className="note bad">{err}</div>}</div>}
@@ -1627,7 +1641,7 @@ function ApexButtons(): JSX.Element {
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
           <tbody>
-            {['LT', 'RT'].map((n) => (
+            {['A', 'B', 'X', 'Y', 'LB', 'RB', 'Select', 'Start'].map((n) => (
               <tr key={n}>
                 <td>{n}</td>
                 <td>—</td>

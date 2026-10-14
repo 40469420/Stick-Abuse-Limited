@@ -200,6 +200,10 @@ export interface FlyStore {
   mapLM: number
   /** RM bind target (k5 button ID) at store offset 102. */
   mapRM: number
+  /** LT bind target (k5 button ID) at store offset 59. */
+  mapLT: number
+  /** RT bind target (k5 button ID) at store offset 62. */
+  mapRT: number
 }
 
 /**
@@ -226,6 +230,8 @@ export function parseFlyStore(store: Uint8Array): FlyStore | null {
     mapM4: store[FLY_STORE_MAP_M4] ?? -1,
     mapLM: store[FLY_STORE_MAP_LM] ?? -1,
     mapRM: store[FLY_STORE_MAP_RM] ?? -1,
+    mapLT: store[FLY_STORE_TRIG_LT] ?? -1,
+    mapRT: store[FLY_STORE_TRIG_RT] ?? -1,
   }
 }
 
@@ -345,15 +351,34 @@ export function flyPrecisionValue(reply: Uint8Array): number {
 export const FLY_SEC_MAP = 0x03
 export const FLY_MAP_LEN = 0xc2
 
-/** 0x11 mapping-select args for record 00 (captured). */
-export function flyMapSelectArgs(): number[] {
-  return [0x07, 0xff, 0x00, 0xff, 0xff, 0xff, 0x14]
+/**
+ * Record select: the 0x11 args pick a UI record ([07 FF rr FF FF FF
+ * 14+rr]); the A4 section byte picks the write table. M-group + RM
+ * saves select record 0, trigger saves select record 1 (captured).
+ */
+export const FLY_MAP_RECORD_BUTTONS = 0
+export const FLY_MAP_RECORD_TRIGGERS = 1
+
+/** 0x11 mapping-select args for a record (captured). */
+export function flyMapSelectArgs(record: number = FLY_MAP_RECORD_BUTTONS): number[] {
+  const r = record & 0xff
+  return [0x07, 0xff, r, 0xff, 0xff, 0xff, (0x14 + r) & 0xff]
 }
 
-/** True when the 0x11 reply selects the record: [01,00,01,00]. */
-export function flyMapSelectAck(reply: Uint8Array): boolean {
-  return reply.length >= 8 && reply[4] === 0x01 && reply[5] === 0x00 && reply[6] === 0x01 && reply[7] === 0x00
+/** True when the 0x11 reply selects the record: [01,00,01,record]. */
+export function flyMapSelectAck(reply: Uint8Array, record: number = FLY_MAP_RECORD_BUTTONS): boolean {
+  return reply.length >= 8 && reply[4] === 0x01 && reply[5] === 0x00 && reply[6] === 0x01 && reply[7] === (record & 0xff)
 }
+
+/**
+ * Trigger table (section 0x02, len 0xC1): same triplet window as
+ * record 00 — LT proven in slot 3, RT in slot 4 (LT→B + RT→A saves,
+ * byte-exact pcaps, checksums C3/C0 re-confirming the 0xBD rule).
+ */
+export const FLY_SEC_TRIG = 0x02
+export const FLY_TRIG_LEN = 0xc1
+export const FLY_TRIG_SLOT_LT = 3
+export const FLY_TRIG_SLOT_RT = 4
 
 /** Triplet slots inside the 27 B mapping window (record 00). */
 export const FLY_MAP_SLOT_M1 = 2
@@ -409,6 +434,10 @@ export const FLY_STORE_MAP_M4 = 91
 export const FLY_STORE_MAP_LM = 94
 /** Store offset tracking the RM bind (proven live: FF→X→A tracked). */
 export const FLY_STORE_MAP_RM = 102
+/** Store offset tracking the LT bind (proven live: FF→Y→B tracked). */
+export const FLY_STORE_TRIG_LT = 59
+/** Store offset tracking the RT bind (proven live: FF→X→A tracked). */
+export const FLY_STORE_TRIG_RT = 62
 
 /**
  * Second mapping table (section 0x04, len 0xC3): seven (00, 00, value)

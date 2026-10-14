@@ -277,6 +277,25 @@ check(
   JSON.stringify(flyMap2Table({ 0: 4 })) === JSON.stringify([0, 0, 4, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0xbb, 0, 0, 0, 0])
 )
 check('map2 checksum BB', flyMap2Checksum(flyMap2Table({ 0: 4 }).slice(0, 21)) === 0xbb)
+check('map select record 1 args', JSON.stringify(flyMapSelectArgs(1)) === JSON.stringify([7, 0xff, 1, 0xff, 0xff, 0xff, 0x15]))
+check(
+  'map select ack record 1',
+  flyMapSelectAck(hex('04-5a-a5-11-01-00-01-01-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00'), 1)
+)
+check(
+  'map select ack rejects wrong record',
+  !flyMapSelectAck(hex('04-5a-a5-11-01-00-01-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00'), 1)
+)
+check(
+  'trig window LT=B RT=X byte-exact (captured lt+rt save 1)',
+  JSON.stringify(flyMapTable({ 3: 5, 4: 7 })) === JSON.stringify([0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 5, 0, 0, 7, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0xc3, 0, 0, 0])
+)
+check('trig checksum C3', flyMapChecksum(flyMapTable({ 3: 5, 4: 7 }).slice(0, 23)) === 0xc3)
+check(
+  'trig window LT=B RT=A byte-exact (captured lt+rt save 2)',
+  JSON.stringify(flyMapTable({ 3: 5, 4: 4 })) === JSON.stringify([0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 5, 0, 0, 4, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0xc0, 0, 0, 0])
+)
+check('trig checksum C0', flyMapChecksum(flyMapTable({ 3: 5, 4: 4 }).slice(0, 23)) === 0xc0)
 check('map table rejects bad slot', (() => { try { flyMapTable({ 7: 4 }); return false } catch { return true } })())
 check('map table rejects bad value', (() => { try { flyMapTable({ 2: 300 }); return false } catch { return true } })())
 check('map targets exclude turbo', !FLY_MAP_TARGETS.some((o) => o.value === 25))
