@@ -1498,7 +1498,7 @@ function ApexCalibrate(): JSX.Element {
   )
 }
 
-/** Same Buttons tab, same cards — remap/trigger bytes unmapped on Apex, so Locked. */
+/** Same Buttons tab, same banks as GameSir — live cells where proven, Not supported elsewhere. */
 function ApexButtons(): JSX.Element {
   const t = useT()
   const [m1, setM1] = useState<number | null>(null)
@@ -1579,35 +1579,63 @@ function ApexButtons(): JSX.Element {
     }
   }
 
-  const m1Label = FLY_MAP_TARGETS.find((o) => o.value === m1)?.label
-  const m2Label = FLY_MAP_TARGETS.find((o) => o.value === m2)?.label
-  const m3Label = FLY_MAP_TARGETS.find((o) => o.value === m3)?.label
-  const m4Label = FLY_MAP_TARGETS.find((o) => o.value === m4)?.label
-  const lmLabel = FLY_MAP_TARGETS.find((o) => o.value === lm)?.label
-  const rmLabel = FLY_MAP_TARGETS.find((o) => o.value === rm)?.label
-  const ltLabel = FLY_MAP_TARGETS.find((o) => o.value === lt)?.label
-  const rtLabel = FLY_MAP_TARGETS.find((o) => o.value === rt)?.label
-  const bindRow = (source: 'M1' | 'M2' | 'M3' | 'M4' | 'LM' | 'RM' | 'LT' | 'RT', cur: number | null, curLabel: string | undefined): JSX.Element => (
-    <tr>
-      <td>{source}</td>
-      <td>
-        <div className="row wrap" style={{ gap: 6 }}>
-          {FLY_MAP_TARGETS.map((o) => (
-            <button
-              key={o.value}
-              className={`choice-btn${cur === o.value ? ' active' : ''}`}
-              disabled={busy}
-              title={`k5 id ${o.value}`}
-              onClick={() => void writeBind(source, o.value)}
-            >
-              <span className="choice-label">{o.label}</span>
-            </button>
-          ))}
-        </div>
-      </td>
-      <td>{cur === null ? '—' : (curLabel ?? `id ${cur}`)}</td>
-    </tr>
-  )
+  const targetLabel = (v: number | null): string | undefined =>
+    v === null ? undefined : (FLY_MAP_TARGETS.find((o) => o.value === v)?.label)
+  /** Live sources: proven slot + store readback + write. Mirrors the GameSir banks. */
+  const live: Record<string, { cur: number | null; write: (v: number) => Promise<void> }> = {
+    LT: { cur: lt, write: (v) => writeBind('LT', v) },
+    RT: { cur: rt, write: (v) => writeBind('RT', v) },
+    M1: { cur: m1, write: (v) => writeBind('M1', v) },
+    M2: { cur: m2, write: (v) => writeBind('M2', v) },
+    M3: { cur: m3, write: (v) => writeBind('M3', v) },
+    M4: { cur: m4, write: (v) => writeBind('M4', v) },
+    LM: { cur: lm, write: (v) => writeBind('LM', v) },
+    RM: { cur: rm, write: (v) => writeBind('RM', v) }
+  }
+  /** All banks in GameSir order (dpad, bumpers, sticks, face, system, triggers, backs). */
+  const sources: ReadonlyArray<string> = [
+    'Up', 'Down', 'Left', 'Right',
+    'LB', 'RB',
+    'L3', 'R3',
+    'A', 'B', 'X', 'Y',
+    'Select', 'Start',
+    'LT', 'RT',
+    'M1', 'M2', 'M3', 'M4', 'LM', 'RM'
+  ]
+  const bindRow = (source: string): JSX.Element => {
+    const L = live[source]
+    if (L) {
+      const label = targetLabel(L.cur)
+      return (
+        <tr key={source}>
+          <td>{source}</td>
+          <td>
+            <div className="row wrap" style={{ gap: 6 }}>
+              {FLY_MAP_TARGETS.map((o) => (
+                <button
+                  key={o.value}
+                  className={`choice-btn${L.cur === o.value ? ' active' : ''}`}
+                  disabled={busy}
+                  title={`k5 id ${o.value}`}
+                  onClick={() => void L.write(o.value)}
+                >
+                  <span className="choice-label">{o.label}</span>
+                </button>
+              ))}
+            </div>
+          </td>
+          <td>{L.cur === null ? '—' : (label ?? `id ${L.cur}`)}</td>
+        </tr>
+      )
+    }
+    return (
+      <tr key={source}>
+        <td>{source}</td>
+        <td><span style={{ color: 'var(--text-3)' }}>—</span> <NsTag /></td>
+        <td>—</td>
+      </tr>
+    )
+  }
   return (
     <>
       <div className="card">
@@ -1622,35 +1650,14 @@ function ApexButtons(): JSX.Element {
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <h3>{t('buttons.title')}</h3>
-        <Hint>{t('buttons.hint')} M1-M4, LM, RM, LT and RT are proven live (select-ack + pack-ack + save + store readback, managed values carry over). Remaining buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
+        <Hint>{t('buttons.hint')} Same banks as GameSir — dpad, bumpers, sticks, face, system, triggers, backs. LT/RT/M1-M4/LM/RM are proven live; the rest carry Not supported until one flip each decodes their slots.</Hint>
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
           <tbody>
-            {bindRow('M1', m1, m1Label)}
-            {bindRow('M2', m2, m2Label)}
-            {bindRow('M3', m3, m3Label)}
-            {bindRow('M4', m4, m4Label)}
-            {bindRow('LM', lm, lmLabel)}
-            {bindRow('RM', rm, rmLabel)}
-            {bindRow('LT', lt, ltLabel)}
-            {bindRow('RT', rt, rtLabel)}
+            {sources.map((s) => bindRow(s))}
           </tbody>
         </table>
         {(msg || err) && <div style={{ marginTop: 8 }}>{msg && <div className="note">{msg}</div>}{err && <div className="note bad">{err}</div>}</div>}
-        <Locked>
-        <table className="tbl" style={{ marginTop: 8 }}>
-          <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
-          <tbody>
-            {['A', 'B', 'X', 'Y', 'LB', 'RB', 'Select', 'Start'].map((n) => (
-              <tr key={n}>
-                <td>{n}</td>
-                <td>—</td>
-                <td>—</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </Locked>
       </div>
     </>
   )
