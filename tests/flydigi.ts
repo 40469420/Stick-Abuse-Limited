@@ -265,6 +265,11 @@ check(
   JSON.stringify(flyMapTable({ 2: 4, 3: 5, 4: 5 })) === JSON.stringify([0, 0xff, 0, 0, 0xff, 0, 0, 4, 0, 0, 5, 0, 0, 5, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0xc6, 0, 0, 0])
 )
 check('map table checksum C6', flyMapChecksum(flyMapTable({ 2: 4, 3: 5, 4: 5 }).slice(0, 23)) === 0xc6)
+check(
+  'map table M1=A M2=B M3=B M4=B byte-exact (captured next-pcap)',
+  JSON.stringify(flyMapTable({ 2: 4, 3: 5, 4: 5, 5: 5 })) === JSON.stringify([0, 0xff, 0, 0, 0xff, 0, 0, 4, 0, 0, 5, 0, 0, 5, 0, 0, 5, 0, 0, 0xff, 0, 0, 0xff, 0xcc, 0, 0, 0])
+)
+check('map table checksum CC', flyMapChecksum(flyMapTable({ 2: 4, 3: 5, 4: 5, 5: 5 }).slice(0, 23)) === 0xcc)
 check('map table rejects bad slot', (() => { try { flyMapTable({ 7: 4 }); return false } catch { return true } })())
 check('map table rejects bad value', (() => { try { flyMapTable({ 2: 300 }); return false } catch { return true } })())
 check('map targets exclude turbo', !FLY_MAP_TARGETS.some((o) => o.value === 25))

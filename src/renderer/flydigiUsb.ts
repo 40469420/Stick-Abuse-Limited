@@ -12,6 +12,7 @@ import {
   FLY_MAP_SLOT_M1,
   FLY_MAP_SLOT_M2,
   FLY_MAP_SLOT_M3,
+  FLY_MAP_SLOT_M4,
   FLY_MAP_TARGETS,
   FLY_PRECISION_BITS,
   FLY_SEC_LEFT,
@@ -26,6 +27,7 @@ import {
   FLY_STORE_MAP_M1,
   FLY_STORE_MAP_M2,
   FLY_STORE_MAP_M3,
+  FLY_STORE_MAP_M4,
   FlyCmd,
   FlyStore,
   flyAnnounce,
@@ -220,7 +222,8 @@ class FlyTransport {
     const managed: ReadonlyArray<{ slot: number; storeOffset: number; get: (s: FlyStore) => number }> = [
       { slot: FLY_MAP_SLOT_M1, storeOffset: FLY_STORE_MAP_M1, get: (s) => s.mapM1 },
       { slot: FLY_MAP_SLOT_M2, storeOffset: FLY_STORE_MAP_M2, get: (s) => s.mapM2 },
-      { slot: FLY_MAP_SLOT_M3, storeOffset: FLY_STORE_MAP_M3, get: (s) => s.mapM3 }
+      { slot: FLY_MAP_SLOT_M3, storeOffset: FLY_STORE_MAP_M3, get: (s) => s.mapM3 },
+      { slot: FLY_MAP_SLOT_M4, storeOffset: FLY_STORE_MAP_M4, get: (s) => s.mapM4 }
     ]
     if (!managed.some((m) => m.slot === slot)) throw new Error(`bind slot ${slot} is not unlocked yet`)
     const live = await this.readStore().catch(() => null)
@@ -274,6 +277,11 @@ class FlyTransport {
   /** Remap M3 (proven slot 4, verified at store@88). */
   async writeMapM3(value: number): Promise<{ value: number }> {
     return this.writeMapButton(FLY_MAP_SLOT_M3, FLY_STORE_MAP_M3, value)
+  }
+
+  /** Remap M4 (proven slot 5, verified at store@91). */
+  async writeMapM4(value: number): Promise<{ value: number }> {
+    return this.writeMapButton(FLY_MAP_SLOT_M4, FLY_STORE_MAP_M4, value)
   }
 }
 

@@ -194,6 +194,8 @@ export interface FlyStore {
   mapM2: number
   /** M3 bind target (k5 button ID) at store offset 88. */
   mapM3: number
+  /** M4 bind target (k5 button ID) at store offset 91. */
+  mapM4: number
 }
 
 /**
@@ -217,6 +219,7 @@ export function parseFlyStore(store: Uint8Array): FlyStore | null {
     mapM1: store[FLY_STORE_MAP_M1] ?? -1,
     mapM2: store[FLY_STORE_MAP_M2] ?? -1,
     mapM3: store[FLY_STORE_MAP_M3] ?? -1,
+    mapM4: store[FLY_STORE_MAP_M4] ?? -1,
   }
 }
 
@@ -348,6 +351,7 @@ export function flyMapSelectAck(reply: Uint8Array): boolean {
 export const FLY_MAP_SLOT_M1 = 2
 export const FLY_MAP_SLOT_M2 = 3
 export const FLY_MAP_SLOT_M3 = 4
+export const FLY_MAP_SLOT_M4 = 5
 /** Checksum constant folding the window's covered bytes. */
 export const FLY_MAP_CK = 0xbd
 
@@ -390,6 +394,8 @@ export const FLY_STORE_MAP_M1 = 82
 export const FLY_STORE_MAP_M2 = 85
 /** Store offset tracking the M3 bind (proven live: FF→Y→B tracked). */
 export const FLY_STORE_MAP_M3 = 88
+/** Store offset tracking the M4 bind (proven live: FF→Y→B tracked). */
+export const FLY_STORE_MAP_M4 = 91
 
 /** k5 button IDs for 1:1 remap targets (device_config_k5; Turbo excluded — never). */
 export const FLY_MAP_TARGETS: ReadonlyArray<{ label: string; value: number }> = [
