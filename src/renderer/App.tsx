@@ -252,14 +252,16 @@ function CurvePlot({ points, onChange, overlay, smooth }: { points: Array<{ x: n
  * response (fine centre for micro-aim, hot edge for flicks). The pad has no
  * speed-sensing, so true velocity-dynamic curves are impossible; these bend
  * the same LUT a dynamic curve would average out to. All verified byte-safe:
- * curve bytes only, +14..+23.
+ * curve bytes only, +14..+23. The Dynamic (CoD) entry is digitized from the
+ * game's own published curve chart (thumbstick movement → rotation speed):
+ * above the diagonal early, crossing at mid, settled below it late.
  */
 export const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: number; y: number }> }> = {
   linear: { label: 'Linear', hint: '1:1 raw', pts: [...LINEAR_CURVE] },
   dynamic: {
     label: 'Dynamic (CoD)',
-    hint: 'CoD-style reversed S: calm centre, hot mid, settled edge',
-    pts: [{ x: 0, y: 0 }, { x: 64, y: 42 }, { x: 128, y: 150 }, { x: 191, y: 218 }, { x: 255, y: 255 }]
+    hint: 'digitized from CoD chart: hot start, settled mid',
+    pts: [{ x: 0, y: 0 }, { x: 64, y: 89 }, { x: 128, y: 128 }, { x: 191, y: 173 }, { x: 255, y: 255 }]
   },
   fpsAim: {
     label: 'Kiyoshi Curve',

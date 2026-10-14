@@ -21,18 +21,18 @@ check(
   'dynamic x-ordered in range',
   pts.every((p, i) => p.x >= 0 && p.x <= 255 && p.y >= 0 && p.y <= 255 && (i === 0 || p.x > pts[i - 1].x))
 )
-// reversed-S vs linear: calm below the diagonal early, hot above it mid,
-// settled back near the diagonal at the edge
+// reversed-S vs linear, digitized from the game's chart: hot above the
+// diagonal early, crossing at mid, settled below it late
 const lin = (x: number): number => x
-check('dynamic calm centre', pts[1].y < lin(pts[1].x))
-check('dynamic hot mid', pts[2].y > lin(pts[2].x))
-check('dynamic settles at edge', Math.abs(pts[3].y - lin(pts[3].x)) <= 30)
+check('dynamic hot start', pts[1].y > lin(pts[1].x))
+check('dynamic crosses at mid', Math.abs(pts[2].y - lin(pts[2].x)) <= 5)
+check('dynamic settled late', pts[3].y < lin(pts[3].x))
 // what actually gets written: linear-mode resample of the design
 const q = resampleCurve(pts.map((p) => ({ ...p })))
 check('dynamic quantizes to 5 pad points', q.length === 5)
 check(
   'dynamic quantized bytes exact',
-  JSON.stringify(q) === JSON.stringify(resampleCurve([{ x: 0, y: 0 }, { x: 64, y: 42 }, { x: 128, y: 150 }, { x: 191, y: 218 }, { x: 255, y: 255 }]))
+  JSON.stringify(q) === JSON.stringify(resampleCurve([{ x: 0, y: 0 }, { x: 64, y: 89 }, { x: 128, y: 128 }, { x: 191, y: 173 }, { x: 255, y: 255 }]))
 )
 check('dynamic quantized monotonic', q.every((p, i) => i === 0 || (p.x >= q[i - 1].x && p.y >= q[i - 1].y)))
 
