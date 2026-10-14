@@ -1505,6 +1505,8 @@ function ApexButtons(): JSX.Element {
   const [m2, setM2] = useState<number | null>(null)
   const [m3, setM3] = useState<number | null>(null)
   const [m4, setM4] = useState<number | null>(null)
+  const [lm, setLm] = useState<number | null>(null)
+  const [rm, setRm] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -1517,11 +1519,15 @@ function ApexButtons(): JSX.Element {
       setM2(store.mapM2)
       setM3(store.mapM3)
       setM4(store.mapM4)
+      setLm(store.mapLM)
+      setRm(store.mapRM)
     } catch {
       setM1(null)
       setM2(null)
       setM3(null)
       setM4(null)
+      setLm(null)
+      setRm(null)
     }
   }
 
@@ -1530,7 +1536,7 @@ function ApexButtons(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function writeBind(source: 'M1' | 'M2' | 'M3' | 'M4', value: number): Promise<void> {
+  async function writeBind(source: 'M1' | 'M2' | 'M3' | 'M4' | 'LM' | 'RM', value: number): Promise<void> {
     setErr(null)
     setMsg(null)
     if (!flyTransport.connected) {
@@ -1538,18 +1544,22 @@ function ApexButtons(): JSX.Element {
       return
     }
     const label = FLY_MAP_TARGETS.find((o) => o.value === value)?.label ?? String(value)
-    if (!window.confirm(`Remap ${source} to ${label}? 1:1 remap only — M1-M4 carry over, other custom binds reset to default. Verified against the pad readback.`)) return
+    if (!window.confirm(`Remap ${source} to ${label}? 1:1 remap only — managed binds carry over, other custom binds reset to default. Verified against the pad readback.`)) return
     setBusy(true)
     try {
       if (source === 'M1') await flyTransport.writeMapM1(value)
       else if (source === 'M2') await flyTransport.writeMapM2(value)
       else if (source === 'M3') await flyTransport.writeMapM3(value)
-      else await flyTransport.writeMapM4(value)
+      else if (source === 'M4') await flyTransport.writeMapM4(value)
+      else if (source === 'LM') await flyTransport.writeMapLM(value)
+      else await flyTransport.writeMapRM(value)
       const store = await flyTransport.readStore()
       setM1(store.mapM1)
       setM2(store.mapM2)
       setM3(store.mapM3)
       setM4(store.mapM4)
+      setLm(store.mapLM)
+      setRm(store.mapRM)
       setMsg(`${source} remapped to ${label}, verified by pad readback. Test feel in game.`)
     } catch (e) {
       setErr((e as Error).message)
@@ -1563,7 +1573,9 @@ function ApexButtons(): JSX.Element {
   const m2Label = FLY_MAP_TARGETS.find((o) => o.value === m2)?.label
   const m3Label = FLY_MAP_TARGETS.find((o) => o.value === m3)?.label
   const m4Label = FLY_MAP_TARGETS.find((o) => o.value === m4)?.label
-  const bindRow = (source: 'M1' | 'M2' | 'M3' | 'M4', cur: number | null, curLabel: string | undefined): JSX.Element => (
+  const lmLabel = FLY_MAP_TARGETS.find((o) => o.value === lm)?.label
+  const rmLabel = FLY_MAP_TARGETS.find((o) => o.value === rm)?.label
+  const bindRow = (source: 'M1' | 'M2' | 'M3' | 'M4' | 'LM' | 'RM', cur: number | null, curLabel: string | undefined): JSX.Element => (
     <tr>
       <td>{source}</td>
       <td>
@@ -1598,7 +1610,7 @@ function ApexButtons(): JSX.Element {
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <h3>{t('buttons.title')}</h3>
-        <Hint>{t('buttons.hint')} M1-M4 are proven live (select-ack + pack-ack + save + store readback, managed values carry over). Remaining buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
+        <Hint>{t('buttons.hint')} M1-M4, LM and RM are proven live (select-ack + pack-ack + save + store readback, managed values carry over). Remaining buttons' write slots are unmapped — one flip each through the same pipeline decodes them.</Hint>
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
           <tbody>
@@ -1606,6 +1618,8 @@ function ApexButtons(): JSX.Element {
             {bindRow('M2', m2, m2Label)}
             {bindRow('M3', m3, m3Label)}
             {bindRow('M4', m4, m4Label)}
+            {bindRow('LM', lm, lmLabel)}
+            {bindRow('RM', rm, rmLabel)}
           </tbody>
         </table>
         {(msg || err) && <div style={{ marginTop: 8 }}>{msg && <div className="note">{msg}</div>}{err && <div className="note bad">{err}</div>}</div>}

@@ -120,6 +120,9 @@ Until then this file is the complete, honest state of knowledge.
 - M2 proven the same way (FF→Y→B tracked at mirrors + store@85;
   Y→B pcap showed M1+M2 sharing record 00, triplet slots 2+3, cksum
   C0 — the additive rule re-confirmed on a two-ID sample).
+- LM proven in record-00 slot 6 (store@94); RM proven in a second
+  table, section 0x04 len 0xC3, slot 0 (store@102) — same 0xBD
+  checksum idiom over 21 bytes, five confirmations total.
 - Multi-button writes carry the live values of all managed slots
   (M1-M4); anything unmanaged resets to default, and the UI confirm
   says so. Turbo is excluded from targets by policy — never.

@@ -8,7 +8,10 @@
  */
 import { api } from './api'
 import {
+  FLY_MAP2_LEN,
+  FLY_MAP2_SLOT_RM,
   FLY_MAP_LEN,
+  FLY_MAP_SLOT_LM,
   FLY_MAP_SLOT_M1,
   FLY_MAP_SLOT_M2,
   FLY_MAP_SLOT_M3,
@@ -18,21 +21,25 @@ import {
   FLY_SEC_LEFT,
   FLY_SEC_LEFT_LEN,
   FLY_SEC_MAP,
+  FLY_SEC_MAP2,
   FLY_SEC_RGB,
   FLY_SEC_RGB_LEN,
   FLY_SEC_RIGHT,
   FLY_SEC_RIGHT_LEN,
   FLY_STORE_CHUNKS,
   FLY_STORE_LEN,
+  FLY_STORE_MAP_LM,
   FLY_STORE_MAP_M1,
   FLY_STORE_MAP_M2,
   FLY_STORE_MAP_M3,
   FLY_STORE_MAP_M4,
+  FLY_STORE_MAP_RM,
   FlyCmd,
   FlyStore,
   flyAnnounce,
   flyCurveWindow,
   flyLedWindow,
+  flyMap2Table,
   flyMapSelectAck,
   flyMapSelectArgs,
   flyMapTable,
@@ -53,6 +60,23 @@ export interface FlyIdentity {
   uid: string
   version: { b0: number; b1: number }
 }
+
+/** Proven bind slots: table location + store readback for each source. */
+const MAP_MANAGED: ReadonlyArray<{
+  key: string
+  slot: number
+  section: number
+  len: number
+  get: (s: FlyStore) => number
+  window: (assign: Readonly<Record<number, number>>) => number[]
+}> = [
+  { key: 'M1', slot: FLY_MAP_SLOT_M1, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM1, window: flyMapTable },
+  { key: 'M2', slot: FLY_MAP_SLOT_M2, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM2, window: flyMapTable },
+  { key: 'M3', slot: FLY_MAP_SLOT_M3, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM3, window: flyMapTable },
+  { key: 'M4', slot: FLY_MAP_SLOT_M4, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapM4, window: flyMapTable },
+  { key: 'LM', slot: FLY_MAP_SLOT_LM, section: FLY_SEC_MAP, len: FLY_MAP_LEN, get: (s) => s.mapLM, window: flyMapTable },
+  { key: 'RM', slot: FLY_MAP2_SLOT_RM, section: FLY_SEC_MAP2, len: FLY_MAP2_LEN, get: (s) => s.mapRM, window: flyMap2Table }
+]
 
 class FlyTransport {
   private open = false
@@ -210,33 +234,30 @@ class FlyTransport {
   }
 
   /**
-   * Remap a managed bind slot to a k5 button ID (M1/M2 proven).
-   * Reads the live values of every managed slot first so nothing managed
-   * is reset; unmanaged custom binds (set in Space Station) DO reset to
-   * default — the UI confirm says so. Ack-checked, save with stamp retry,
-   * verified against the store offsets. Throws otherwise.
+   * Remap a managed bind to a k5 button ID (M1-M4/LM/RM proven).
+   * Reads the live values of every slot managed in the same table first
+   * so nothing managed is reset; unmanaged custom binds (set in Space
+   * Station) DO reset to default — the UI confirm says so. Ack-checked,
+   * save with stamp retry, verified against the store offsets. Throws
+   * otherwise — never silently assume.
    */
-  async writeMapButton(slot: number, storeOffset: number, value: number): Promise<{ value: number }> {
+  async writeMapButton(key: string, value: number): Promise<{ value: number }> {
     const target = FLY_MAP_TARGETS.find((o) => o.value === (value & 0xff))
     if (!target) throw new Error(`bind target ${value} is not offered`)
-    const managed: ReadonlyArray<{ slot: number; storeOffset: number; get: (s: FlyStore) => number }> = [
-      { slot: FLY_MAP_SLOT_M1, storeOffset: FLY_STORE_MAP_M1, get: (s) => s.mapM1 },
-      { slot: FLY_MAP_SLOT_M2, storeOffset: FLY_STORE_MAP_M2, get: (s) => s.mapM2 },
-      { slot: FLY_MAP_SLOT_M3, storeOffset: FLY_STORE_MAP_M3, get: (s) => s.mapM3 },
-      { slot: FLY_MAP_SLOT_M4, storeOffset: FLY_STORE_MAP_M4, get: (s) => s.mapM4 }
-    ]
-    if (!managed.some((m) => m.slot === slot)) throw new Error(`bind slot ${slot} is not unlocked yet`)
+    const entry = MAP_MANAGED.find((m) => m.key === key)
+    if (!entry) throw new Error(`bind ${key} is not unlocked yet`)
+    const group = MAP_MANAGED.filter((m) => m.section === entry.section)
     const live = await this.readStore().catch(() => null)
     if (!live) throw new Error('pad store would not re-read — connect it and close Space Station first')
     const assign: Record<number, number> = {}
-    for (const m of managed) {
-      const cur = m.slot === slot ? target.value : m.get(live)
+    for (const m of group) {
+      const cur = m.key === key ? target.value : m.get(live)
       if (cur < 0) throw new Error('live bind value unreadable — aborting, nothing sent')
       assign[m.slot] = cur
     }
     const sel = await this.send(FlyCmd.MapSelect, flyMapSelectArgs())
     if (!flyMapSelectAck(sel)) throw new Error('pad refused the mapping select')
-    await this.writePack(FLY_SEC_MAP, FLY_MAP_LEN, flyMapTable(assign))
+    await this.writePack(entry.section, entry.len, entry.window(assign))
     let saved = false
     let lastErr: unknown = null
     for (let attempt = 0; attempt < 3 && !saved; attempt++) {
@@ -256,32 +277,41 @@ class FlyTransport {
     if (!saved) throw new Error(`bind saved but unconfirmed (${lastErr instanceof Error ? lastErr.message : 'stamp race'}) — verify feel in game`)
     const back = await this.readStore().catch(() => null)
     if (!back) throw new Error('saved but the store would not re-read — verify feel in game')
-    const entry = managed.find((m) => m.slot === slot)
-    const got = entry ? entry.get(back) : -1
+    const got = entry.get(back)
     if (got !== target.value) {
       throw new Error(`bind did not stick (wanted ${target.value}, pad reports ${got}) — restore in Space Station`)
     }
     return { value: target.value }
   }
 
-  /** Remap M1 (proven slot 2, verified at store@82). */
+  /** Remap M1 (record-00 slot 2, verified at store@82). */
   async writeMapM1(value: number): Promise<{ value: number }> {
-    return this.writeMapButton(FLY_MAP_SLOT_M1, FLY_STORE_MAP_M1, value)
+    return this.writeMapButton('M1', value)
   }
 
-  /** Remap M2 (proven slot 3, verified at store@85). */
+  /** Remap M2 (record-00 slot 3, verified at store@85). */
   async writeMapM2(value: number): Promise<{ value: number }> {
-    return this.writeMapButton(FLY_MAP_SLOT_M2, FLY_STORE_MAP_M2, value)
+    return this.writeMapButton('M2', value)
   }
 
-  /** Remap M3 (proven slot 4, verified at store@88). */
+  /** Remap M3 (record-00 slot 4, verified at store@88). */
   async writeMapM3(value: number): Promise<{ value: number }> {
-    return this.writeMapButton(FLY_MAP_SLOT_M3, FLY_STORE_MAP_M3, value)
+    return this.writeMapButton('M3', value)
   }
 
-  /** Remap M4 (proven slot 5, verified at store@91). */
+  /** Remap M4 (record-00 slot 5, verified at store@91). */
   async writeMapM4(value: number): Promise<{ value: number }> {
-    return this.writeMapButton(FLY_MAP_SLOT_M4, FLY_STORE_MAP_M4, value)
+    return this.writeMapButton('M4', value)
+  }
+
+  /** Remap LM (record-00 slot 6, verified at store@94). */
+  async writeMapLM(value: number): Promise<{ value: number }> {
+    return this.writeMapButton('LM', value)
+  }
+
+  /** Remap RM (section-04 slot 0, verified at store@102). */
+  async writeMapRM(value: number): Promise<{ value: number }> {
+    return this.writeMapButton('RM', value)
   }
 }
 

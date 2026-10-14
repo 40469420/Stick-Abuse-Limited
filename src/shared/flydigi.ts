@@ -196,6 +196,10 @@ export interface FlyStore {
   mapM3: number
   /** M4 bind target (k5 button ID) at store offset 91. */
   mapM4: number
+  /** LM bind target (k5 button ID) at store offset 94. */
+  mapLM: number
+  /** RM bind target (k5 button ID) at store offset 102. */
+  mapRM: number
 }
 
 /**
@@ -220,6 +224,8 @@ export function parseFlyStore(store: Uint8Array): FlyStore | null {
     mapM2: store[FLY_STORE_MAP_M2] ?? -1,
     mapM3: store[FLY_STORE_MAP_M3] ?? -1,
     mapM4: store[FLY_STORE_MAP_M4] ?? -1,
+    mapLM: store[FLY_STORE_MAP_LM] ?? -1,
+    mapRM: store[FLY_STORE_MAP_RM] ?? -1,
   }
 }
 
@@ -313,9 +319,11 @@ export function flyPrecisionValue(reply: Uint8Array): number {
 }
 
 /**
- * M1 remap write path — decoded from a live USB capture (2026-10-14,
- * Space Station B→X save, byte-exact) and proven with our own bytes on
- * hardware: B→X→B round trip, pad-confirmed both legs, curves intact.
+ * Bind remap write path — decoded from live USB captures (2026-10-14,
+ * Space Station saves, byte-exact) and proven with our own bytes on
+ * hardware: M1 B→X→B round trip, pad-confirmed both legs, curves intact.
+ * M1-M4 + LM share record 00 (triplet slots 2-6); RM lives in a second
+ * table, section 0x04 (slot 0) — same 0xBD checksum idiom throughout.
  *
  * Save chain: 0x11 select [07 FF 00 FF FF FF 14] (ack [01,00,01,00]),
  * A4 announce section 0x03 len 0xC2, one A5 patch (27 B window below),
@@ -352,6 +360,7 @@ export const FLY_MAP_SLOT_M1 = 2
 export const FLY_MAP_SLOT_M2 = 3
 export const FLY_MAP_SLOT_M3 = 4
 export const FLY_MAP_SLOT_M4 = 5
+export const FLY_MAP_SLOT_LM = 6
 /** Checksum constant folding the window's covered bytes. */
 export const FLY_MAP_CK = 0xbd
 
@@ -396,6 +405,40 @@ export const FLY_STORE_MAP_M2 = 85
 export const FLY_STORE_MAP_M3 = 88
 /** Store offset tracking the M4 bind (proven live: FF→Y→B tracked). */
 export const FLY_STORE_MAP_M4 = 91
+/** Store offset tracking the LM bind (proven live: FF→Y→B tracked). */
+export const FLY_STORE_MAP_LM = 94
+/** Store offset tracking the RM bind (proven live: FF→X→A tracked). */
+export const FLY_STORE_MAP_RM = 102
+
+/**
+ * Second mapping table (section 0x04, len 0xC3): seven (00, 00, value)
+ * triplets, RM proven in slot 0 (Y→B…X→A sessions, byte-exact pcap).
+ * Same 0xBD additive checksum over the 21 data bytes before it, then
+ * four zeros. Same select/A4/A6 chain, A4 section byte 0x04.
+ */
+export const FLY_SEC_MAP2 = 0x04
+export const FLY_MAP2_LEN = 0xc3
+export const FLY_MAP2_SLOT_RM = 0
+
+/** Mapping checksum for the section-04 layout (21 data bytes). */
+export function flyMap2Checksum(data21: ArrayLike<number>): number {
+  let sum = FLY_MAP_CK
+  for (let i = 0; i < 21; i++) sum = (sum + (data21[i] & 0xff)) & 0xff
+  return sum
+}
+
+/** Build the 26 B section-04 window from explicit slot assignments. */
+export function flyMap2Table(assign: Readonly<Record<number, number>>): number[] {
+  const w: number[] = []
+  for (let i = 0; i < 7; i++) {
+    const v = assign[i]
+    if (v !== undefined && (v < 0 || v > 255)) throw new Error(`map value ${v} out of range`)
+    w.push(0x00, 0x00, v === undefined ? 0xff : v & 0xff)
+  }
+  const slots = Object.keys(assign).map(Number)
+  if (slots.some((s) => !Number.isInteger(s) || s < 0 || s > 6)) throw new Error('map slot out of range')
+  return [...w, flyMap2Checksum(w), 0x00, 0x00, 0x00, 0x00]
+}
 
 /** k5 button IDs for 1:1 remap targets (device_config_k5; Turbo excluded — never). */
 export const FLY_MAP_TARGETS: ReadonlyArray<{ label: string; value: number }> = [
