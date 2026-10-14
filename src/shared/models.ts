@@ -80,7 +80,7 @@ export const MODELS: ReadonlyArray<ControllerModel> = [
     profileLength: 0,
     dumpLength: 0,
     support: 'full',
-    supportNote: 'Apex 5 (deviceCode k5) over WebHID interrupt reports (id 3 out / 4 back, 5A-A5 framing). Reads proven live; left-curve writes captured byte-exact with additive-checksum + save-nonce commit proof, owner-verified on hardware. Right-curve encoding, polling/precision switches and live input are unmapped — those cards stay off. 1000 Hz max.'
+    supportNote: 'Apex 5 (deviceCode k5) over WebHID interrupt reports (id 3 out / 4 back, 5A-A5 framing). Same tabs and cards as GameSir — curves, precision 12/11/10/9/8 and LED proven live with ack + readback; polling fixed at 1000 Hz and unmapped features show Not supported. 1000 Hz max.'
   },
   {
     id: 'G7SE',

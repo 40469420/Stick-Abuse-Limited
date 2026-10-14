@@ -1475,8 +1475,8 @@ function ApexCalibrate(): JSX.Element {
   const verdict = !feed.present ? null : steps <= 2 ? 'Centered' : steps <= 6 ? 'Mild drift — deadzone covers it' : 'Drifting'
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <h3>{t('cal.bench')} — Apex 5</h3>
-      <Hint>Live center check off the standard gamepad stream. Firmware center-write is unmapped for this pad — tune the curve heads in Sticks instead. Leave the pad untouched on a table.</Hint>
+      <h3>{t('cal.bench')}</h3>
+      <Hint>{t('cal.intro')} Firmware center-write is unmapped for this pad — tune the curve heads in Sticks instead. Leave the pad untouched on a table.</Hint>
       <div className="row" style={{ gap: 20, justifyContent: 'center', margin: '12px 0' }}>
         {feed.present ? (
           <>
@@ -1493,8 +1493,109 @@ function ApexCalibrate(): JSX.Element {
         <div style={{ flex: 1 }} />
         <button className="btn sm ghost" onClick={() => setPeak(0)}>Reset peak</button>
       </div>
-      <div className="note warn" style={{ marginTop: 8 }}>This bench re-centers GameSir sticks — it cannot fix drift, and it cannot write to the Apex. Drift is worn hardware; replace the sticks, then calibrate.</div>
+      <div className="note warn" style={{ marginTop: 8 }}>This bench re-centers GameSir sticks — it cannot fix drift, and it cannot write to this pad. Drift is worn hardware; replace the sticks, then calibrate.</div>
     </div>
+  )
+}
+
+/** Same Buttons tab, same cards — remap/trigger bytes unmapped on Apex, so Locked. */
+function ApexButtons(): JSX.Element {
+  const t = useT()
+  return (
+    <>
+      <div className="card">
+        <h3>{t('trig.title')}</h3>
+        <Hint>{t('trig.hint')} No trigger-byte equivalent mapped on this pad.</Hint>
+        <Locked>
+        <div className="stack" style={{ gap: 12, marginTop: 8 }}>
+          <Slider label={t('sticks.start')} value={0} min={0} max={20} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+          <Slider label={t('sticks.end')} value={100} min={10} max={100} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+        </div>
+        </Locked>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3>{t('buttons.title')}</h3>
+        <Hint>{t('buttons.hint')} Remap bytes unmapped on this pad — same table, same place.</Hint>
+        <Locked>
+        <table className="tbl" style={{ marginTop: 8 }}>
+          <thead><tr><th>{t('buttons.source')}</th><th>{t('buttons.target')}</th><th>{t('buttons.effective')}</th></tr></thead>
+          <tbody>
+            {['A', 'B', 'X', 'Y'].map((n) => (
+              <tr key={n}>
+                <td>{n}</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </Locked>
+      </div>
+    </>
+  )
+}
+
+/** Same Profiles tab, same card — slot backup is GameSir-layout, so Locked on Apex. */
+function ApexProfiles(): JSX.Element {
+  const t = useT()
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h3>{t('profiles.title')} — {t('profiles.subtitle')}</h3>
+      <Hint>{t('profiles.hint')} Slot backup is GameSir-layout only. Apex curve backup lives in Sticks (pad bytes + Send).</Hint>
+      <Locked>
+      <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
+        <button className="btn sm" disabled>{t('profiles.readAll')}</button>
+        <button className="btn sm" disabled>{t('profiles.backup')}</button>
+        <button className="btn sm" disabled>{t('profiles.restore')}</button>
+      </div>
+      <table className="tbl">
+        <thead><tr><th>{t('profiles.slot')}</th><th>{t('profiles.name')}</th><th>{t('profiles.active')}</th><th>{t('profiles.actions')}</th></tr></thead>
+        <tbody>
+          {[1, 2, 3, 4].map((i) => (
+            <tr key={i}>
+              <td className="mono">P{i}</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      </Locked>
+    </div>
+  )
+}
+
+/** Same Lab tab, same cards — Analytics/Bench/DeepPoll live, Reset Locked. */
+function ApexLab({ pid }: { pid: number | null }): JSX.Element {
+  const t = useT()
+  const feed = useFlyLive(true)
+  const live: LiveSample | null = feed.present
+    ? { lx: axisToByte(feed.lx), ly: axisToByte(feed.ly), rx: axisToByte(feed.rx), ry: axisToByte(feed.ry), lt: 0, rt: 0, calTarget: 0, calMask: 0, battery: 0, live: true, timestamp: Date.now() }
+    : null
+  return (
+    <>
+      <AnalyticsPanel
+        context="Apex 5 · 1000 Hz fixed — green chart is measured input, not the set rate."
+        setHz={1000}
+        gear={2}
+      />
+      <LinearityBench live={live} connected />
+      <DeepPollCard vid={0x37d7} pid={pid ?? 0x2501} setHz={1000} connected />
+      <div className="card" style={{ marginTop: 16, borderColor: 'var(--bad)' }}>
+        <h3>{t('sticks.reset')}</h3>
+        <Hint>{t('sticks.resetHint')} Curve reset lives in Sticks for this pad.</Hint>
+        <Locked>
+        <button
+          className="btn danger"
+          style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
+          disabled
+        >
+          {t('sticks.resetAll')}
+        </button>
+        </Locked>
+      </div>
+    </>
   )
 }
 
@@ -1564,15 +1665,11 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
   }
 
   return (
-    <div className="stack" style={{ gap: 16 }}>
-      <div className="card">
-        <h3>{t('nav.device')} — Apex 5</h3>
-        <Hint>1000 Hz max on this pad — nothing faster is offered. Polling-rate switching and shapes are GameSir-only or unmapped, so those cards stay off here. Curves live in Sticks.</Hint>
-        {flyId && <div className="mono" style={{ fontSize: 11, marginTop: 6 }}>uid {flyId.uid}</div>}
-      </div>
+    <div className="two" style={{ alignItems: 'start' }}>
+      <div className="stack" style={{ gap: 16 }}>
       <div className="card">
         <h3>{t('device.polling')} - {rates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
-        <Hint>Report-rate gears. Rate switching is unmapped on this pad — 1000 Hz max.</Hint>
+        <Hint>Report-rate gear — same card as GameSir. 1000 Hz max on this pad, fixed in firmware; switching is unmapped.</Hint>
         <Locked>
         <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
           {rates.map((o) => (
@@ -1590,9 +1687,22 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
       </div>
       <div className="card">
         <h3>{t('device.bits')} - 8-12</h3>
-        <Hint>Stick precision, decoded from live USB captures: write is ack-checked and verified against the pad's own state read. Same 12/11/10/9/8 options Space Station offers.</Hint>
-        <div className="choice" style={{ margin: '10px 0' }}>
-          {FLY_PRECISION_BITS.map((o) => (
+        <Hint>{t('device.bitHint')} Same card as GameSir — 12/11/10/9/8, ack-checked and verified against the pad's own state read.</Hint>
+        <div className="choice" style={{ margin: '10px 0 6px' }}>
+          {FLY_PRECISION_BITS.filter((o) => o.bits === 12).map((o) => (
+            <button
+              key={o.bits}
+              className={`choice-btn${precBits === o.bits ? ' active' : ''}`}
+              disabled={precBusy}
+              title={`firmware value ${o.value}`}
+              onClick={() => void writePrecision(o.bits)}
+            >
+              <span className="choice-label">Unlimited (12-bit)</span>
+            </button>
+          ))}
+        </div>
+        <div className="choice" style={{ margin: '0 0 6px' }}>
+          {[...FLY_PRECISION_BITS].filter((o) => o.bits !== 12).sort((a, b) => b.bits - a.bits).map((o) => (
             <button
               key={o.bits}
               className={`choice-btn${precBits === o.bits ? ' active' : ''}`}
@@ -1604,29 +1714,29 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
             </button>
           ))}
         </div>
+        <Hint style={{ marginTop: 8 }}>
+          {t('device.bitNote')}
+        </Hint>
         {precBits === null && <div className="label">Pad precision unread — connect, then reload.</div>}
       </div>
+      </div>
+      <div className="stack" style={{ gap: 16 }}>
       <div className="card">
         <h3>{t('device.rate')}</h3>
-        <Hint>How fast this stick answers in Mouse mode on GameSir pads. No equivalent on this pad.</Hint>
-        <div style={{ marginTop: 6 }}>
-          <NsTag />
-        </div>
-      </div>
-      <div className="card">
-        <h3>{t('sticks.shape')}</h3>
-        <Hint>Round/square/raw processing flags. This pad has no shape flags: output always follows the curve.</Hint>
+        <Hint>{t('device.rateHint')} No equivalent on this pad.</Hint>
         <Locked>
-        <div className="stack" style={{ gap: 8 }}>
-          {['Round diagonals', 'Square gate', 'Pure raw 1:1'].map((name) => (
-            <button key={name} className="btn sm ghost" disabled title="No processing-flag equivalent on this pad">{name}</button>
-          ))}
+        <div className="stack" style={{ gap: 12 }}>
+          <div className="row spread">
+            <div>
+              <div style={{ fontSize: 13.5 }}>{t('device.rateConst')}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                {t('device.rateApplies')}
+              </div>
+            </div>
+            <span className="mono">{t('device.stored')}: —</span>
+          </div>
         </div>
         </Locked>
-      </div>
-      <div className="card" style={{ borderColor: 'var(--bad)' }}>
-        <h3>{t('sticks.reset')}</h3>
-        <Hint>Curve reset lives in the Sticks tab for this pad (designs state is shared there).</Hint>
       </div>
       <div className="card">
         <h3>LED</h3>
@@ -1639,6 +1749,7 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
         </div>
         {msg && <div className="note" style={{ marginTop: 8 }}>{msg}</div>}
         {err && <div className="note bad" style={{ marginTop: 8 }}>{err}</div>}
+      </div>
       </div>
     </div>
   )
@@ -2016,12 +2127,30 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
       </div>
         <div className="card">
           <h3>{t('sticks.shape')}</h3>
-          <Hint>Three shapes for this stick — processing on for the first two, fully bypassed for raw. This pad has no shape flags: output always follows the curve.</Hint>
+          <Hint>{t('sticks.shapeHint')} No processing-flag equivalent on this pad: output always follows the curve.</Hint>
+          <Locked>
           <div className="stack" style={{ gap: 8 }}>
-            {['Round diagonals', 'Square gate', 'Pure raw 1:1'].map((name) => (
-              <button key={name} className="btn sm ghost" disabled title="No processing-flag equivalent on this pad">{name}</button>
-            ))}
+            {(
+              [
+                { key: 'round', hintKey: 'sticks.shapeHintRound' },
+                { key: 'square', hintKey: 'sticks.shapeHintSquare' },
+                { key: 'raw', hintKey: 'sticks.shapeHintRaw' }
+              ] as const
+            ).map((s) => {
+              const label = s.key === 'round' ? t('sticks.shapeRound') : s.key === 'square' ? t('sticks.shapeSquare') : t('sticks.shapeRaw')
+              return (
+                <button
+                  key={s.key}
+                  className="btn sm ghost"
+                  disabled
+                  title={t(s.hintKey)}
+                >
+                  <span className="choice-label">{label}</span>
+                </button>
+              )
+            })}
           </div>
+          </Locked>
         </div>
         <div className="card" style={{ borderColor: 'var(--bad)' }}>
           <h3>{t('sticks.reset')}</h3>
@@ -3268,9 +3397,9 @@ export default function App(): JSX.Element {
               {tab === 'device' && (
                 <ApexDevice flyId={flyId} rates={rates} />
               )}
-              {(tab === 'profiles' || tab === 'lab') && (
-                <div className="msg"><h3>Not mapped yet</h3><p>Profile slots and analytics are GameSir-layout only. Apex curve tuning lives in Sticks.</p></div>
-              )}
+              {tab === 'buttons' && (<ApexButtons />)}
+              {tab === 'profiles' && (<ApexProfiles />)}
+              {tab === 'lab' && (<ApexLab pid={pid} />)}
               {tab === 'calibrate' && (
                 <ApexCalibrate />
               )}
@@ -3679,6 +3808,15 @@ export default function App(): JSX.Element {
                       <Hint>{t('device.rateNote')}</Hint>
                     </div>
                   </div>
+                  <div className="card">
+                    <h3>LED</h3>
+                    <Hint>LED brightness lives here on Apex (proven write). No RGB write mapped on GameSir yet — same card, same place.</Hint>
+                    <Locked>
+                    <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+                      <Slider label="Brightness" value={40} min={0} max={100} step={1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(0)}%`} />
+                    </div>
+                    </Locked>
+                  </div>
 
                 </div>
               </div>
@@ -3770,10 +3908,10 @@ export default function App(): JSX.Element {
             </div>
             </>
           )}
-          {tab === 'profiles' && (
+          {tab === 'profiles' && model?.id !== 'Apex5' && (
             <ProfilesPanel connected={connected} activeSlot={info?.currentProfile ?? null} locked={locked} modelId={modelId} modelLen={modelLen} dumpLength={model?.dumpLength ?? 0} modelName={model?.marketingName ?? null} />
           )}
-          {tab === 'calibrate' && (
+          {tab === 'calibrate' && model?.id !== 'Apex5' && (
             connected && model?.support === 'full' ? (
               <CalibrationPanel />
             ) : (
@@ -3789,7 +3927,7 @@ export default function App(): JSX.Element {
           {tab === 'theme' && (
             <ThemePanel />
           )}
-          {tab === 'lab' && (
+          {tab === 'lab' && model?.id !== 'Apex5' && (
           <>
           <AnalyticsPanel
             context={
