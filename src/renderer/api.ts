@@ -75,11 +75,6 @@ interface LabApi {
   mariusReadConfig(): Promise<{ bytes: string; parsed: MariusConfig }>
   mariusReadRaw(): Promise<{ left: { x: number; y: number }; right: { x: number; y: number } }>
   mariusDisconnect(): Promise<boolean>
-  /** Flydigi Apex 5 over the hidapi bridge (interrupt-OUT reports). */
-  flyOpen(): Promise<boolean>
-  flySend(cmd: number, args: number[]): Promise<number[]>
-  flyCollect(cmd: number, args: number[], count: number): Promise<number[][]>
-  flyClose(): Promise<boolean>
   /** Kernel USB poll check (elevated ETW trace, UAC prompts once per run). */
   deeppoll(vid: number, pid: number, seconds?: number): Promise<DeepPollResult>
   on(channel: string, fn: (payload: never) => void): () => void
