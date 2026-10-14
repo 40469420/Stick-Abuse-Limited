@@ -11,6 +11,7 @@ import {
   FLY_MAP_LEN,
   FLY_MAP_SLOT_M1,
   FLY_MAP_SLOT_M2,
+  FLY_MAP_SLOT_M3,
   FLY_MAP_TARGETS,
   FLY_PRECISION_BITS,
   FLY_SEC_LEFT,
@@ -24,6 +25,7 @@ import {
   FLY_STORE_LEN,
   FLY_STORE_MAP_M1,
   FLY_STORE_MAP_M2,
+  FLY_STORE_MAP_M3,
   FlyCmd,
   FlyStore,
   flyAnnounce,
@@ -215,16 +217,17 @@ class FlyTransport {
   async writeMapButton(slot: number, storeOffset: number, value: number): Promise<{ value: number }> {
     const target = FLY_MAP_TARGETS.find((o) => o.value === (value & 0xff))
     if (!target) throw new Error(`bind target ${value} is not offered`)
-    const managed: ReadonlyArray<{ slot: number; storeOffset: number }> = [
-      { slot: FLY_MAP_SLOT_M1, storeOffset: FLY_STORE_MAP_M1 },
-      { slot: FLY_MAP_SLOT_M2, storeOffset: FLY_STORE_MAP_M2 }
+    const managed: ReadonlyArray<{ slot: number; storeOffset: number; get: (s: FlyStore) => number }> = [
+      { slot: FLY_MAP_SLOT_M1, storeOffset: FLY_STORE_MAP_M1, get: (s) => s.mapM1 },
+      { slot: FLY_MAP_SLOT_M2, storeOffset: FLY_STORE_MAP_M2, get: (s) => s.mapM2 },
+      { slot: FLY_MAP_SLOT_M3, storeOffset: FLY_STORE_MAP_M3, get: (s) => s.mapM3 }
     ]
     if (!managed.some((m) => m.slot === slot)) throw new Error(`bind slot ${slot} is not unlocked yet`)
     const live = await this.readStore().catch(() => null)
     if (!live) throw new Error('pad store would not re-read — connect it and close Space Station first')
     const assign: Record<number, number> = {}
     for (const m of managed) {
-      const cur = m.slot === slot ? target.value : (m.storeOffset === FLY_STORE_MAP_M1 ? live.mapM1 : live.mapM2)
+      const cur = m.slot === slot ? target.value : m.get(live)
       if (cur < 0) throw new Error('live bind value unreadable — aborting, nothing sent')
       assign[m.slot] = cur
     }
@@ -250,7 +253,8 @@ class FlyTransport {
     if (!saved) throw new Error(`bind saved but unconfirmed (${lastErr instanceof Error ? lastErr.message : 'stamp race'}) — verify feel in game`)
     const back = await this.readStore().catch(() => null)
     if (!back) throw new Error('saved but the store would not re-read — verify feel in game')
-    const got = storeOffset === FLY_STORE_MAP_M1 ? back.mapM1 : back.mapM2
+    const entry = managed.find((m) => m.slot === slot)
+    const got = entry ? entry.get(back) : -1
     if (got !== target.value) {
       throw new Error(`bind did not stick (wanted ${target.value}, pad reports ${got}) — restore in Space Station`)
     }
@@ -265,6 +269,11 @@ class FlyTransport {
   /** Remap M2 (proven slot 3, verified at store@85). */
   async writeMapM2(value: number): Promise<{ value: number }> {
     return this.writeMapButton(FLY_MAP_SLOT_M2, FLY_STORE_MAP_M2, value)
+  }
+
+  /** Remap M3 (proven slot 4, verified at store@88). */
+  async writeMapM3(value: number): Promise<{ value: number }> {
+    return this.writeMapButton(FLY_MAP_SLOT_M3, FLY_STORE_MAP_M3, value)
   }
 }
 

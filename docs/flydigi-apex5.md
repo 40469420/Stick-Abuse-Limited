@@ -121,7 +121,7 @@ Until then this file is the complete, honest state of knowledge.
   Y→B pcap showed M1+M2 sharing record 00, triplet slots 2+3, cksum
   C0 — the additive rule re-confirmed on a two-ID sample).
 - Multi-button writes carry the live values of all managed slots
-  (M1/M2); anything unmanaged resets to default, and the UI confirm
+  (M1/M2/M3); anything unmanaged resets to default, and the UI confirm
   says so. Turbo is excluded from targets by policy — never.
 - Open: other buttons' triplet slots (one flip each through the same
   diff pipeline — M3→? decodes the next), sensitivity/trigger bytes.
