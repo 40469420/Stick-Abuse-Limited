@@ -307,7 +307,6 @@ const STR: Dict = {
   'sticks.shapeHintRaw': { en: 'Untouched sensor output — no processing, true circularity', zh: '未经处理的传感器原始输出——无处理，真实圆度', ja: '手つかずのセンサー出力 — 処理なし、真の真円度', ru: 'Нетронутый выход сенсора — без обработки, истинная круговизна' },
   'device.stored': { en: 'stored', zh: '已存', ja: '保存値', ru: 'сохранено' },
   'device.levels': { en: 'levels', zh: '级', ja: 'レベル', ru: 'уровней' },
-  'device.beyondSilicon': { en: 'Beyond silicon — writes the implied raw wire, expect clamp/ignore', zh: '超出硬件——写入隐含原生线值，可能被钳制或忽略', ja: 'シリコン超え — 想定ワイヤ値を書き込み、クランプ/無視の可能性', ru: 'За пределами кремния — пишется вычисленное raw-значение, возможны обрезка/игнор' },
   'device.rateConst': { en: 'Rate — constant per pick', zh: '速率——每次选择固定', ja: 'レート — 選択ごとに固定', ru: 'Скорость — фиксирована' },
   'device.rateApplies': { en: 'Only applies while Output is Mouse · firmware byte caps at 255', zh: '仅在鼠标输出时生效 · 固件字节上限 255', ja: 'マウス出力時のみ有効 · 上限255', ru: 'Действует только при выводе на мышь · лимит прошивки 255' },
   'device.restoreStick': { en: 'Restore this stick to normal stick output', zh: '将此摇杆恢复为普通摇杆输出', ja: 'このスティックを通常出力に戻す', ru: 'Вернуть стик в обычный вывод' },

@@ -7,7 +7,6 @@ import {
   describeRawResolution,
   bitsToLevels,
   bitsToWireRaw,
-  EXTENDED_BITS,
   resampleCurve,
   resampleSpline,
   traceSpline,
@@ -1528,7 +1527,7 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
         </div>
       </div>
       <div className="card">
-        <h3>{t('device.bits')} - 8-24</h3>
+        <h3>{t('device.bits')} - 8-12</h3>
         <Hint>Precision switching is unmapped on this pad — the sensor runs its stock resolution.</Hint>
         <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
           {STICK_RESOLUTION_OPTIONS.map((o) => (
@@ -1539,16 +1538,6 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
               title="Precision switching is unmapped on this pad"
             >
               {o.bits}-bit
-            </button>
-          ))}
-          {EXTENDED_BITS.map((bits) => (
-            <button
-              key={bits}
-              className="btn sm ghost"
-              disabled
-              title="Precision switching is unmapped on this pad"
-            >
-              {bits}-bit*
             </button>
           ))}
         </div>
@@ -3518,7 +3507,7 @@ export default function App(): JSX.Element {
 
 
                   <div className="card">
-                    <h3>{t('device.bits')} - 8-24</h3>
+                    <h3>{t('device.bits')} - 8-12</h3>
                     <Hint>{t('device.bitHint')}</Hint>
                     <div className="choice" style={{ margin: '10px 0 6px' }}>
                       {STICK_RESOLUTION_OPTIONS.filter((o) => o.bits === 12).map((o) => (
@@ -3541,18 +3530,6 @@ export default function App(): JSX.Element {
                           onClick={() => edit(() => fun.extend.setStickResolutionBits(fd, o.bits))}
                         >
                           <span className="choice-label">{o.bits === 12 ? 'Unlimited (12-bit)' : `${o.bits}-bit`}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="row wrap" style={{ gap: 8, margin: '0 0 10px' }}>
-                      {EXTENDED_BITS.map((bits) => (
-                        <button
-                          key={bits}
-                          className={`choice-btn${resWire === bitsToWireRaw(bits) ? ' active' : ''}`}
-                          title={t('device.beyondSilicon')}
-                          onClick={() => edit(() => fun.extend.setStickResolution(fd, bitsToWireRaw(bits)))}
-                        >
-                          <span className="choice-label">{bits}-bit*</span>
                         </button>
                       ))}
                     </div>
