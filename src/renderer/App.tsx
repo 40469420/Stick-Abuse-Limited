@@ -55,6 +55,27 @@ function Hint({ children, style }: { children: React.ReactNode; style?: React.CS
   )
 }
 
+/** "Not supported" tag for controls the connected pad has no equivalent for. */
+function NsTag(): JSX.Element {
+  const t = useT()
+  return <span className="pill">{t('common.notSupported')}</span>
+}
+
+/**
+ * Greys out a block the connected pad cannot do, with one tag.
+ * Display-only: children stay mounted (values visible) but inert.
+ */
+function Locked({ children }: { children: React.ReactNode }): JSX.Element {
+  return (
+    <div>
+      <div style={{ opacity: 0.45, pointerEvents: 'none' }}>{children}</div>
+      <div style={{ marginTop: 6 }}>
+        <NsTag />
+      </div>
+    </div>
+  )
+}
+
 function Slider(props: {  label: string
   value: number
   min: number
@@ -1552,6 +1573,7 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
       <div className="card">
         <h3>{t('device.polling')} - {rates.map((o) => (o.hz >= 1000 ? `${o.hz / 1000}K` : `${o.hz}`)).join(' / ')}</h3>
         <Hint>Report-rate gears. Rate switching is unmapped on this pad — 1000 Hz max.</Hint>
+        <Locked>
         <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
           {rates.map((o) => (
             <button
@@ -1564,6 +1586,7 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
             </button>
           ))}
         </div>
+        </Locked>
       </div>
       <div className="card">
         <h3>{t('device.bits')} - 8-12</h3>
@@ -1586,15 +1609,20 @@ function ApexDevice({ flyId, rates }: { flyId: FlyIdentity | null; rates: Readon
       <div className="card">
         <h3>{t('device.rate')}</h3>
         <Hint>How fast this stick answers in Mouse mode on GameSir pads. No equivalent on this pad.</Hint>
+        <div style={{ marginTop: 6 }}>
+          <NsTag />
+        </div>
       </div>
       <div className="card">
         <h3>{t('sticks.shape')}</h3>
         <Hint>Round/square/raw processing flags. This pad has no shape flags: output always follows the curve.</Hint>
+        <Locked>
         <div className="stack" style={{ gap: 8 }}>
           {['Round diagonals', 'Square gate', 'Pure raw 1:1'].map((name) => (
             <button key={name} className="btn sm ghost" disabled title="No processing-flag equivalent on this pad">{name}</button>
           ))}
         </div>
+        </Locked>
       </div>
       <div className="card" style={{ borderColor: 'var(--bad)' }}>
         <h3>{t('sticks.reset')}</h3>
@@ -1815,15 +1843,13 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
         <Hint>No separate window on this pad — deadzone lives in the curve head, full range always. <strong>Start</strong> reshapes the first 4 points of the viewed stick, mirroring Space Station's coupling (single observation — verify feel). End and anti stay neutral.</Hint>
         <div className="stack" style={{ gap: 12, marginTop: 8 }}>
           <Slider label="Start (head lift)" value={deadStart} min={0} max={20} step={0.1} unit="%" onChange={(v) => nudgeHead(v)} format={(v) => `${v.toFixed(1)}%`} />
-          <div style={{ opacity: 0.45, pointerEvents: 'none' }}>
-            <Slider label="End (input above = full)" value={100} min={10} max={100} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
-          </div>
-          <div style={{ opacity: 0.45, pointerEvents: 'none' }}>
-            <Slider label="Anti-deadzone start (output floor — snap)" value={0} min={0} max={50} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
-          </div>
-          <div style={{ opacity: 0.45, pointerEvents: 'none' }}>
-            <Slider label="Anti-deadzone end (output ceiling)" value={100} min={50} max={100} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
-          </div>
+          <Locked>
+            <div className="stack" style={{ gap: 12 }}>
+              <Slider label="End (input above = full)" value={100} min={10} max={100} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+              <Slider label="Anti-deadzone start (output floor — snap)" value={0} min={0} max={50} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+              <Slider label="Anti-deadzone end (output ceiling)" value={100} min={50} max={100} step={0.1} unit="%" onChange={() => undefined} format={(v) => `${v.toFixed(1)}%`} />
+            </div>
+          </Locked>
         </div>
         <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
           {(
@@ -1889,6 +1915,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
       <div className="card">
         <h3>{t('sticks.outer')} — ∞ no limit</h3>
         <Hint>The boundary of max stick input. This pad is full range, always.</Hint>
+        <Locked>
         <div className="row spread" style={{ margin: '10px 0' }}>
           <div>
             <div style={{ fontSize: 13.5 }}>{t('sticks.noLimitTitle')}</div>
@@ -1904,6 +1931,7 @@ function ApexSticks({ flyId }: { flyId: FlyIdentity | null }): JSX.Element {
             {t('sticks.infiniteOn')}
           </button>
         </div>
+        </Locked>
         <Hint>
           <strong>What this does.</strong> The outer threshold is the deflection where the stick hits maximum output. Neutral removes the boundary entirely: full physical range with nothing clipped or boosted at the rim.
         </Hint>

@@ -142,6 +142,7 @@ const STR: Dict = {
   'cal.tipRest': { en: 'Leave the pad untouched on a table while open. Values are steps off centre (128); ±2 is perfect.', zh: '开启时请勿触碰手柄。数值为相对中心(128)的步数，±2 为完美。', ja: '調整中は触れないでください。128中心のステップ数、±2が理想。', ru: 'Не трогайте геймпад на столе, пока сессия открыта. Значения — шаги от центра (128); ±2 — идеально.' },
   'cal.driftWarn': { en: 'This bench re-centers the sticks — it cannot fix drift. Drift is worn hardware; replace the sticks, then calibrate.', zh: '此校准台只能回中——无法修复漂移。漂移是硬件磨损；请更换摇杆后再校准。', ja: 'このベンチはセンター調整のみ — ドリフトは直せません。摩耗です。交換してから調整してください。', ru: 'Этот стенд возвращает стики в центр — дрейф он не лечит. Дрейф — износ железа; замените стики, затем калибруйте.' },
   'common.cancel': { en: 'Cancel', zh: '取消', ja: 'キャンセル', ru: 'Отмена' },
+  'common.notSupported': { en: 'Not supported', zh: '不支持', ja: '未対応', ru: 'Не поддерживается' },
   'common.close': { en: 'Close', zh: '关闭', ja: '閉じる', ru: 'Закрыть' },
   'common.gotIt': { en: 'Got it', zh: '知道了', ja: 'わかった', ru: 'Понял' },
   'common.save': { en: 'Save', zh: '保存', ja: '保存', ru: 'Сохранить' },
