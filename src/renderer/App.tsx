@@ -254,8 +254,13 @@ function CurvePlot({ points, onChange, overlay, smooth }: { points: Array<{ x: n
  * the same LUT a dynamic curve would average out to. All verified byte-safe:
  * curve bytes only, +14..+23.
  */
-const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: number; y: number }> }> = {
+export const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: number; y: number }> }> = {
   linear: { label: 'Linear', hint: '1:1 raw', pts: [...LINEAR_CURVE] },
+  dynamic: {
+    label: 'Dynamic (CoD)',
+    hint: 'CoD-style reversed S: calm centre, hot mid, settled edge',
+    pts: [{ x: 0, y: 0 }, { x: 64, y: 42 }, { x: 128, y: 150 }, { x: 191, y: 218 }, { x: 255, y: 255 }]
+  },
   fpsAim: {
     label: 'Kiyoshi Curve',
     hint: 'calm centre, hot edge',
