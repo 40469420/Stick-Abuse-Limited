@@ -134,6 +134,7 @@ const STR: Dict = {
   'cal.mild': { en: 'Mild drift — deadzone covers it', zh: '轻微漂移——死区可覆盖', ja: '軽度ドリフト — デッドゾーン内', ru: 'Лёгкий дрейф — мёртвая зона покрывает' },
   'cal.drifting': { en: 'Drifting — calibrate', zh: '漂移——请校准', ja: 'ドリフト中 — 調整してください', ru: 'Дрейф — калибруйте' },
   'cal.idle': { en: 'idle', zh: '空闲', ja: 'アイドル', ru: 'простой' },
+  'cal.watch': { en: '{stick} stick resting {dev} steps off centre — recalibrate when convenient.', zh: '{stick}摇杆静置偏离中心 {dev} 步——方便时重新校准。', ja: '{stick}スティックが静止時に中心から{dev}ステップずれ — 時間があるときに再調整を。', ru: 'Стик {stick} в покое на {dev} шагов от центра — при случае откалибруйте заново.' },
   'cal.inCal': { en: 'calibrating', zh: '校准中', ja: '調整中', ru: 'калибровка' },
   'cal.stepReady': { en: 'Ready', zh: '就绪', ja: '準備', ru: 'Готов' },
   'cal.stepOpen': { en: 'Session open', zh: '会话已开启', ja: 'セッション開始', ru: 'Сессия открыта' },

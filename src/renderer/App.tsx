@@ -926,6 +926,10 @@ function CalibrationPanel(): JSX.Element {
   const [flow, setFlow] = useState<null | { kind: 'quick' | 'step'; step: number; label: string; progress: number }>(null)
   const flowId = useRef(0)
   const stillRef = useRef<Array<{ t: number; dev: number }>>([])
+  // Sustained-drift watchdog: per-axis rest history. A high mean with a low
+  // spread means the stick sits off-centre untouched (not active play).
+  // Read-only — it only raises the pill; fixes stay one tap away.
+  const driftRef = useRef<Array<{ t: number; d: [number, number, number, number] }>>([])
 
   useEffect(() => () => { flowId.current++ }, [])
 
@@ -938,6 +942,8 @@ function CalibrationPanel(): JSX.Element {
       const now = Date.now()
       stillRef.current.push({ t: now, dev })
       while (stillRef.current.length > 0 && now - stillRef.current[0].t > 4000) stillRef.current.shift()
+      driftRef.current.push({ t: now, d: [v.lx - 128, v.ly - 128, v.rx - 128, v.ry - 128] })
+      while (driftRef.current.length > 0 && now - driftRef.current[0].t > 6000) driftRef.current.shift()
     })
     return off
   }, [])
@@ -946,6 +952,21 @@ function CalibrationPanel(): JSX.Element {
   const maxDev = rest ? Math.max(...rest.map((v) => Math.abs(v))) : 0
   const centered = maxDev <= 4
   const inCal = (live?.calTarget ?? 0) !== 0
+  // Worst stick held off-centre for 5+ s with a near-frozen spread.
+  // Active play has huge spread, so it never trips this.
+  const watch = ((): { stick: 0 | 1; dev: number } | null => {
+    if (inCal || flow || busy || !live) return null
+    const w = driftRef.current
+    if (w.length === 0 || Date.now() - w[0].t < 5000) return null
+    let out: { stick: 0 | 1; dev: number } | null = null
+    for (const s of [0, 1] as const) {
+      const mags = w.map((r) => Math.max(Math.abs(r.d[s * 2]), Math.abs(r.d[s * 2 + 1])))
+      const mean = mags.reduce((a, b) => a + b, 0) / mags.length
+      const spread = Math.max(...mags) - Math.min(...mags)
+      if (mean > 4 && spread <= 3 && (!out || mean > out.dev)) out = { stick: s, dev: mean }
+    }
+    return out
+  })()
   const [trim, setTrim] = useState<[number, number, number, number]>([0, 0, 0, 0])
   const [trimBusy, setTrimBusy] = useState(false)
   const [trimErr, setTrimErr] = useState<string | null>(null)
@@ -1223,6 +1244,7 @@ function CalibrationPanel(): JSX.Element {
       <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
         <span className={`pill${inCal ? ' warn' : ''}`}>{inCal ? `${t('cal.inCal')} (target ${live?.calTarget})` : t('cal.idle')}</span>
         {rest && <span className={`pill${maxDev <= 2 ? ' good' : maxDev <= 6 ? ' warn' : ' bad'}`}>{verdict} · ±{maxDev}</span>}
+        {watch && <span className="pill warn">{t('cal.watch').replace('{stick}', watch.stick === 0 ? t('cal.left') : t('cal.right')).replace('{dev}', String(Math.round(watch.dev)))}</span>}
         <div style={{ flex: 1 }} />
         <button className="btn sm primary" disabled={busy || !!flow || !live} onClick={() => void quickCalibrate()}>{t('cal.quick')}</button>
         <button className="btn sm" disabled={busy || !!flow || !live} onClick={() => startSteps()}>{t('cal.step')}</button>
