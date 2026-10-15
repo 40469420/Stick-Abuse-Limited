@@ -190,7 +190,7 @@ function createWindow(): void {
     minWidth: 1000,
     minHeight: 680,
     backgroundColor: '#14090d',
-    title: 'Stick Labs',
+    title: 'Stick Labs Zamilitox',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -237,7 +237,7 @@ app.whenReady().then(() => {
             type: 'info',
             buttons: ['Restart now', 'Later'],
             defaultId: 0,
-            message: 'Stick Labs update downloaded — restart to install it?'
+            message: 'Stick Labs Zamilitox update downloaded — restart to install it?'
           })
           .then(({ response }) => {
             if (response === 0) autoUpdater.quitAndInstall()

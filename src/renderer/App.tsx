@@ -2287,7 +2287,7 @@ export default function App(): JSX.Element {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <h1>Stick <span>Labs</span></h1>
+          <h1>Stick Labs <span>Zamilitox</span></h1>
         </div>
         <nav className="nav">
           <div className="nav-group">
@@ -2331,7 +2331,7 @@ export default function App(): JSX.Element {
             title={t('side.copyTitle')}
             onClick={() => {
               const lines = [
-                `Stick Labs v${appVersion ?? '?'} ${new Date().toISOString()}`,
+                `Stick Labs Zamilitox v${appVersion ?? '?'} ${new Date().toISOString()}`,
                 `connected=${connected} model=${model?.id ?? 'none'} pid=${pid !== null ? '0x' + pid.toString(16) : 'none'} fw=${info?.firmware ?? 'none'}`,
                 ...candidates.map(
                   (c) => `cand pid=0x${c.productId.toString(16)} live=${c.live} preferred=${c.preferred} product=${c.product ?? '?'}`
@@ -2408,7 +2408,7 @@ export default function App(): JSX.Element {
       <main className="main">
         <header className="topbar">
           <div className="row" style={{ gap: 12 }}>
-            <h2>Stick Labs</h2>
+            <h2>Stick Labs Zamilitox</h2>
             <span className="sub">{t('topbar.sub')}</span>
           </div>
           <div className="row" style={{ gap: 8 }}>
