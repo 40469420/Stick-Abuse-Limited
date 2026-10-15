@@ -2143,6 +2143,17 @@ export default function App(): JSX.Element {
         setMsg(`${pre.marketingName} detected — ${pre.supportNote}`)
         return
       }
+      if (pre && pre.support === 'detect-only') {
+        // Named but layout-unproven (e.g. LeadJoy Saber Plus): show it as
+        // detected + locked without sending the GameSir handshake at all —
+        // foreign bytes on another vendor's pad buy nothing and the timeout
+        // only confuses. Live input still flows; tuning unlocks per feature.
+        setModel(pre)
+        setPid(cand?.productId ?? null)
+        setBlob(null)
+        setMsg(`${pre.marketingName} detected — ${pre.supportNote}`)
+        return
+      }
       const res = await api().connect(path)
       setConnPath(path)
       setConnected(true)
