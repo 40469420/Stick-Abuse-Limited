@@ -1,13 +1,25 @@
-# Stick Labs (Unlimited) 2.2.5
+Name change because pro players are illiterate and click through disclaimers, shoulda spent more time in school rather than careers in gaming.
 
-- Added **Close Apex While RC Is Enabled** under RC Filters → Background protection. The toggle is off by default and remembered across restarts.
-- Checks the supported controller's stored active-profile RC settings. Non-neutral RC arms the guard; neutral RC disarms it. Unsaved editor changes do not arm it.
-- When armed, detects and force-closes `r5apex.exe` or `r5apex_dx12.exe`, brings Unlimited forward and displays: **You have RCs enabled. Please close Apex.**
-- Monitoring continues while Unlimited is in the tray. The guard reports unavailable controller state and process-check or termination failures. Launchers and anti-cheat services are not targeted.
-- Added focused guard tests and an optional Windows-native check that creates and terminates only its own disposable test process. Updated the feature list and RC documentation.
+## Stick-Abuse-Limited 2.2.8
 
-Limits: checks run about once per second and can take longer while Windows or the controller is busy. If the controller cannot be read, the guard retains its last verified RC state; without a verified state, protection cannot be established. Windows may deny termination. Force-closing can interrupt a match or lose progress. This is not a guarantee against bans or against the game reading input before it closes.
+### New name
+- Renamed the app and repository to Stick-Abuse-Limited.
+- Updated window/tray labels, setup and portable filenames, download links, and the GitHub updater target.
+- Kept the installation identity, saved preferences, profile format, and original-project credits.
 
-Validation: type checks, the complete regression suite and production build passed. Live-preview simulations verified toggle-off, neutral-RC and enabled-RC behavior. A Windows-native test detected and force-closed only the disposable test process; no real game was targeted.
+### Upstream fixes and additions
+- Improved five-point curve fitting to follow custom designs more closely. Linear and spline modes remain separate.
+- Prevented dragged or typed curve points from crossing their neighbors; fixed adding a point to a full designer.
+- Added Dynamic (CoD) and Zamilitox presets alongside the existing curves. These are static response curves, not the game's dynamic processing.
+- Remembered the selected profile slot and spline choice across restarts.
+- Added hardware-proven Tarantula 8K keybinding labels for C1-C4 and T1-T3, and Screenshot output code 37. Controller macro recording remains G7 Pro 8K only.
 
-Includes the Windows setup installer and automatic-update files. Original controller firmware 2.1.0 and 2.2.9 remain bundled and available separately.
+### Kept from this fork
+RC controls and game guards, center offsets, calibration, firmware tools, custom bindings/macros, raw bypass, performance and bit-depth tests, and existing controller support remain in place. The separate compatibility inspector is not included in this release.
+
+### Downloads
+- Setup: installs the app and includes GitHub auto-updates.
+- Portable: runs without installation; update by downloading a newer portable.
+
+### Validation
+Typecheck, regression tests, firmware-host checks, and production build passed. Protocol tests use fixtures and simulated hardware; this release does not claim fresh physical testing on every controller.
