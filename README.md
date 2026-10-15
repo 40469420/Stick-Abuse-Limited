@@ -1,4 +1,4 @@
-# Stick Labs Zamilitox — stick tuner (G7 Pro 8K · Tarantula detect · G7 SE locked)
+# Stick Labs — stick tuner (G7 Pro 8K · Tarantula detect · G7 SE locked)
 
 Stick-only Electron companion. No remap / macros / lighting / motion code.
 
