@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { MariusConfig, MariusIdentity } from '../shared/marius'
 import type { DeepPollResult } from '../shared/deeppoll'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -38,15 +37,6 @@ const api = {
     call<{ count: number; samples: number[]; min: number; max: number; median: number; mean: number }>('diag:ping', count),
   deeppoll: (vid: number, pid: number, seconds?: number) =>
     call<DeepPollResult>('diag:deeppoll', vid, pid, seconds),
-  mariusDiscover: () =>
-    call<Array<{ path: string; productId: number; product: string | undefined; manufacturer: string | undefined }>>('marius:discover'),
-  mariusConnect: (path: string) =>
-    call<{ identity: MariusIdentity; bInterval: number; pollHz: number }>('marius:connect', path),
-  mariusReadConfig: () =>
-    call<{ bytes: string; parsed: MariusConfig }>('marius:read'),
-  mariusReadRaw: () =>
-    call<{ left: { x: number; y: number }; right: { x: number; y: number } }>('marius:raw'),
-  mariusDisconnect: () => call<boolean>('marius:disconnect'),
   on: (channel: string, fn: (payload: any) => void): (() => void) => {
     const listener = (_e: unknown, payload: unknown): void => fn(payload)
     ipcRenderer.on(channel, listener)

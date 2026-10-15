@@ -6,8 +6,6 @@ export interface Candidate {
   manufacturer: string | undefined
   live: boolean | null
 }
-// Marius types live in the shared protocol module (type-only — no runtime pull).
-import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import type { DeepPollResult } from '@shared/deeppoll'
 export interface DeviceInfo {
   firmware: string
@@ -70,11 +68,6 @@ interface LabApi {
     curveExp?: number | null
   ): Promise<{ games: Array<{ appId: number; name: string }>; result: { games: Array<{ appId: number; name: string; ok: boolean; detail: string }> } }>
   /** MARIUS board — read-only preview scaffold. No write path exists. */
-  mariusDiscover(): Promise<Array<{ path: string; productId: number; product: string | undefined; manufacturer: string | undefined }>>
-  mariusConnect(path: string): Promise<{ identity: MariusIdentity; bInterval: number; pollHz: number }>
-  mariusReadConfig(): Promise<{ bytes: string; parsed: MariusConfig }>
-  mariusReadRaw(): Promise<{ left: { x: number; y: number }; right: { x: number; y: number } }>
-  mariusDisconnect(): Promise<boolean>
   /** Kernel USB poll check (elevated ETW trace, UAC prompts once per run). */
   deeppoll(vid: number, pid: number, seconds?: number): Promise<DeepPollResult>
   on(channel: string, fn: (payload: never) => void): () => void

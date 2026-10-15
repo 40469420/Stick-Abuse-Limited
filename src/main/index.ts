@@ -8,12 +8,9 @@ import { Controller, type DeviceInfo } from './controller'
 import { discover, discoverLive } from './hid'
 import { steamInfo, exportApexDeadzones, listInstalledGames, exportDeadzonesToGames } from './steam'
 import { PROFILE_LENGTH } from '../shared/protocol'
-import { MariusReader, discoverMarius } from './marius'
 import { runDeepPoll } from './deeppoll'
 
 const controller = new Controller()
-/** MARIUS preview reader — read-only driver, no write path exists. */
-const mariusReader = new MariusReader()
 let window_: BrowserWindow | null = null
 
 function send(channel: string, ...args: unknown[]): void {
@@ -146,18 +143,6 @@ handle('device:calibration', (state: number) => {
 })
 handle('device:stickCenter', async (stick: number, direction: number) => {
   await controller.nudgeCenter(stick, direction)
-  return true
-})
-// MARIUS board preview — reads only. There is intentionally no write handler.
-handle('marius:discover', () => discoverMarius())
-handle('marius:connect', async (path: string) => mariusReader.connect(path))
-handle('marius:read', async () => {
-  const { bytes, parsed } = await mariusReader.readConfig()
-  return { bytes: b64(bytes), parsed }
-})
-handle('marius:raw', async () => mariusReader.readRawSticks())
-handle('marius:disconnect', () => {
-  mariusReader.close()
   return true
 })
 handle('system:openExternal', (url: string) => {

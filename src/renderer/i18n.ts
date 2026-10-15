@@ -1,8 +1,7 @@
 /**
  * Minimal i18n — English + Simplified Chinese + Japanese + Russian.
  * Covers app chrome and the main 8K tuning cards (key/button names stay
- * English); preview tabs
- * (Marius/Apex) stay English for now. Locale persists in localStorage.
+ * English). Locale persists in localStorage.
  */
 import { createContext, useContext, useState } from 'react'
 
@@ -28,7 +27,6 @@ const STR: Dict = {
   'nav.lab': { en: 'Lab', zh: '实验室', ja: 'ラボ', ru: 'Лаборатория' },
   'nav.export': { en: 'Export', zh: '导出', ja: 'エクスポート', ru: 'Экспорт' },
   'nav.steam': { en: 'Steam', zh: 'Steam', ja: 'Steam', ru: 'Steam' },
-  'nav.preview': { en: 'Preview', zh: '预览', ja: 'プレビュー', ru: 'Предпросмотр' },
   'nav.app': { en: 'App', zh: '应用', ja: 'アプリ', ru: 'Приложение' },
   'nav.language': { en: 'Language', zh: '语言', ja: '言語', ru: 'Язык' },
   'nav.theme': { en: 'Theme', zh: '主题', ja: 'テーマ', ru: 'Тема' },
@@ -171,21 +169,6 @@ const STR: Dict = {
   'lang.hint': { en: 'Applies immediately. Core tuning UI is translated; preview tabs stay English for now.', zh: '立即生效。核心调校界面已翻译，预览选项卡暂为英文。', ja: 'すぐに適用されます。主要UIは翻訳済み、プレビュータブは英語のままです。', ru: 'Применяется сразу. Основной интерфейс переведён; вкладки предпросмотра пока на английском.' },
   'theme.title': { en: 'Theme', zh: '主题', ja: 'テーマ', ru: 'Тема' },
   'theme.hint': { en: 'Applies immediately, kept across restarts. Graphs keep their colors.', zh: '立即生效，重启后保留。图表保持原配色。', ja: 'すぐに適用、再起動後も保持。グラフは元の配色のまま。', ru: 'Применяется сразу, сохраняется после перезапуска. Графики сохраняют свои цвета.' },
-  'marius.scan': { en: 'Scan USB', zh: '扫描 USB', ja: 'USBスキャン', ru: 'Сканировать USB' },
-  'marius.read': { en: 'Read config', zh: '读取配置', ja: '設定読み込み', ru: 'Прочитать конфиг' },
-  'marius.sample': { en: 'Sample sticks', zh: '采样摇杆', ja: 'スティック計測', ru: 'Замерить стики' },
-  'marius.connect': { en: 'Connect', zh: '连接', ja: '接続', ru: 'Подключить' },
-  'marius.product': { en: 'Product', zh: '产品', ja: '製品', ru: 'Продукт' },
-  'marius.config': { en: 'Config', zh: '配置', ja: '設定', ru: 'Конфиг' },
-  'marius.valid': { en: 'valid', zh: '有效', ja: '有効', ru: 'годен' },
-  'marius.invalid': { en: 'INVALID — do not trust', zh: '无效——请勿采信', ja: '無効 — 信頼しないでください', ru: 'НЕ ГОДЕН — не доверять' },
-  'marius.center': { en: 'center', zh: '中心', ja: 'センター', ru: 'центр' },
-  'marius.range': { en: 'range', zh: '范围', ja: '範囲', ru: 'диапазон' },
-  'marius.deadzone': { en: 'deadzone', zh: '死区', ja: 'デッドゾーン', ru: 'мёртвая зона' },
-  'marius.triggers': { en: 'triggers', zh: '扳机', ja: 'トリガー', ru: 'триггеры' },
-  'marius.outbits': { en: 'out bits', zh: '输出位', ja: '出力ビット', ru: 'выходные биты' },
-  'marius.invert': { en: 'invert', zh: '反转', ja: '反転', ru: 'инверсия' },
-  'marius.full': { en: 'full', zh: '完整', ja: 'フル', ru: 'полный' },
   'apex.load': { en: 'Load from pad', zh: '从手柄加载', ja: 'パッドから読み込み', ru: 'Загрузить с геймпада' },
   'apex.reload': { en: 'Reload from pad', zh: '从手柄重载', ja: 'パッドから再読み込み', ru: 'Перезагрузить с геймпада' },
   'apex.write': { en: 'Write both curves', zh: '写入双曲线', ja: '両カーブを書き込む', ru: 'Записать обе кривые' },
@@ -261,7 +244,6 @@ const STR: Dict = {
   'device.gearNote': { en: 'completes the ladder', zh: '补齐档位', ja: 'ラダー補完', ru: 'добирает ряд' },
   'device.bitCustomPh': { en: '8–12', zh: '8–12', ja: '8–12', ru: '8–12' },
   'device.stock50': { en: 'Stock neutral 50 — no added rate', zh: '出厂中性 50——无附加速率', ja: '標準50 — 追加レートなし', ru: 'Заводские 50 — без добавки' },
-  'marius.title': { en: 'Marius board — read-only preview', zh: 'Marius 板——只读预览', ja: 'Marius基板 — 読み取り専用', ru: 'Плата Marius — только чтение' },
   'apex.presetSlow': { en: 'Slow', zh: '慢', ja: 'スロー', ru: 'Медленно' },
   'apex.presetQuick': { en: 'Quick', zh: '快', ja: 'クイック', ru: 'Быстро' },
   'cal.intro': { en: 'DualShock-style centering, verified live: the pad reports its own calibration state, and commit stays blocked until the sticks actually rest at centre. Guided flows adapted from dualshock-tools.', zh: 'DualShock 式居中，实时验证：手柄会上报自身校准状态，摇杆真正回中前无法提交。引导流程改编自 dualshock-tools。', ja: 'DualShock式センタリングをライブ検証：パッドが調整状態を報告し、スティックが中央に戻るまで確定できません。ガイドフローは dualshock-tools 由来。', ru: 'Центрирование в стиле DualShock с живой проверкой: геймпад сам сообщает состояние калибровки, подтверждение заблокировано, пока стики реально не в центре. Пошаговые режимы по мотивам dualshock-tools.' },
