@@ -44,8 +44,12 @@ check(
 check('Tarantula PIDs recorded', !!t3 && t3.pids.includes(0x103d) && t3.pids.includes(0x10ff))
 const t3p = MODELS.find((m) => m.id === 'T3Pro')
 check('Tarantula Pro unsupported (DLL-driven, no HID channel)', !!t3p && t3p.support === 'unsupported')
+const saber = MODELS.find((m) => m.id === 'SaberPlus')
+check('Saber Plus detect-only (reads decoded, writes unproven)', !!saber && saber.support === 'detect-only' && saber.profileLength === 0)
 check('T3Pro identified by PID, not mistaken for T3CE', identifyModel('Gamepad', 0x1050)?.id === 'T3Pro' && identifyModel('Gamepad', 0x103d)?.id === 'T3CE')
 check('Tarantula Pro name beats T3CE hint', identifyModel('Tarantula Pro')?.id === 'T3Pro' && identifyModel('Tarantula CE')?.id === 'T3CE')
+check('Saber Plus identified by PID 0x3519', identifyModel('Xbox 360 Controller for Windows', 0x3519)?.id === 'SaberPlus')
+check('Saber identified by name', identifyModel('Saber')?.id === 'SaberPlus')
 
 console.log(failures === 0 ? '\nALL TESTS PASSED' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

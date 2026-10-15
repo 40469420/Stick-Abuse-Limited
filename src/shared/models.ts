@@ -65,6 +65,20 @@ export const MODELS: ReadonlyArray<ControllerModel> = [
     supportNote: 'Profile codec proven byte-exact against hardware fixtures.'
   },
   {
+    id: 'SaberPlus',
+    marketingName: 'LeadJoy Saber Plus',
+    vendorId: 0x4131,
+    usagePage: 0xff80,
+    usage: 0x01,
+    pids: [0x3519],
+    productHints: ['Saber', 'LeadJoy'],
+    reportRates: [],
+    profileLength: 0,
+    dumpLength: 0,
+    support: 'detect-only',
+    supportNote: 'Config channel mapped (MI_04 page FF80/0001, JSON command model and 512B reads decoded from the vendor log and USB). No proven writes yet — tuning stays locked until a save-flush capture proves the wire bytes.'
+  },
+  {
     id: 'G7SE',
     marketingName: 'GameSir G7 SE',
     vendorId: 0x3537,
