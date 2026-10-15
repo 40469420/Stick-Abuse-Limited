@@ -134,7 +134,7 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
             try {
               const blob = new Blob([JSON.stringify(validateMacro(doc), null, 2)], { type: 'application/json' })
               const url = URL.createObjectURL(blob)
-              const link = document.createElement('a'); link.href = url; link.download = `Stick-Labs-Unlimited-${FUNCTION_LABELS[selected]}-macro.json`; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+              const link = document.createElement('a'); link.href = url; link.download = `Unlimited-${FUNCTION_LABELS[selected]}-macro.json`; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000)
             } catch (e) { setMessage((e as Error).message) }
           }}>Export macro</button>
         </div>

@@ -105,7 +105,7 @@ if (!process.argv.includes('--child')) {
     assert.equal((await call('firmware:flash', 'FLASH 2.1.0')).ok, false, 'overlapping firmware attempt blocked')
     assert.equal((await call('profile:read', 1)).ok, false, 'profile writes and reads blocked during flashing')
     assert.equal((await call('device:disconnect')).ok, false, 'disconnect blocked during flashing')
-    m.menu.find(entry => entry.label === 'Quit Stick Labs (Unlimited)').click()
+    m.menu.find(entry => entry.label === 'Quit Unlimited').click()
     await wait(10)
     assert.equal(m.quits, 0, 'quit blocked during flashing')
     const state = (await call('firmware:status')).data
@@ -173,7 +173,7 @@ if (!process.argv.includes('--child')) {
   await call('rc:setReset', false)
   if (scenario !== 'neutral') m.profile[49] = 1
   if (scenario === 'disconnected') controller.disconnect()
-  m.menu.find((entry) => entry.label === 'Quit Stick Labs (Unlimited)').click()
+  m.menu.find((entry) => entry.label === 'Quit Unlimited').click()
   await wait(10)
   if (scenario === 'neutral') assert.equal(m.quits, 1, 'neutral quits without warning')
   else {

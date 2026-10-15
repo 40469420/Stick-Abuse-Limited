@@ -1371,7 +1371,7 @@ function AppContent(): JSX.Element {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <h1>Stick <span>Labs</span></h1><small className="brand-edition">Unlimited</small>
+          <h1><span>Unlimited</span></h1>
         </div>
         <nav className="nav">
           <div className="nav-group">
@@ -1426,7 +1426,7 @@ function AppContent(): JSX.Element {
             title="Copy device + app details for support (nothing personal)"
             onClick={() => {
               const lines = [
-                `Stick Labs (Unlimited) v${appVersion ?? '?'} ${new Date().toISOString()}`,
+                `Unlimited v${appVersion ?? '?'} ${new Date().toISOString()}`,
                 `connected=${connected} model=${model?.id ?? 'none'} pid=${pid !== null ? '0x' + pid.toString(16) : 'none'} fw=${info?.firmware ?? 'none'}`,
                 ...candidates.map(
                   (c) => `cand pid=0x${c.productId.toString(16)} live=${c.live} preferred=${c.preferred} product=${c.product ?? '?'}`

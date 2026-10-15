@@ -1,4 +1,4 @@
-# Stick Labs (Unlimited)
+# Unlimited
 
 > [!WARNING]
 > ## ⚠️ DISCLAIMER ⚠️
@@ -10,7 +10,7 @@ The full feature set targets the **GameSir G7 Pro 8K**. Other supported controll
 
 ## Download
 
-Get the installer from [GitHub Releases](https://github.com/40469420/stick-labs-unlimited/releases/latest). Installed copies check this repository for updates and offer to restart when an update is ready. Portable builds, when listed on a release, are separate downloads.
+Get the installer from [GitHub Releases](https://github.com/40469420/unlimited/releases/latest). Installed copies check this repository for updates and offer to restart when an update is ready. Portable builds, when listed on a release, are separate downloads.
 
 Prefer the original app? [Official Stick Labs](https://github.com/Realkiyoshii/stick-labs).
 
@@ -66,7 +66,7 @@ Lab reports software-observed behavior. Higher-bit labels and smaller reported s
 - [Bindings and macros](CUSTOM-CONTROLS.md)
 - [Triggers, gyro and calibration](TUNING.md)
 - [Firmware instructions and recovery limits](FIRMWARE.md)
-- [Release notes](https://github.com/40469420/stick-labs-unlimited/releases)
+- [Release notes](https://github.com/40469420/unlimited/releases)
 
 ## Development
 
