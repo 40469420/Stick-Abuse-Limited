@@ -86,7 +86,7 @@ function maxDivergence(design: Array<{ x: number; y: number }>): number {
   ]
   const div = maxDivergence(ten)
   console.log(`  (10-pt kinked design max re-linearization divergence: ${div.toFixed(2)} steps)`)
-  check('10-pt kinked design: lossy but bounded (pinned 9.81)', div > 0 && div < 16 && Math.abs(div - 9.81) < 0.01)
+  check('10-pt kinked design: minimax fit beats naive sampling (pinned 7.22)', div > 0 && div < 8 && Math.abs(div - 7.22) < 0.01)
   const smooth = [
     { x: 0, y: 0 }, { x: 30, y: 28 }, { x: 60, y: 58 }, { x: 90, y: 88 },
     { x: 128, y: 128 }, { x: 165, y: 168 }, { x: 195, y: 198 }, { x: 220, y: 222 },
@@ -94,7 +94,7 @@ function maxDivergence(design: Array<{ x: number; y: number }>): number {
   ]
   const divS = maxDivergence(smooth)
   console.log(`  (10-pt near-linear design divergence: ${divS.toFixed(2)} steps)`)
-  check('10-pt near-linear design: slot-miss cost small (pinned 1.24)', divS > 0 && divS < 3 && Math.abs(divS - 1.24) < 0.01)
+  check('10-pt near-linear design: slot-miss cost small (pinned 1.22)', divS > 0 && divS < 3 && Math.abs(divS - 1.22) < 0.01)
 }
 
 if (failures > 0) {

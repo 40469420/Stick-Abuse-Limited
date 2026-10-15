@@ -192,10 +192,17 @@ function buildMonoSpline(
 /**
  * Resample a free-point design polyline down to the 5 firmware slots.
  *
- * The pad stores exactly 5 (x, y) pairs, so a design with more/fewer points
- * is piecewise-linearly interpolated at the hardware X grid. Fewer points in
- * → same math, no special cases. A degenerate design (<2 distinct points)
- * falls back to linear.
+ * The pad stores exactly 5 (x, y) pairs and re-draws straight lines between
+ * them, so naive slot sampling plays back a *different* polyline whenever
+ * the design kinks between slots (measured up to ~10 steps off — the
+ * "second curve" feel). Instead this fits the 5 slot heights to minimize
+ * the worst-case deviation from the drawn design (minimax via coordinate
+ * descent from the naive sample, endpoints pinned). On-slot designs are
+ * already optimal, so they pass through byte-exact; smooth designs barely
+ * move; kinked designs split the error instead of eating it whole.
+ *
+ * Fewer points in → same math, no special cases. A degenerate design
+ * (<2 distinct points) falls back to linear.
  */
 export function resampleCurve(
   design: Array<{ x: number; y: number }>,
@@ -218,7 +225,58 @@ export function resampleCurve(
     }
     return pts[pts.length - 1].y
   }
-  return xs.map((x) => ({ x, y: clampByte(at(x)) }))
+  // Naive sample first: optimal already for on-slot/smooth designs, and the
+  // starting point the descent only ever improves on.
+  const y = xs.map((x) => at(x))
+  // Worst deviation of the current slot heights over an x-range.
+  const worst = (yy: number[], xa: number, xb: number): number => {
+    let m = 0
+    const lo = Math.max(0, Math.ceil(Math.min(xa, xb)))
+    const hi = Math.min(255, Math.floor(Math.max(xa, xb)))
+    for (let x = lo; x <= hi; x++) {
+      let seg = yy[yy.length - 1]
+      for (let i = 1; i < xs.length; i++) {
+        if (x <= xs[i]) {
+          const t = (x - xs[i - 1]) / (xs[i] - xs[i - 1])
+          seg = yy[i - 1] + t * (yy[i] - yy[i - 1])
+          break
+        }
+      }
+      const d = Math.abs(at(x) - seg)
+      if (d > m) m = d
+    }
+    return m
+  };
+  // Coordinate descent: each free node minimizes the worst deviation over
+  // its two adjacent segments (convex in the node height: ternary search).
+  for (let sweep = 0; sweep < 25; sweep++) {
+    let moved = false
+    for (let i = 1; i < xs.length - 1; i++) {
+      const xa = xs[i - 1]
+      const xb = xs[i + 1]
+      let lo = 0
+      let hi = 255
+      for (let it = 0; it < 40; it++) {
+        const m1 = lo + (hi - lo) / 3
+        const m2 = hi - (hi - lo) / 3
+        const save = y[i]
+        y[i] = m1
+        const e1 = worst(y, xa, xb)
+        y[i] = m2
+        const e2 = worst(y, xa, xb)
+        y[i] = save
+        if (e1 < e2) hi = m2
+        else lo = m1
+      }
+      const nv = (lo + hi) / 2
+      if (Math.abs(nv - y[i]) > 1e-9) {
+        y[i] = nv
+        moved = true
+      }
+    }
+    if (!moved) break
+  }
+  return xs.map((x, i) => ({ x, y: clampByte(y[i]) }))
 }
 
 /**
