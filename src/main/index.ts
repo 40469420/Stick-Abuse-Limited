@@ -2,7 +2,7 @@ import { GUARDED_GAMES, isGuardedGame, type GuardedGame, type GameGuardStatuses 
 import { listGame, killGame } from './game-guards'
 import { ApexGuard, listApex, killApex } from './apex-guard'
 /**
- * Unlimited — controller session, background RC reset and profile editing.
+ * Stick-Abuse-Limited — controller session, background RC reset and profile editing.
  */
 import { app, BrowserWindow, dialog, ipcMain, session, shell, Tray, Menu, nativeImage } from 'electron'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -82,7 +82,7 @@ let gameEnabled: Partial<Record<GuardedGame, boolean>> = {}
 function reportReset(message: string): void {
   resetMessage = message
   send('rc:resetStatus', resetStatus())
-  tray?.setToolTip(`Unlimited — ${message}`.slice(0, 127))
+  tray?.setToolTip(`Stick-Abuse-Limited — ${message}`.slice(0, 127))
 }
 function savePreferences(): void {
   mkdirSync(app.getPath('userData'), { recursive: true })
@@ -347,7 +347,7 @@ handle('firmware:flash', async (confirmation: string) => {
   if (!image || confirmation !== `FLASH ${image.version}`) throw new Error('Validate an image and type its exact confirmation first.')
   validateFirmware(image.path)
   const device = discover().find((d) => d.path === controller.transport.currentPath)
-  if (!controller.isOpen || !device || ![0x10c5, 0x10c6].includes(device.productId) || identifyModel(device.product, device.productId)?.id !== 'G7ProCE') throw new Error('Connect the G7 Pro 8K directly by USB and load it in Unlimited first. Receiver flashing is not supported.')
+  if (!controller.isOpen || !device || ![0x10c5, 0x10c6].includes(device.productId) || identifyModel(device.product, device.productId)?.id !== 'G7ProCE') throw new Error('Connect the G7 Pro 8K directly by USB and load it in Stick-Abuse-Limited first. Receiver flashing is not supported.')
   firmwareStatus = { running: true, message: 'Saving all four controller profiles before flashing…', backup: null }
   send('firmware:status', firmwareStatus)
   const folder = join(app.getPath('userData'), 'firmware-tests', new Date().toISOString().replace(/[:.]/g, '-'))
@@ -440,7 +440,7 @@ handle('rc:resetStatus', () => resetStatus())
 handle('rc:quitDecision', async (id: string, reset: boolean) => {
   if (!closePrompt || closePrompt !== id || typeof reset !== 'boolean') throw new Error('This quit prompt is no longer active')
   if (ioJobs || resetting || recording) throw new Error('Wait for the current controller operation before quitting.')
-  if (reset && !await resetRcAfterConnect(true)) throw new Error(resetMessage + ' Unlimited is still running. You can retry or choose No to quit without resetting.')
+  if (reset && !await resetRcAfterConnect(true)) throw new Error(resetMessage + ' Stick-Abuse-Limited is still running. You can retry or choose No to quit without resetting.')
   closePrompt = null
   finishQuit()
   return true
@@ -679,7 +679,7 @@ function createWindow(): void {
     minWidth: 1000,
     minHeight: 680,
     backgroundColor: '#14090d',
-    title: 'Unlimited',
+    title: 'Stick-Abuse-Limited',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -726,11 +726,11 @@ app.whenReady().then(() => {
     pixels[i] = white ? 255 : 70; pixels[i + 1] = white ? 255 : 65; pixels[i + 2] = white ? 255 : 215; pixels[i + 3] = 255
   }
   tray = new Tray(nativeImage.createFromBitmap(pixels, { width: 32, height: 32, scaleFactor: 1 }))
-  tray.setToolTip('Unlimited')
+  tray.setToolTip('Stick-Abuse-Limited')
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open Unlimited', click: showWindow },
+    { label: 'Open Stick-Abuse-Limited', click: showWindow },
     { type: 'separator' },
-    { label: 'Quit Unlimited', click: () => app.quit() }
+    { label: 'Quit Stick-Abuse-Limited', click: () => app.quit() }
   ]))
   tray.on('double-click', showWindow)
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
@@ -763,7 +763,7 @@ app.whenReady().then(() => {
             type: 'info',
             buttons: ['Restart now', 'Later'],
             defaultId: 0,
-            message: 'Unlimited update downloaded — restart to install it?'
+            message: 'Stick-Abuse-Limited update downloaded — restart to install it?'
           })
           .then(({ response }) => {
             if (response === 0) { quitAction = () => autoUpdater.quitAndInstall(); void requestQuit() }

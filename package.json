@@ -1,7 +1,7 @@
 {
   "name": "g7-stick-lab",
   "version": "2.2.7",
-  "description": "Unlimited \u00e2\u20ac\u201d controller tuning, RC filters, bindings, macros, triggers, gyro and calibration",
+  "description": "Stick-Abuse-Limited - controller tuning, RC filters, bindings, macros, triggers, gyro and calibration",
   "main": "out/main/index.js",
   "author": "Kai",
   "license": "MIT",
@@ -33,7 +33,7 @@
   },
   "build": {
     "appId": "com.realkiyoshi.sticklabs",
-    "productName": "Unlimited",
+    "productName": "Stick-Abuse-Limited",
     "asar": false,
     "win": {
       "icon": "build/icon.ico",
@@ -54,18 +54,18 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Unlimited-setup-${version}.${ext}",
+      "artifactName": "Stick-Abuse-Limited-setup-${version}.${ext}",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "Unlimited-portable-${version}.${ext}"
+      "artifactName": "Stick-Abuse-Limited-portable-${version}.${ext}"
     },
     "publish": [
       {
         "provider": "github",
         "owner": "40469420",
-        "repo": "unlimited"
+        "repo": "Stick-Abuse-Limited"
       }
     ],
     "npmRebuild": false

@@ -1,16 +1,16 @@
-# Unlimited
+# Stick-Abuse-Limited
 
 > [!WARNING]
 > ## ⚠️ DISCLAIMER ⚠️
 > This version has no affiliation with the original outside the owner knowing it exists. My beliefs on these features are my own and my own only. At no point can you run games with official stances while in bannable/abusable states. Do not bother. Create your own fork.
 
-A Windows controller companion with expanded tuning, bindings, macros and performance testing. Built on [Stick Labs by Realkiyoshii](https://github.com/Realkiyoshii/stick-labs), with the Unlimited fork maintained by [@Machixo](https://x.com/Machixo).
+A Windows controller companion with expanded tuning, bindings, macros and performance testing. Built on [Stick Labs by Realkiyoshii](https://github.com/Realkiyoshii/stick-labs), with the Stick-Abuse-Limited fork maintained by [@Machixo](https://x.com/Machixo).
 
 The full feature set targets the **GameSir G7 Pro 8K**. Other supported controllers keep their existing controls; availability depends on the model, firmware and connection mode.
 
 ## Download
 
-Get the installer from [GitHub Releases](https://github.com/40469420/unlimited/releases/latest). Installed copies check this repository for updates and offer to restart when an update is ready. Portable builds, when listed on a release, are separate downloads.
+Get the installer from [GitHub Releases](https://github.com/40469420/Stick-Abuse-Limited/releases/latest). Installed copies check this repository for updates and offer to restart when an update is ready. Portable builds, when listed on a release, are separate downloads.
 
 Prefer the original app? [Official Stick Labs](https://github.com/Realkiyoshii/stick-labs).
 
@@ -66,7 +66,7 @@ Lab reports software-observed behavior. Higher-bit labels and smaller reported s
 - [Bindings and macros](CUSTOM-CONTROLS.md)
 - [Triggers, gyro and calibration](TUNING.md)
 - [Firmware instructions and recovery limits](FIRMWARE.md)
-- [Release notes](https://github.com/40469420/unlimited/releases)
+- [Release notes](https://github.com/40469420/Stick-Abuse-Limited/releases)
 
 ## Development
 
