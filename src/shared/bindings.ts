@@ -4,6 +4,10 @@ export interface BindingKey { value: number; label: string; group: string; code?
 const keys: BindingKey[] = []
 function add(value: number, label: string, group: string, code?: string): void { keys.push({ value, label, group, code }) }
 export const BUTTON_LABELS = ['D-pad Up', 'D-pad Down', 'D-pad Left', 'D-pad Right', 'LB / L1', 'RB / R1', 'LS click', 'RS click', 'A / Cross', 'B / Circle', 'X / Square', 'Y / Triangle', 'Home', 'View / Share', 'Menu / Options', 'Capture']
+/** Tarantula packet order proven upstream on hardware; UI list order differs. */
+export function functionLabels(modelId: string): readonly string[] {
+  return modelId === 'T3CE' ? ['FL1', 'FR1', 'C1', 'C2', 'C3', 'C4', 'T1', 'T2', 'T3'] : ['FL1 / L4', 'FR1 / R4', 'FL2 / L5', 'FR2 / R5']
+}
 export const FUNCTION_LABELS = ['FL1', 'FR1', 'FL2', 'FR2']
 BUTTON_LABELS.forEach((label, i) => add(i + 1, label, 'Controller'))
 ;['FL1', 'FR1', 'LT / L2', 'RT / R2', 'Left stick Up', 'Left stick Down', 'Left stick Left', 'Left stick Right', 'Right stick Up', 'Right stick Down', 'Right stick Left', 'Right stick Right'].forEach((label, i) => add(i + 17, label, 'Controller'))
@@ -25,6 +29,7 @@ keyboard.forEach(([label, code], i) => add(63 + i, label, 'Keyboard', code))
 for (let i = 0; i <= 9; i++) add(139 + i, `Num ${i}`, 'Numpad', `Numpad${i}`)
 ;['Play / Pause', 'Stop', 'Next track', 'Previous track', 'Volume up', 'Volume down', 'Mute'].forEach((label, i) => add(149 + i, label, 'Media'))
 ;['Left click', 'Middle click', 'Right click', 'Mouse button 5', 'Mouse button 4', 'Wheel up', 'Wheel down'].forEach((label, i) => add(200 + i, label, 'Mouse'))
+add(37, 'Screenshot', 'Functions')
 add(230, 'Controller mute', 'Functions'); add(231, 'Shift layer', 'Functions'); add(255, 'Unbound', 'Functions')
 export const BINDING_KEYS: readonly BindingKey[] = keys
 export const bindingLabel = (value: number): string => value === 0 ? 'Empty / original' : keys.find((k) => k.value === value)?.label ?? `Unknown code ${value}`

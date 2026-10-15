@@ -160,10 +160,10 @@ function buildMonoSpline(
 /**
  * Resample a free-point design polyline down to the 5 firmware slots.
  *
- * The pad stores exactly 5 (x, y) pairs, so a design with more/fewer points
- * is piecewise-linearly interpolated at the hardware X grid. Fewer points in
- * → same math, no special cases. A degenerate design (<2 distinct points)
- * falls back to linear.
+ * The pad stores five straight-line segments on a fixed X grid. Fit the
+ * interior heights to reduce worst-case deviation from the design; keep
+ * endpoints pinned. Designs already on the grid remain exact. Degenerate
+ * designs fall back to linear. Adapted from upstream fa5049f.
  */
 export function resampleCurve(
   design: Array<{ x: number; y: number }>,
@@ -186,7 +186,58 @@ export function resampleCurve(
     }
     return pts[pts.length - 1].y
   }
-  return xs.map((x) => ({ x, y: clampByte(at(x)) }))
+  // Naive sample first: optimal already for on-slot/smooth designs, and the
+  // starting point the descent only ever improves on.
+  const y = xs.map((x) => at(x))
+  // Worst deviation of the current slot heights over an x-range.
+  const worst = (yy: number[], xa: number, xb: number): number => {
+    let m = 0
+    const lo = Math.max(0, Math.ceil(Math.min(xa, xb)))
+    const hi = Math.min(255, Math.floor(Math.max(xa, xb)))
+    for (let x = lo; x <= hi; x++) {
+      let seg = yy[yy.length - 1]
+      for (let i = 1; i < xs.length; i++) {
+        if (x <= xs[i]) {
+          const t = (x - xs[i - 1]) / (xs[i] - xs[i - 1])
+          seg = yy[i - 1] + t * (yy[i] - yy[i - 1])
+          break
+        }
+      }
+      const d = Math.abs(at(x) - seg)
+      if (d > m) m = d
+    }
+    return m
+  };
+  // Coordinate descent: each free node minimizes the worst deviation over
+  // its two adjacent segments (convex in the node height: ternary search).
+  for (let sweep = 0; sweep < 25; sweep++) {
+    let moved = false
+    for (let i = 1; i < xs.length - 1; i++) {
+      const xa = xs[i - 1]
+      const xb = xs[i + 1]
+      let lo = 0
+      let hi = 255
+      for (let it = 0; it < 40; it++) {
+        const m1 = lo + (hi - lo) / 3
+        const m2 = hi - (hi - lo) / 3
+        const save = y[i]
+        y[i] = m1
+        const e1 = worst(y, xa, xb)
+        y[i] = m2
+        const e2 = worst(y, xa, xb)
+        y[i] = save
+        if (e1 < e2) hi = m2
+        else lo = m1
+      }
+      const nv = (lo + hi) / 2
+      if (Math.abs(nv - y[i]) > 1e-9) {
+        y[i] = nv
+        moved = true
+      }
+    }
+    if (!moved) break
+  }
+  return xs.map((x, i) => ({ x, y: clampByte(y[i]) }))
 }
 
 /**
@@ -233,7 +284,7 @@ export function traceSpline(
 }
 
 /** Insert a point at the middle of the longest segment (up to MAX). */
-export function addDesignPoint(design: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {  if (design.length >= DESIGN_MAX_POINTS) return design
+export function addDesignPoint(design: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {  if (design.length >= DESIGN_MAX_POINTS) return [...design]
   const pts = [...design].sort((a, b) => a.x - b.x)
   let best = 0
   let bestGap = -1

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { Packet, macro, trigger } from '../src/shared/profile'
-import { BINDING_KEYS, keyboardCode, originalButtonKeys, setBinding } from '../src/shared/bindings'
+import { BINDING_KEYS, functionLabels, keyboardCode, originalButtonKeys, setBinding } from '../src/shared/bindings'
 import { readMacro, writeMacro, validateMacro, SequenceRecorder, type MacroDocument } from '../src/shared/macros'
 import { neutralRcProfile } from '../src/main/rc-reset'
 
@@ -55,3 +55,6 @@ assert.equal(neutralRcProfile(reset), null, 'neutral profiles skip EEPROM writes
 reset[49] = 0; assert.equal(neutralRcProfile(reset), null)
 assert.throws(() => neutralRcProfile(new Uint8Array(1935)), /Unsupported/)
 console.log('Custom controls: binding catalog, trigger isolation, 32-step macro boundaries, atomic validation, recording and RC reset byte preservation passed.')
+
+assert.deepEqual(functionLabels('T3CE'), ['FL1','FR1','C1','C2','C3','C4','T1','T2','T3'])
+assert.equal(BINDING_KEYS.find(k => k.value === 37)?.label, 'Screenshot')

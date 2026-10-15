@@ -3,7 +3,7 @@ import { KeyIcon } from './KeyIcon'
 import { Help } from './Help'
 import { useState } from 'react'
 import { button, trigger, macro, type Profile } from '@shared/profile'
-import { BINDING_KEYS, BUTTON_LABELS, FUNCTION_LABELS, bindingLabel, setBinding } from '@shared/bindings'
+import { BINDING_KEYS, BUTTON_LABELS, functionLabels, bindingLabel, setBinding } from '@shared/bindings'
 
 export function KeyPicker({ value, onChange, empty = true, label = 'Output key' }: { value: number; onChange: (value: number) => void; empty?: boolean; label?: string }): JSX.Element {
   const options = BINDING_KEYS.map(k => ({ value: k.value, label: k.label, group: k.group }))
@@ -12,11 +12,11 @@ export function KeyPicker({ value, onChange, empty = true, label = 'Output key' 
   return <IconSelect label={label} value={value} options={options} onChange={onChange} />
 }
 
-export function Bindings({ profile, edit, busy }: { profile: Profile; edit: (fn: () => void) => void; busy: boolean }): JSX.Element {
+export function Bindings({ profile, modelId, edit, busy }: { profile: Profile; modelId: string; edit: (fn: () => void) => void; busy: boolean }): JSX.Element {
   const [selected, setSelected] = useState(0)
   const targets = [
     ...profile.buttons.map((packet, i) => ({ packet, label: BUTTON_LABELS[i], isTrigger: false, functionKey: false })),
-    ...profile.functionKeys.map((packet, i) => ({ packet, label: ['FL1 / L4', 'FR1 / R4', 'FL2 / L5', 'FR2 / R5'][i] ?? FUNCTION_LABELS[i], isTrigger: false, functionKey: true })),
+    ...profile.functionKeys.map((packet, i) => ({ packet, label: functionLabels(modelId)[i] ?? `Extra ${i + 1}`, isTrigger: false, functionKey: true })),
     ...profile.triggers.map((packet, i) => ({ packet, label: i === 0 ? 'LT / L2' : 'RT / R2', isTrigger: true, functionKey: false }))
   ]
   const target = targets[selected]
@@ -58,7 +58,7 @@ export function Bindings({ profile, edit, busy }: { profile: Profile; edit: (fn:
       <div className="control-overview">{targets.map((t, i) => {
         const a = t.isTrigger ? trigger : button
         return <button className={`btn ghost${selected === i ? ' active' : ''}`} key={i} onClick={() => setSelected(i)}>
-          <KeyIcon value={t.isTrigger ? (t.label.startsWith('LT') ? 19 : 20) : t.functionKey ? (t.label.startsWith('FL') ? 17 : 18) : BUTTON_LABELS.indexOf(t.label) + 1} tag={t.functionKey ? t.label.split(' / ')[1] : undefined} /><strong>{t.label}</strong><span className="hint">{t.functionKey && macro.macroEnabled(t.packet) ? 'Macro' : a.mapped(t.packet) ? a.mapValues(t.packet).filter(Boolean).map(bindingLabel).join(' + ') : 'Original'}</span>
+          <KeyIcon value={t.isTrigger ? (t.label.startsWith('LT') ? 19 : 20) : t.functionKey ? (t.label.startsWith('FL') ? 17 : 18) : BUTTON_LABELS.indexOf(t.label) + 1} tag={t.functionKey ? t.label.split(' / ')[1] ?? t.label : undefined} /><strong>{t.label}</strong><span className="hint">{t.functionKey && macro.macroEnabled(t.packet) ? 'Macro' : a.mapped(t.packet) ? a.mapValues(t.packet).filter(Boolean).map(bindingLabel).join(' + ') : 'Original'}</span>
         </button>
       })}</div>
     </details>

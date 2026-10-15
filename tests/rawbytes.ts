@@ -58,7 +58,7 @@ check('raw wires land at Fun_Data +16/+17/+18', bytes[0x20 + 16] === 200 && byte
   const eight = [{ x: 0, y: 0 }, { x: 32, y: 10 }, { x: 64, y: 38 }, { x: 96, y: 70 }, { x: 128, y: 100 }, { x: 160, y: 140 }, { x: 191, y: 185 }, { x: 255, y: 255 }]
   const q = resampleCurve(eight)
   check('8-point design quantizes to 5 slots', q.length === 5 && q[0].x === 0 && q[4].x === 255 && q[0].y === 0 && q[4].y === 255, q.map((p) => `${p.x}/${p.y}`).join(' '))
-  check('mid-slot interpolation is sane', q[2].x === 128 && q[2].y === 100, `${q[2].x}/${q[2].y}`)
+  check('mid-slot minimax fit matches upstream', q[2].x === 128 && q[2].y === 106, `${q[2].x}/${q[2].y}`)
   const grown = addDesignPoint([{ x: 0, y: 0 }, { x: 255, y: 255 }])
   check('add point splits longest segment', grown.length === 3 && grown[1].x === 128, grown.map((p) => `${p.x}/${p.y}`).join(' '))
   check('add point grows 8 to 9', addDesignPoint(eight).length === 9)

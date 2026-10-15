@@ -1,3 +1,4 @@
+import { AIM_CURVES } from '@shared/aim-curves'
 import { KeyIcon } from './KeyIcon'
 import { resampleSpline, traceSpline } from '@shared/sticklab'
 import { ApexDevice, ApexSticks } from './FlydigiPanel'
@@ -8,7 +9,7 @@ import { TermsGate } from './TermsGate'
 import { Help, SectionTitle } from './Help'
 import { FirmwarePanel } from './Firmware'
 import { PerformanceBench } from './PerformanceBench'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TriggerTuning, GyroTuning } from './Tuning'
 import { CalibrationPanel } from './Calibration'
 import { RcFilters } from './RcFilters'
@@ -129,7 +130,9 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
     const x = Math.max(0, Math.min(255, Math.round(((e.clientX - rect.left - pad) / (w - pad * 2)) * 255)))
     const y = Math.max(0, Math.min(255, Math.round((1 - (e.clientY - rect.top - pad) / (h - pad * 2)) * 255)))
     const next = points.map((p) => ({ ...p }))
-    next[i] = { x, y }
+    const lo = i > 0 ? next[i - 1].x : 0
+    const hi = i < next.length - 1 ? next[i + 1].x : 255
+    next[i] = { x: Math.max(lo, Math.min(hi, x)), y }
     onChange(next)
   }
   useEffect(() => {
@@ -259,82 +262,6 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
  * the same LUT a dynamic curve would average out to. All verified byte-safe:
  * curve bytes only, +14..+23.
  */
-const AIM_CURVES: Record<string, { label: string; hint: string; pts: Array<{ x: number; y: number }> }> = {
-  nekosu: {
-    label: 'Nekosu',
-    hint: 'Snappy fast start, even pull, 10 points',
-    pts: [
-      { x: 0, y: 0 },
-      { x: 12, y: 39 },
-      { x: 39, y: 61 },
-      { x: 69, y: 82 },
-      { x: 98, y: 104 },
-      { x: 131, y: 125 },
-      { x: 169, y: 154 },
-      { x: 207, y: 182 },
-      { x: 228, y: 206 },
-      { x: 255, y: 255 }
-    ]
-  },
-  linear: { label: 'Linear', hint: '1:1 raw', pts: [...LINEAR_CURVE] },
-  fpsAim: {
-    label: 'Kiyoshi Curve',
-    hint: 'calm centre, hot edge',
-    pts: [{ x: 0, y: 0 }, { x: 64, y: 38 }, { x: 128, y: 100 }, { x: 191, y: 185 }, { x: 255, y: 255 }]
-  },
-  micro: {
-    label: 'Micro-aim',
-    hint: 'extra-fine centre for tracking',
-    pts: [{ x: 0, y: 0 }, { x: 64, y: 28 }, { x: 128, y: 80 }, { x: 191, y: 170 }, { x: 255, y: 255 }]
-  },
-  flick: {
-    label: 'Flick/Snap',
-    hint: 'fast start for 180s',
-    pts: [{ x: 0, y: 0 }, { x: 64, y: 100 }, { x: 128, y: 160 }, { x: 191, y: 215 }, { x: 255, y: 255 }]
-  },
-  snappy: {
-    label: 'Snappy mid',
-    hint: 'COD-style boosted mid',
-    pts: [{ x: 0, y: 0 }, { x: 64, y: 78 }, { x: 128, y: 140 }, { x: 191, y: 200 }, { x: 255, y: 255 }]
-  },
-  steady: {
-    label: 'Steady track',
-    hint: 'Apex-style even pull',
-    pts: [{ x: 0, y: 0 }, { x: 64, y: 52 }, { x: 128, y: 112 }, { x: 191, y: 188 }, { x: 255, y: 255 }]
-  },  expo: {
-    label: 'Expo',
-    hint: 'late surge',
-    pts: [{ x: 0, y: 0 }, { x: 64, y: 16 }, { x: 128, y: 70 }, { x: 191, y: 158 }, { x: 255, y: 255 }]
-  },
-  sacreds: {    label: 'Sacreds',
-    hint: 'Hyperstrike-style smooth fast start, 10 points',
-    pts: [
-      { x: 0, y: 0 },
-      { x: 26, y: 41 },
-      { x: 49, y: 72 },
-      { x: 76, y: 107 },
-      { x: 102, y: 140 },
-      { x: 133, y: 157 },
-      { x: 153, y: 177 },
-      { x: 168, y: 197 },
-      { x: 191, y: 223 },
-      { x: 229, y: 255 }
-    ]
-  },
-  machixo: {
-    label: 'Machixo',
-    hint: 'Slow-start desensitized, tops at 94%',
-    pts: [
-      { x: 0, y: 0 },
-      { x: 20, y: 15 },
-      { x: 82, y: 61 },
-      { x: 133, y: 99 },
-      { x: 184, y: 138 },
-      { x: 235, y: 176 },
-      { x: 255, y: 240 }
-    ]
-  }
-}
 
 function SteamCard({ left, right, mouseRate, fittedK }: { left: { begin: number; end: number } | null; right: { begin: number; end: number } | null; mouseRate: number | null; fittedK: number | null }): JSX.Element {
   const [info, setInfo] = useState<{ steamPath: string | null; userId: string | null; apexInstalled: boolean; apexAppId: number; steamRunning: boolean } | null>(null)
@@ -966,7 +893,11 @@ function AppContent(): JSX.Element {
   const [info, setInfo] = useState<DeviceInfo | null>(null)
   const [pid, setPid] = useState<number | null>(null)
   const [model, setModel] = useState<ControllerModel | null>(null)
-  const [slot, setSlot] = useState(3)
+  const [slot, setSlot] = useState<number>(() => {
+    try { const saved = Number(localStorage.getItem('sticklabs.slot')); if (Number.isInteger(saved) && saved >= 1 && saved <= 4) return saved } catch { /* session default */ }
+    return 3
+  })
+  useEffect(() => { try { localStorage.setItem('sticklabs.slot', String(slot)) } catch { /* session only */ } }, [slot])
   const [blob, setBlob] = useState<Uint8Array | null>(null)
   const [dirty, setDirty] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -1025,7 +956,10 @@ function AppContent(): JSX.Element {
   // Free-point curve design (2–10 pts). The pad only stores 5, so this is a
   // design canvas — `quantized` is what actually gets written. Persisted per
   // slot+stick so a half-finished shape survives a reload.
-  const [spline, setSpline] = useState(false)
+  const [spline, setSpline] = useState(() => {
+    try { return localStorage.getItem('sticklabs.spline') === '1' } catch { return false }
+  })
+  useEffect(() => { try { localStorage.setItem('sticklabs.spline', spline ? '1' : '0') } catch { /* session only */ } }, [spline])
   const [design, setDesign] = useState<Array<{ x: number; y: number }>>([])
   const [, force] = useState(0)
   const bump = (): void => {
@@ -1355,7 +1289,8 @@ function AppContent(): JSX.Element {
     }
   }, [design, designKey])
 
-  const quantized = design.length >= 2 ? (spline ? resampleSpline(design) : resampleCurve(design)) : pts
+  const fittedCurve = useMemo(() => design.length >= 2 ? (spline ? resampleSpline(design) : resampleCurve(design)) : null, [design, spline])
+  const quantized = fittedCurve ?? pts
   const locked = connected && (!model || model.support !== 'full')
   const modelId = model?.id ?? 'G7ProCE'
   const modelLen = model && model.profileLength > 0 ? model.profileLength : PROFILE_LENGTH
@@ -1635,7 +1570,7 @@ function AppContent(): JSX.Element {
                     {vDesign.map((p, i) => (
                       <tr key={i}>
                         <td className="mono">{i + 1}</td>
-                        <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = vDesign.map((q) => ({ ...q })); next[i].x = Math.max(0, Math.min(255, Number(e.target.value))); setVDesign(next) }} /></td>
+                        <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = vDesign.map((q) => ({ ...q })); const lo = i > 0 ? next[i - 1].x : 0; const hi = i < next.length - 1 ? next[i + 1].x : 255; next[i].x = Math.max(lo, Math.min(hi, Math.round(Number(e.target.value) || 0))); setVDesign(next) }} /></td>
                         <td><input className="input" type="number" min={0} max={255} value={p.y} onChange={(e) => { const next = vDesign.map((q) => ({ ...q })); next[i].y = Math.max(0, Math.min(255, Number(e.target.value))); setVDesign(next) }} /></td>
                       </tr>
                     ))}
@@ -1852,7 +1787,7 @@ function AppContent(): JSX.Element {
                         {design.map((p, i) => (
                           <tr key={i}>
                             <td className="mono">{i + 1}</td>
-                            <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].x = Math.max(0, Math.min(255, Number(e.target.value))); setDesign(next) }} /></td>
+                            <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = design.map((q) => ({ ...q })); const lo = i > 0 ? next[i - 1].x : 0; const hi = i < next.length - 1 ? next[i + 1].x : 255; next[i].x = Math.max(lo, Math.min(hi, Math.round(Number(e.target.value) || 0))); setDesign(next) }} /></td>
                             <td><input className="input" type="number" min={0} max={255} value={p.y} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].y = Math.max(0, Math.min(255, Number(e.target.value))); setDesign(next) }} /></td>
                             <td>
                               <button className="btn sm ghost" disabled={design.length <= DESIGN_MIN_POINTS} title="Remove point" onClick={() => setDesign((d) => d.filter((_, j) => j !== i))}>−</button>
@@ -2158,7 +2093,7 @@ function AppContent(): JSX.Element {
           )}
           {tab === 'firmware' && <FirmwarePanel hasUnsavedEdits={dirty} />}
           {(tab === 'triggers' || tab === 'gyro') && (connected && profile && modelId === 'G7ProCE' ? (tab === 'triggers' ? <TriggerTuning key={`triggers:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <GyroTuning key={`gyro:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} />) : <div className="note">Connect an identified G7 Pro 8K and load a profile to tune triggers and gyro.</div>)}
-          {tab === 'bindings' && (connected && profile && modelId === 'G7ProCE' ? <Bindings key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit bindings.</div>)}
+          {tab === 'bindings' && (connected && profile && ['G7ProCE', 'T3CE'].includes(modelId) ? <Bindings key={`${slot}:${loadId}`} profile={profile} modelId={modelId} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K or Tarantula 8K and load a profile to edit bindings.</div>)}
           {tab === 'macros' && (connected && profile && modelId === 'G7ProCE' ? <Macros key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit macros.</div>)}
           {tab === 'rc' && (
             connected && !locked && fd && blob ? (

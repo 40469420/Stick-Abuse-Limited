@@ -80,6 +80,14 @@ function check(name: string, cond: boolean): void {
   check('trace of linear design is the diagonal (byte rounding only)', lin.every((p) => Math.abs(p.y - p.x) <= 0.5))
 }
 
+{
+  const { addDesignPoint, DESIGN_MAX_POINTS } = await import('../src/shared/sticklab')
+  const full = Array.from({ length: DESIGN_MAX_POINTS }, (_, i) => ({ x: i * 25, y: i * 25 }))
+  const copy = addDesignPoint(full)
+  check('full curve returns a new array', copy !== full)
+  check('full curve keeps all points', JSON.stringify(copy) === JSON.stringify(full))
+}
+
 if (failed > 0) {
   console.log(`${failed} FAILURES`)
   process.exit(1)
