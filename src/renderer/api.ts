@@ -6,6 +6,7 @@ export interface Candidate {
   manufacturer: string | undefined
   live: boolean | null
 }
+import type { DeepPollResult } from '@shared/deeppoll'
 export interface DeviceInfo {
   firmware: string
   dongle: string
@@ -66,7 +67,9 @@ interface LabApi {
     mouseRate?: number | null,
     curveExp?: number | null
   ): Promise<{ games: Array<{ appId: number; name: string }>; result: { games: Array<{ appId: number; name: string; ok: boolean; detail: string }> } }>
+  /** MARIUS board — read-only preview scaffold. No write path exists. */
   /** Kernel USB poll check (elevated ETW trace, UAC prompts once per run). */
+  deeppoll(vid: number, pid: number, seconds?: number): Promise<DeepPollResult>
   on(channel: string, fn: (payload: never) => void): () => void
 }
 

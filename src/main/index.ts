@@ -8,6 +8,7 @@ import { Controller, type DeviceInfo } from './controller'
 import { discover, discoverLive } from './hid'
 import { steamInfo, exportApexDeadzones, listInstalledGames, exportDeadzonesToGames } from './steam'
 import { PROFILE_LENGTH } from '../shared/protocol'
+import { runDeepPoll } from './deeppoll'
 
 const controller = new Controller()
 let window_: BrowserWindow | null = null
@@ -177,6 +178,11 @@ handle('diag:ping', async (count: number) => {
     mean: samples.reduce((a, b) => a + b, 0) / samples.length
   }
 })
+handle('diag:deeppoll', async (vid: number, pid: number, seconds?: number) => {
+  if (!Number.isInteger(vid) || !Number.isInteger(pid)) throw new Error('refusing deep poll without VID:PID')
+  return runDeepPoll({ vid, pid, seconds })
+})
+
 function createWindow(): void {
   window_ = new BrowserWindow({
     width: 1220,
