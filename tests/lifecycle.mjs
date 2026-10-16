@@ -40,7 +40,7 @@ if (!process.argv.includes('--child')) {
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel', 'guard-write']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel', 'guard-write', 'guard-quit', 'guard-quit-rc']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -57,6 +57,34 @@ if (!process.argv.includes('--child')) {
   const guardResult = await call('games:status')
   const guardDefaults = guardResult.value ?? guardResult.data ?? guardResult.result
   assert(Object.values(guardDefaults).every(s => !s.enabled), 'additional game guards default off')
+  if(scenario==='guard-quit'||scenario==='guard-quit-rc') {
+    m.profile[49]=11;m.profile[50]=11
+    if(scenario==='guard-quit-rc')m.profile[49]=1
+    let finishRead
+    m.waitRead=new Promise(resolve=>{finishRead=resolve})
+    let entered=false
+    const originalRead=controller.readProfile.bind(controller)
+    controller.readProfile=async (...args)=>{entered=true;return originalRead(...args)}
+    assert.equal((await call('games:set','destiny',true)).ok,true)
+    for(let i=0;i<150&&!entered;i++)await wait(10)
+    assert.equal(entered,true)
+    m.menu.find(entry=>entry.label==='Quit Stick-Abuse-Limited').click()
+    await wait(30)
+    assert.equal(m.quits,0,'quit cannot overlap in-progress background read')
+    assert.equal(m.messages.some(item=>item.channel==='rc:quitError'),false,'background check does not reject quit')
+    finishRead();m.waitRead=null
+    for(let i=0;i<50&&!m.quits&&!prompt();i++)await wait(10)
+    if(scenario==='guard-quit-rc'){
+      assert.equal(m.quits,0,'enabled RC still requires acknowledgment')
+      assert.ok(prompt(),'mandatory RC warning is preserved')
+      assert.equal((await call('rc:quitDecision',prompt().id,false)).ok,true)
+    }
+    assert.equal(m.quits,1,'one quit request completes after background check releases')
+    assert.equal(m.exitSave,true,'config is committed before quitting')
+    assert.equal(m.writes,0,'neutral quit does not change profiles')
+    console.log('Guard/quit contention: single quit waits for background read and commits configuration.')
+    process.exit(0)
+  }
   if(scenario==='guard-write') {
     m.profile[49]=11;m.profile[50]=11
     let finishRead

@@ -141,7 +141,14 @@ async function resetRcAfterConnect(force = false): Promise<boolean> {
 async function requestQuit(): Promise<void> {
   if (quitting || closeChecking || closePrompt) { if (closePrompt) showWindow(); return }
   showWindow()
-  if (ioJobs || resetting || recording || calibrationSession) {
+  // Quit needs the same priority over background RC polling as a user write.
+  // Reserve the quit check before waiting so another guard cannot take the lock.
+  if (guardRead) {
+    closeChecking = true
+    try { await guardRead } catch { /* The quit check below handles unknown RC state. */ }
+    finally { closeChecking = false }
+  }
+  if (ioJobs || foregroundWaiters || resetting || recording || calibrationSession) {
     send('rc:quitError', 'Wait for the current controller operation or recording to finish before quitting.')
     return
   }
