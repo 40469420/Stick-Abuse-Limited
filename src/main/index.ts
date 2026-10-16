@@ -1,3 +1,4 @@
+import { listCommunityProfiles, downloadCommunityProfile } from './community'
 import { recoverPureRaw, type PureRawJournal, type PureRawStatus } from '../shared/pure-raw'
 import { runLeadJoy } from './leadjoy-jobs'
 import { validateLeadJoyRequest, type LjRequest } from '../shared/leadjoy-api'
@@ -683,6 +684,15 @@ handle('system:openExternal', (url: string) => {
   void shell.openExternal(url)
   return true
 })
+handle('community:list', () => listCommunityProfiles())
+handle('community:download', async (name: string) => {
+  if (typeof name !== 'string') throw new Error('Invalid profile name')
+  const bytes = await downloadCommunityProfile(name)
+  const result = await dialog.showSaveDialog({ title: 'Download community profile', defaultPath: join(app.getPath('downloads'), name), filters: [{name:'Controller profile', extensions:['bin']}] })
+  if (result.canceled || !result.filePath) return false
+  writeFileSync(result.filePath, bytes)
+  return true
+})
 handle('system:version', () => app.getVersion())
 handle('steam:info', () => steamInfo())
 handle('steam:export', (left: { begin: number; end: number }, right: { begin: number; end: number }, mouseRate?: number | null, curveExp?: number | null) =>
@@ -763,6 +773,8 @@ handle('diag:ping', async (count: number) => {
   }
 })
 
+const appIconPath = join(__dirname, '../../build/icon.png')
+
 function createWindow(): void {
   window_ = new BrowserWindow({
     width: 1220,
@@ -771,6 +783,7 @@ function createWindow(): void {
     minHeight: 680,
     backgroundColor: '#14090d',
     title: 'Stick-Abuse-Limited',
+    icon: appIconPath,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -811,14 +824,8 @@ app.whenReady().then(() => {
     for (const game of gameKeys) gameEnabled[game] = prefs.gameGuards?.[game] === true
     resetMessage = resetEnabled ? 'RC reset armed for the next connection/reconnection.' : 'Automatic RC reset is off.'
   } catch { /* First run uses the off default. */ }
-  // A small in-memory icon also works in portable builds without external assets.
-  const pixels = Buffer.alloc(32 * 32 * 4)
-  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-    const i = (y * 32 + x) * 4
-    const white = (x >= 9 && x <= 13 && y >= 7 && y <= 24) || (y >= 20 && y <= 24 && x >= 9 && x <= 24)
-    pixels[i] = white ? 255 : 70; pixels[i + 1] = white ? 255 : 65; pixels[i + 2] = white ? 255 : 215; pixels[i + 3] = 255
-  }
-  tray = new Tray(nativeImage.createFromBitmap(pixels, { width: 32, height: 32, scaleFactor: 1 }))
+  app.setAppUserModelId('com.realkiyoshi.sticklabs')
+  tray = new Tray(nativeImage.createFromPath(appIconPath).resize({ width: 32, height: 32 }))
   tray.setToolTip('Stick-Abuse-Limited')
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open Stick-Abuse-Limited', click: showWindow },

@@ -85,6 +85,8 @@ interface LabApi {
   currentProfile(): Promise<number>
   calibration(state: number, partMask?: number): Promise<boolean>
   ping(count: number): Promise<PingResult>
+  communityProfiles(): Promise<import('../shared/community').CommunityProfile[]>
+  downloadCommunityProfile(name: string): Promise<boolean>
   openExternal(url: string): Promise<boolean>
   version(): Promise<string>
   steamInfo(): Promise<{ steamPath: string | null; userId: string | null; apexInstalled: boolean; apexAppId: number; steamRunning: boolean }>

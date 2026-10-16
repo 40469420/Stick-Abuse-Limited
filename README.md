@@ -41,7 +41,7 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 | Firmware | G7 Pro 8K controller flashing, image validation, profile backups and logs. Original 2.1.0 and 2.2.9 images are included. |
 | Marius | Read-only board discovery and configuration preview. |
 
-PureRaw has an enabled-by-default **Auto reapply on reconnect** checkbox. While the app is running, it temporarily enables Square processing for PureRaw sticks in the active G7 Pro 8K profile, verifies the write, then restores the exact original profile. Other tuning is preserved. Interrupted operations keep a local recovery backup. This is an app-assisted workaround; physical reconnect validation is pending.
+PureRaw has an enabled-by-default **Auto reapply on reconnect** checkbox. While the app is running, it temporarily enables Square processing for PureRaw sticks in the active G7 Pro 8K profile, verifies the write, then restores the exact original profile. Other tuning is preserved. Interrupted operations keep a local recovery backup. This is an app-assisted workaround; reconnect behavior was confirmed on the test G7 Pro 8K.
 
 The **Theme** button lets you customize backgrounds, panels, controls, borders, text, accents, status colors and preview markers. Colors are saved on your PC. Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
 
@@ -109,3 +109,5 @@ Developed by **RealKiyoshi** · [YouTube](https://www.youtube.com/@realkiyoshi)
 Forked by **@Machixo** · [X](https://x.com/Machixo)
 
 [MIT license](LICENSE)
+
+Community Profiles under Data lists the current GitHub collection. Download a shared profile, then use Profiles → Import to load it into a backed-up slot.

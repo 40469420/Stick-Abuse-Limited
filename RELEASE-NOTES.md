@@ -1,23 +1,23 @@
-# Stick Abuse 3.0: The Beating
+# Stick Abuse 3.1: The Beating
 
-## Live previews
-- Device now brings sticks, trigger travel, button and D-pad highlights, rear buttons, and raw sensor readouts into one controller layout. The outer controller outline is removed.
-- Gyro has live stick plots and raw gyro/accelerometer counts from received controller reports, with selectable byte order, axes and plot scale.
-- Sticks shows original axes beside a staged deadzone/anti-deadzone illustration. The duplicate Live sticks card is removed.
-- Triggers has a live output gauge and a separate staged-range graph with test travel.
-- Stale preview values clear when reports stop.
+## PureRaw reconnect fix
+- Added **Auto reapply on reconnect**, enabled by default. While the app is running, PureRaw sticks briefly pass through Square processing before their exact original profile is restored. This resolves the slow-stick state observed after unplugging and reconnecting the test G7 Pro 8K.
+- Recovery verifies writes, preserves tuning and keeps a local backup if interrupted. The checkbox lets you disable automatic reapplication.
+- Added **PureRaw Deadzone (Processing)** as a separate option. It uses a neutral response curve with processing enabled while keeping deadzones and anti-deadzones.
+- Corrected the PureRaw preview: stored deadzone and anti-deadzone settings remain visible alongside actual reported output. PureRaw does not guarantee that firmware bypasses every processing stage.
 
-## Controls and layout
-- Deadzone and anti-deadzone sliders have exact numeric entry, 0.1% nudges and clearer range limits.
-- Each stick shape has its own question-mark explanation.
-- Smaller dropdowns, macro selectors, numeric fields and tighter spacing across the interface.
+## New icon
+- New red joystick icon for Windows, setup, portable and the system tray.
+- A gentle breathing animation sits beside the app name and links to this GitHub repository. Reduced-motion preferences are respected.
+- Windows executable branding identifies the app as Stick-Abuse-Limited.
 
-## Your colors
-- Theme controls customize backgrounds, cards, inputs, borders, text, accents, status colors and preview markers.
-- Color pickers and hex entry, default/blue/forest starting palettes, and saved local preferences.
+## Community Profiles
+- Added **Community Profiles** under **Data**, with the current public GitHub collection and a Refresh button.
+- Download profiles directly through a Save dialog, then import them through Profiles. Downloading does not change the controller.
+- No GitHub login or token is needed. No controller data or personal files are uploaded.
 
-## Validation and limits
-Type checks, production build and regression tests passed. Browser checks covered preview edits, Escape cancellation, stale reports, compact menus, narrow layouts and saved custom colors. A passive check received 751 real controller reports without commands or writes. Physical gyro-axis/rotation and scale validation remain pending; sensor values are raw counts, not calibrated angles. Staged range illustrations are separate from actual reported output and do not model the complete firmware pipeline.
+## Validation
+PureRaw recovery and lifecycle tests, community download tests, type checks and production builds passed. Reconnect recovery was confirmed on the test G7 Pro 8K. Community listing and a 1070-byte profile download were verified against the public repository.
 
 ## Downloads
-Setup includes automatic updates from this repository. Portable runs without installation.
+Use **setup** for installation and automatic updates from this repository. Use **portable** to run without installation.

@@ -48,6 +48,7 @@ const entry =
         'tests/labs-additions.ts',
         'tests/ui-preview.ts',
         'tests/pure-raw.ts',
+        'tests/community.ts',
         'tests/tuning.ts',
         'tests/firmware.ts',
         'tests/marius.ts'

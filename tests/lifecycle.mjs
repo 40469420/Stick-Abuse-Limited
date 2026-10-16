@@ -12,12 +12,12 @@ if (!process.argv.includes('--child')) {
   mkdirSync(folder, { recursive: true })
   const electron = `
     import {EventEmitter} from 'node:events';
-    export const app=new EventEmitter();app.isPackaged=false;app.requestSingleInstanceLock=()=>true;app.whenReady=()=>Promise.resolve();app.getPath=()=>${JSON.stringify(folder)}+'/'+process.argv[3];app.getVersion=()=> 'test';
+    export const app=new EventEmitter();app.setAppUserModelId=id=>{app.appId=id};app.isPackaged=false;app.requestSingleInstanceLock=()=>true;app.whenReady=()=>Promise.resolve();app.getPath=()=>${JSON.stringify(folder)}+'/'+process.argv[3];app.getVersion=()=> 'test';
     const m=globalThis.__m={app,handlers:new Map(),messages:[],quits:0,writes:0,profile:Uint8Array.from({length:1070},(_,i)=>i%256)};
     app.quit=()=>{let prevented=false;app.emit('before-quit',{preventDefault(){prevented=true}});if(!prevented){m.quits++;app.emit('will-quit')}};
     export class BrowserWindow extends EventEmitter{constructor(){super();m.window=this;this.webContents={send:(channel,payload)=>m.messages.push({channel,payload})};}loadURL(){}loadFile(){}isDestroyed(){return false}hide(){m.hidden=true;this.emit('hide')}show(){m.hidden=false}restore(){}focus(){}static getAllWindows(){return [m.window]}}
     export class Tray extends EventEmitter{constructor(){super();m.tray=this}setToolTip(){}setContextMenu(menu){m.menu=menu}destroy(){m.trayDestroyed=true}}
-    export const Menu={buildFromTemplate:items=>items};export const nativeImage={createFromBitmap:()=>({})};export const dialog={showMessageBox:async()=>({response:1})};export const ipcMain={handle:(channel,fn)=>m.handlers.set(channel,fn)};export const session={defaultSession:{setPermissionRequestHandler(){}}};export const shell={openExternal(){}};
+    export const Menu={buildFromTemplate:items=>items};export const nativeImage={createFromBitmap:()=>({}),createFromPath:()=>({resize(){return this}})};export const dialog={showMessageBox:async()=>({response:1})};export const ipcMain={handle:(channel,fn)=>m.handlers.set(channel,fn)};export const session={defaultSession:{setPermissionRequestHandler(){}}};export const shell={openExternal(){}};
   `
   const controller = `
     import {EventEmitter} from 'node:events';

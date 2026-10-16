@@ -12,6 +12,8 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api = {
+  communityProfiles: () => call<import('../shared/community').CommunityProfile[]>('community:list'),
+  downloadCommunityProfile: (name: string) => call<boolean>('community:download', name),
   leadjoyJob: (req: import('../shared/leadjoy-api').LjRequest) => call<import('../shared/leadjoy-api').LjResult>('leadjoy:job',req),
   benchStart: (id: string) => call<boolean>('lab:start', id),
   benchRenew: (id: string) => call<boolean>('lab:renew', id),
