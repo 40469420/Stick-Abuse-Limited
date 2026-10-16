@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, isWebVersion } from './api'
 
 const ACCEPTANCE_KEY = 'sticklabs.unlimited.terms.v1'
-const WAIT_MS = 60_000
+const WAIT_MS = isWebVersion() ? 30_000 : 60_000
 function accepted(): boolean {
   try { return localStorage.getItem(ACCEPTANCE_KEY) === 'accepted' } catch { return false }
 }
@@ -11,7 +11,7 @@ function accepted(): boolean {
 export function TermsGate({ children }: { children: ReactNode }): JSX.Element {
   const [allowed, setAllowed] = useState(accepted)
   const [checked, setChecked] = useState(false)
-  const [remaining, setRemaining] = useState(60)
+  const [remaining, setRemaining] = useState(WAIT_MS / 1000)
   const [error, setError] = useState('')
   const started = useRef(performance.now())
   const heading = useRef<HTMLHeadingElement>(null)
