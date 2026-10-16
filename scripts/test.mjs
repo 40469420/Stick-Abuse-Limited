@@ -42,6 +42,10 @@ const entry =
         'tests/center.ts',
         'tests/custom-controls.ts',
         'tests/shift.ts',
+        'tests/leadjoy.ts',
+        'tests/deeppoll.ts',
+        'tests/linearity.ts',
+        'tests/labs-additions.ts',
         'tests/tuning.ts',
         'tests/firmware.ts',
         'tests/marius.ts'

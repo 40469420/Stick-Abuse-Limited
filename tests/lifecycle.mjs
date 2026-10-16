@@ -32,13 +32,15 @@ if (!process.argv.includes('--child')) {
       b.onResolve({ filter: /^\.\/controller$/ }, () => ({ path: 'controller', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/hid$/ }, () => ({ path: 'hid', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/firmware$/ }, () => ({ path: 'firmware', namespace: 'fake' }))
+      b.onResolve({ filter: /^\.\/deeppoll$/ }, () => ({ path:'deeppoll',namespace:'fake' }))
+      b.onLoad({ filter: /^deeppoll$/,namespace:'fake' },()=>({contents:'export function runDeepPoll(run){return new Promise(resolve=>{globalThis.__m.kernelStarted=true;run.signal.addEventListener("abort",()=>{globalThis.__m.kernelCancelled=true;resolve({ok:false,error:"cancelled"})},{once:true})})}',loader:'js'}))
       b.onResolve({ filter: /^\.\/bench-xinput$/ }, () => ({ path: 'bench-xinput', namespace: 'fake' }))
       b.onLoad({ filter: /^bench-xinput$/, namespace: 'fake' }, () => ({ contents: 'export function runXInputBench(slot,seconds,onReady){onReady();let reject;const promise=new Promise((a,b)=>reject=b);return {promise,cancel(){globalThis.__m.benchKilled=true;reject(new Error("cancelled"))}}}', loader: 'js' }))
       b.onResolve({ filter: /^\.\/marius$/ }, () => ({ path: 'marius', namespace: 'fake' }))
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -55,6 +57,19 @@ if (!process.argv.includes('--child')) {
   const guardResult = await call('games:status')
   const guardDefaults = guardResult.value ?? guardResult.data ?? guardResult.result
   assert(Object.values(guardDefaults).every(s => !s.enabled), 'additional game guards default off')
+  if(scenario==='kernel') {
+    assert.equal((await call('lab:kernel','closed')).ok,false,'kernel test requires a page lease')
+    assert.equal((await call('lab:start','kernel-page')).ok,true)
+    const measurement=call('lab:kernel','kernel-page')
+    await wait(10)
+    assert.equal(m.kernelStarted,true)
+    assert.equal((await call('profile:write',1,Buffer.from(m.profile).toString('base64'),1070)).ok,false,'kernel trace blocks writes')
+    m.window.hide()
+    assert.equal((await measurement).ok,false,'hidden Labs cannot publish a result')
+    assert.equal(m.kernelCancelled,true,'hiding cancels trace capture')
+    console.log('Kernel lifecycle: page-only lease, write exclusion, hide cancellation and stale-result rejection passed.')
+    process.exit(0)
+  }
   if(scenario==='shift') {
     m.profile[49]=11;m.profile[50]=11;m.profile[66]|=1;m.profile[67]=231
     m.shiftProfile=m.profile.slice();m.shiftProfile[67]=0;m.shiftProfile[49]=1

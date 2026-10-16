@@ -1,3 +1,6 @@
+import { runLeadJoy } from './leadjoy-jobs'
+import { validateLeadJoyRequest, type LjRequest } from '../shared/leadjoy-api'
+import { runDeepPoll } from './deeppoll'
 import { hasShiftBinding, SHIFT_SLOT } from '../shared/shift'
 import { parseProfile } from '../shared/profile'
 import { GUARDED_GAMES, isGuardedGame, type GuardedGame, type GameGuardStatuses } from '../shared/game-guards'
@@ -293,7 +296,7 @@ function fromB64(text: string): Uint8Array {
 }
 function handle(channel: string, fn: (...args: any[]) => unknown): void {
   ipcMain.handle(channel, async (_event, ...args) => {
-    const usesDevice = (/^(profile:|device:|diag:|macro:)/.test(channel) || channel === 'firmware:flash' || ['lab:vendor', 'lab:xinput', 'lab:ping'].includes(channel)) && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
+    const usesDevice = (/^(profile:|device:|diag:|macro:|leadjoy:)/.test(channel) || channel === 'firmware:flash' || ['lab:vendor', 'lab:xinput', 'lab:ping', 'lab:kernel'].includes(channel)) && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
     let acquired = false
     try {
       if (firmwareStatus.running && (usesDevice || channel.startsWith('firmware:') && channel !== 'firmware:status')) throw new Error('Wait for the firmware operation to finish. Do not disconnect or quit.')
@@ -423,6 +426,14 @@ handle('firmware:openBackup', async () => {
 })
 
 handle('device:discover', () => discoverLive())
+handle('leadjoy:job', async (req:LjRequest) => {
+ validateLeadJoyRequest(req)
+ if(controller.isOpen) throw new Error('Disconnect the GameSir session before opening LeadJoy.')
+ if(!req || typeof req.path!=='string' || ![0,1,2].includes(req.slot) || req.edits && (!Array.isArray(req.edits)||req.edits.length>25)) throw new Error('Invalid LeadJoy request')
+ const device=discover().find(d=>d.path===req.path && d.productId===0x3519)
+ if(!device) throw new Error('Select the detected LeadJoy Saber Plus interface.')
+ return runLeadJoy(join(__dirname,'leadjoy-worker.js'),req)
+})
 handle('device:connect', async (path: string): Promise<DeviceInfo> => {
   sessionEpoch++
   const info = await controller.connect(path)
@@ -649,6 +660,15 @@ handle('lab:xinput', async (id: string, slot: number, seconds: number) => {
   const job = runXInputBench(slot, seconds, () => { bench.require(id); send('lab:ready', { id }) })
   bench.cancelJob = job.cancel
   try { return await job.promise } finally { if (bench.cancelJob === job.cancel) bench.cancelJob = null }
+})
+handle('lab:kernel', async (id: string, leadjoyPath?: string) => {
+  bench.require(id)
+  if(bench.measuring) throw new Error('Another Lab test is running.')
+  const device=discover().find(d=>d.path===(leadjoyPath??controller.transport.currentPath))
+  if(!device || (leadjoyPath ? device.productId!==0x3519 : !controller.isOpen)) throw new Error('Connect a controller before tracing USB.')
+  const abort=new AbortController();const cancel=():void=>abort.abort();bench.cancelJob=cancel
+  try { const result=await runDeepPoll({vid:leadjoyPath?0x4131:0x3537,pid:device.productId,seconds:8,signal:abort.signal});bench.require(id);return result }
+  finally { if(bench.cancelJob===cancel) bench.cancelJob=null }
 })
 handle('lab:ping', async (id: string) => {
   bench.require(id)

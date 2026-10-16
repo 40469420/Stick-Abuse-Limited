@@ -25,7 +25,7 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 
 | Section | Controls |
 | --- | --- |
-| Sticks | Deadzones, anti-deadzones, custom response curves with optional spline smoothing, shape, linear full-range preset and a separate true raw bypass option. |
+| Sticks | Deadzones, anti-deadzones, custom response curves staged immediately with optional spline smoothing, shape, linear full-range preset and a separate true raw bypass option. |
 | Device | Polling-rate settings, standard 8–12-bit resolution and experimental higher-bit requests. |
 | Center offsets | Independent stick-center adjustment with directional nudges, mouse dragging and live previews. |
 | Triggers | Separate LT/RT input and output ranges, adaptive/fixed hair triggers and response curves. |
@@ -35,13 +35,15 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 | Calibration | Sticks, triggers, combined calibration, motion sensor and guided fine stick tuning. |
 | RC filters | Independent −10 to +10 levels, noise comparisons, optional reconnect resets and independent force-close guards for Apex, The Finals, Battlefield, Rainbow Six Siege and Destiny 2. |
 | Profiles | Read, back up, restore and transfer controller profiles. |
-| Lab | Report timing, XInput state-change rates, center noise, range, snapback, trigger sweeps and saved comparisons. |
+| Lab | Report timing, XInput state-change rates, center noise, range, snapback, trigger sweeps, guided linearity passes, elevated kernel USB completion-rate testing and saved comparisons. |
 | Bit-depth verification | Guided 12-bit versus higher-bit captures, per-axis output-step and noise comparisons, restoration and JSON export. |
 | Steam | Export stick settings to supported Steam configurations. |
 | Firmware | G7 Pro 8K controller flashing, image validation, profile backups and logs. Original 2.1.0 and 2.2.9 images are included. |
 | Marius | Read-only board discovery and configuration preview. |
 
 Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
+
+LeadJoy Saber Plus has a dedicated workspace for button remapping, stick curves, ranges and gates, mouse output, trigger ranges and Labs. Writes read back the affected settings for verification. Main and sub-profile editing are supported; sub-profile activation is not exposed. Physical-device validation is still pending.
 
 Flydigi Apex 5 also supports stick curves, deadzones and LED brightness through a Python hidapi bridge. It requires Python with the `hidapi` package installed. Close Flydigi Space Station before connecting. Unmapped controls stay disabled.
 

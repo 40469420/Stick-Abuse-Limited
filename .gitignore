@@ -15,3 +15,5 @@ dist/
 !.env.example
 .git/
 build/private-firmware/
+
+.leadjoy-worker-test/

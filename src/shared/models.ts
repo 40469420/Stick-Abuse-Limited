@@ -101,6 +101,9 @@ export const MODELS: ReadonlyArray<ControllerModel> = [
     supportNote: 'Apex 5 uses a Python hidapi bridge. Both stick curves, deadzones and LED tuning are supported. Install Python and hidapi, and close Flydigi Space Station before connecting. Unmapped controls remain disabled.'
   },
   {
+    id:'SaberPlus',marketingName:'LeadJoy Saber Plus',vendorId:0x4131,usagePage:0xff80,usage:1,pids:[0x3519],productHints:['LeadJoy','Saber Plus'],reportRates:[],profileLength:0,dumpLength:0,support:'full',supportNote:'Dedicated LeadJoy protocol: verified bindings, stick curves/gates/mouse rate and trigger ranges. Sub-layer activation writes remain unavailable.'
+  },
+  {
     id: 'G7SE',
     marketingName: 'GameSir G7 SE',
     vendorId: 0x3537,

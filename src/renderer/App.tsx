@@ -1,3 +1,5 @@
+import { stageCurve } from '@shared/curve-staging'
+import { LeadJoyPanel } from './LeadJoyPanel'
 import { SHIFT_SLOT, copyToShift } from '@shared/shift'
 import { AIM_CURVES } from '@shared/aim-curves'
 import { KeyIcon } from './KeyIcon'
@@ -890,6 +892,7 @@ function AppContent(): JSX.Element {
   const visibleCandidates = (
     candidates.some((c) => c.live === true) ? candidates.filter((c) => c.live === true || c.live === null || c.path === connPath) : candidates
   ).filter((c) => !(c.productId === 0x0575 && hasDirectPad))
+  const [leadjoyPath,setLeadjoyPath]=useState<string|null>(null)
   const [connected, setConnected] = useState(false)
   const [info, setInfo] = useState<DeviceInfo | null>(null)
   const [pid, setPid] = useState<number | null>(null)
@@ -1020,6 +1023,7 @@ function AppContent(): JSX.Element {
     setErr(null)
     try {
       const cand = candidates.find((c) => c.path === path)
+      if(cand?.productId===0x3519) { await api().disconnect();setConnected(false);setBlob(null);setLeadjoyPath(path);return }
       const pre = identifyModel(cand?.product, cand?.productId) ?? null
       if (pre && pre.support === 'unsupported') {
         // Known-unsupportable (e.g. DLL-driven pads with no HID listener):
@@ -1299,8 +1303,13 @@ function AppContent(): JSX.Element {
   const modelLen = model && model.profileLength > 0 ? model.profileLength : PROFILE_LENGTH
   modelLenRef.current = modelLen
   const padCurve = pts
-  const curvePending = quantized.length === padCurve.length && quantized.some((q, i) => q.x !== padCurve[i].x || q.y !== padCurve[i].y)
+  const savedDesignPending=quantized.some((p,i)=>p.x!==padCurve[i]?.x||p.y!==padCurve[i]?.y)
 
+  function stageDesign(next: Array<{x:number;y:number}>, smooth = spline): void {
+    if(!pkt || busy) return
+    setDesign(next)
+    edit(()=>stageCurve(pkt,next,smooth))
+  }
   function syncDesignFromCopy(): void { if(pkt) setDesign(stick.curve(pkt).map(p=>({...p}))) }
 
   async function reloadDesignFromPad(): Promise<void> {
@@ -1319,6 +1328,8 @@ function AppContent(): JSX.Element {
       setMsg('Curve reloaded from the controller; other staged settings kept.')
     } catch(e) { setErr((e as Error).message) } finally { setBusy(false) }
   }
+
+  if(leadjoyPath) return <LeadJoyPanel path={leadjoyPath} onBack={()=>setLeadjoyPath(null)} />
 
   return (
     <div className="app">
@@ -1763,11 +1774,11 @@ function AppContent(): JSX.Element {
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
                     <div className="section-title"><h3>Custom curve designer — {design.length} points</h3><Help title="Control details">The pad stores exactly <strong>5 points</strong>, so this is a free-point canvas (2–10): <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the 5 bytes that will be written</span>. Dual-zone presets mimic a dynamic response — the pad has no speed sensing, so this is the static LUT a dynamic curve averages to.</Help></div>
-                    <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => setDesign(next)} overlay={quantized} smooth={spline} />
+                    <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => stageDesign(next)} overlay={quantized} smooth={spline} />
                     <div className="row" style={{ gap: 8, margin: '8px 0' }}>
-                      <span className={curvePending ? 'pill warn' : 'pill good'}>{curvePending ? 'design ≠ pad — send it' : 'pad matches design'}</span>
+                      <span className="pill">Edits stage immediately · Write to apply</span>
+                      {savedDesignPending && <button className="btn sm" disabled={busy} onClick={()=>stageDesign(design)}>Restore saved design</button>}
                       <div style={{ flex: 1 }} />
-                      <button className="btn sm primary" disabled={!curvePending} onClick={() => edit(() => { if (pkt) { stick.setCurve(pkt, quantized.map((p) => ({ ...p }))); stick.markCurveIdentity(pkt) } })}>Send 5 to pad</button>
                       <button className="btn sm ghost" onClick={() => void reloadDesignFromPad()}>Reload from pad</button>
                     </div>
                     <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
@@ -1776,7 +1787,7 @@ function AppContent(): JSX.Element {
                           key={key}
                           className="btn sm ghost"
                           title={c.hint}
-                          onClick={() => setDesign(c.pts.map((p) => ({ ...p })))}
+                          onClick={() => stageDesign(c.pts.map((p) => ({ ...p })))}
                         >
                           {c.label}
                         </button>
@@ -1786,7 +1797,7 @@ function AppContent(): JSX.Element {
                       <button
                         className="btn sm"
                         disabled={design.length >= DESIGN_MAX_POINTS}
-                        onClick={() => setDesign((d) => addDesignPoint(d.length >= 2 ? d : padCurve))}
+                        onClick={() => stageDesign(addDesignPoint(design.length >= 2 ? design : padCurve))}
                       >
                         + Add point ({design.length}/{DESIGN_MAX_POINTS})
                       </button>
@@ -1802,17 +1813,17 @@ function AppContent(): JSX.Element {
                         Copy pad curve → other stick
                       </button>
                     </div>
-                    <label className="row"><input type="checkbox" checked={spline} onChange={(e) => setSpline(e.target.checked)} />Smooth spline<Help title="Smooth spline">Uses a smooth curve between your design points, then samples the five points supported by the controller.</Help></label>
+                    <label className="row"><input type="checkbox" checked={spline} onChange={(e) => { setSpline(e.target.checked); stageDesign(design, e.target.checked) }} />Smooth spline<Help title="Smooth spline">Uses a smooth curve between your design points, then samples the five points supported by the controller.</Help></label>
                     <details className="disclosure"><summary>Edit exact curve points</summary><table className="tbl" style={{ marginTop: 8 }}>
                       <thead><tr><th>#</th><th>X</th><th>Y</th><th /></tr></thead>
                       <tbody>
                         {design.map((p, i) => (
                           <tr key={i}>
                             <td className="mono">{i + 1}</td>
-                            <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = design.map((q) => ({ ...q })); const lo = i > 0 ? next[i - 1].x : 0; const hi = i < next.length - 1 ? next[i + 1].x : 255; next[i].x = Math.max(lo, Math.min(hi, Math.round(Number(e.target.value) || 0))); setDesign(next) }} /></td>
-                            <td><input className="input" type="number" min={0} max={255} value={p.y} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].y = Math.max(0, Math.min(255, Number(e.target.value))); setDesign(next) }} /></td>
+                            <td><input className="input" type="number" min={0} max={255} value={p.x} onChange={(e) => { const next = design.map((q) => ({ ...q })); const lo = i > 0 ? next[i - 1].x : 0; const hi = i < next.length - 1 ? next[i + 1].x : 255; next[i].x = Math.max(lo, Math.min(hi, Math.round(Number(e.target.value) || 0))); stageDesign(next) }} /></td>
+                            <td><input className="input" type="number" min={0} max={255} value={p.y} onChange={(e) => { const next = design.map((q) => ({ ...q })); next[i].y = Math.max(0, Math.min(255, Number(e.target.value))); stageDesign(next) }} /></td>
                             <td>
-                              <button className="btn sm ghost" disabled={design.length <= DESIGN_MIN_POINTS} title="Remove point" onClick={() => setDesign((d) => d.filter((_, j) => j !== i))}>−</button>
+                              <button className="btn sm ghost" disabled={design.length <= DESIGN_MIN_POINTS} title="Remove point" onClick={() => stageDesign(design.filter((_,j)=>j!==i))}>−</button>
                             </td>
                           </tr>
                         ))}

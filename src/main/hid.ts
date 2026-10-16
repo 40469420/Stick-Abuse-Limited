@@ -120,7 +120,7 @@ export function discover(): Candidate[] {
       (d) =>
         typeof d.path === 'string' &&
         d.path.length > 0 &&
-        (isGameSir(d) || isFlydigi(d))
+        (isGameSir(d) || isFlydigi(d) || (d.vendorId===0x4131 && d.productId===0x3519 && d.usagePage===0xff80 && d.usage===1))
     )
     .map((d) => ({
       path: d.path as string,

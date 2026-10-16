@@ -1,3 +1,4 @@
+import { LabExtras } from './LabExtras'
 import { KeyIcon } from './KeyIcon'
 import { Help } from './Help'
 import { useEffect, useRef, useState } from 'react'
@@ -231,5 +232,6 @@ export function PerformanceBench({ context, targetHz, profile, device, info, con
       {saved.map(s => <div className="row spread" key={s.id} style={{ marginTop: 8 }}><span>{s.label}</span><button className="btn sm ghost" onClick={() => { const next = saved.filter(v => v.id !== s.id); try { localStorage.setItem(STORAGE, JSON.stringify(next)); setSaved(next) } catch (e) { setError((e as Error).message) } }}>Remove</button></div>)}
     </div>
     </div>
+    <LabExtras session={()=>session.current} active={active && connected && visible && !paused} task={task} setTask={setTask} />
   </div>
 }

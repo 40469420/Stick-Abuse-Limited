@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 export default defineConfig({
   main: {
+    build: { rollupOptions: { input: { index: resolve('src/main/index.ts'), 'leadjoy-worker': resolve('src/main/leadjoy-worker.ts') } } },
     plugins: [externalizeDepsPlugin()]
   },
   preload: {
