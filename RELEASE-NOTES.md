@@ -1,21 +1,23 @@
-# Stick-Abuse-Limited 2.2.11
+# Stick Abuse 3.0: The Beating
 
-## Added
-- Immediate curve staging: dragging points, selecting presets and changing smoothing now update the working profile immediately. Use Write to controller to apply the staged changes.
-- Guided linearity bench in Labs, with center stability, repeated center-to-rim passes, tremor and observed output-step analysis.
-- Kernel USB polling test in Labs: an eight-second Windows USB trace with completion-rate distribution and stall analysis. Administrator approval is required per capture. Leaving or hiding Labs cancels collection.
-- LeadJoy Saber Plus workspace for button remapping, stick curves, ranges and gates, mouse output and trigger ranges, with Main/Sub1/Sub2 editing and verified writes.
+## Live previews
+- Device now brings sticks, trigger travel, button and D-pad highlights, rear buttons, and raw sensor readouts into one controller layout. The outer controller outline is removed.
+- Gyro has live stick plots and raw gyro/accelerometer counts from received controller reports, with selectable byte order, axes and plot scale.
+- Sticks shows original axes beside a staged deadzone/anti-deadzone illustration. The duplicate Live sticks card is removed.
+- Triggers has a live output gauge and a separate staged-range graph with test travel.
+- Stale preview values clear when reports stop.
 
-## Fixed
-- Quit now waits for a background RC read instead of repeatedly rejecting the close request. The required RC warning and reset choice remain in place.
-- Write to controller no longer rejects a click just because a background RC check is reading the controller. The request waits for that check and writes once.
-- Controller writes remain blocked during conflicting operations and active Labs measurements.
+## Controls and layout
+- Deadzone and anti-deadzone sliders have exact numeric entry, 0.1% nudges and clearer range limits.
+- Each stick shape has its own question-mark explanation.
+- Smaller dropdowns, macro selectors, numeric fields and tighter spacing across the interface.
 
-## Testing and limits
-Type checks, production build and regression tests passed, including protocol fixtures, write preservation, background-read contention and Labs cancellation. Physical LeadJoy validation and elevated USB capture validation are still pending. USB completion rate is not input latency, and the linearity bench measures the observed movement rather than proving sensor resolution. LeadJoy sub-profile activation is not exposed.
+## Your colors
+- Theme controls customize backgrounds, cards, inputs, borders, text, accents, status colors and preview markers.
+- Color pickers and hex entry, default/blue/forest starting palettes, and saved local preferences.
 
-This release replaces 2.2.10, which had a quit-lock issue.
+## Validation and limits
+Type checks, production build and regression tests passed. Browser checks covered preview edits, Escape cancellation, stale reports, compact menus, narrow layouts and saved custom colors. A passive check received 751 real controller reports without commands or writes. Physical gyro-axis/rotation and scale validation remain pending; sensor values are raw counts, not calibrated angles. Staged range illustrations are separate from actual reported output and do not model the complete firmware pipeline.
 
 ## Downloads
-- Setup: installs the app and uses this repository for automatic updates.
-- Portable: runs without installation.
+Setup includes automatic updates from this repository. Portable runs without installation.
