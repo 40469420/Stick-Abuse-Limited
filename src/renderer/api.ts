@@ -28,6 +28,7 @@ export interface PingResult {
   mean: number
 }
 export interface LiveSample {
+  recordKeys?: number[]
   imuBytes?: number[]
   centerRaw?: { lx: number; ly: number; rx: number; ry: number }
   lx: number

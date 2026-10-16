@@ -1073,3 +1073,9 @@ label.stack > select.input { width: 100%; max-width: 340px; }
 .theme-color .theme-hex { width: 88px; height: 30px; padding: 5px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--bg-2); cursor: text; color: var(--text); }
 @media(max-width:500px) { .preview-grid { grid-template-columns: minmax(0,1fr); } .sensor-values { grid-template-columns: repeat(2,minmax(0,1fr)); } .range-value { margin-left: auto; } }
 .icon-select.is-short { width: min(100%,160px); }
+.controller-live { margin-bottom: 14px; }
+.controller-live > svg { display: block; width: 100%; max-width: 780px; margin: 0 auto; }
+.controller-readouts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.controller-readouts > div { display: grid; gap: 5px; background: var(--bg-2); border-radius: 6px; padding: 10px; }
+.controller-readouts .mono { font-size: 12px; }
+@media(max-width:1000px) { .controller-readouts { grid-template-columns: repeat(2,minmax(0,1fr)); } }

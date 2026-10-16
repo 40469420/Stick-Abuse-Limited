@@ -1,3 +1,4 @@
+import { ControllerPreview } from './ControllerPreview'
 import { ThemeSettings, useThemeRevision } from './ThemeSettings'
 import { StickRangePreview } from './TuningPreviews'
 import { RangeControl } from './RangeControl'
@@ -1648,16 +1649,6 @@ function AppContent(): JSX.Element {
               {tab === 'sticks' && (
               <div className="two" style={{ alignItems: 'start' }}>
                 <div className="stack" style={{ gap: 16 }}>
-                  <div className="card">
-                    <div className="section-title"><h3>Live sticks</h3><Help title="Live sticks">0x12 vendor report, 0–255, centre 128. Move the sticks.</Help></div>
-                    <StickCross lx={live?.lx ?? 128} ly={live?.ly ?? 128} rx={live?.rx ?? 128} ry={live?.ry ?? 128} />
-                    <div className="row spread">
-                      <span className="mono">L {live?.lx ?? '—'},{live?.ly ?? '—'}</span>
-                      <span className="mono">R {live?.rx ?? '—'},{live?.ry ?? '—'}</span>
-                    </div>
-                  </div>
-
-
                   <StickRangePreview range={dz} side={which} originalAvailable={modelId === 'G7ProCE'} enabled={stick.enabled(pkt)} />
                   <div className="card">
                     <div className="section-title"><h3>Dead zone + anti-deadzone — 0.1% steps</h3><Help title="Dead zone + anti-deadzone — 0.1% steps">Stored ×10 (50 = 5%). <strong>Start/End</strong> bound the input: below Start = no output, past End = already full. <strong>Anti-deadzone</strong> is the output floor/ceiling: raising Anti-start lifts the minimum output so small deflections bite sooner — the snap setting for FPS.</Help></div>
@@ -1890,6 +1881,8 @@ function AppContent(): JSX.Element {
               </div>
               )}
               {tab === 'device' && (
+              <>
+                <ControllerPreview originalAvailable={modelId === 'G7ProCE'} />
               <div className="two" style={{ alignItems: 'start' }}>
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
@@ -2094,6 +2087,7 @@ function AppContent(): JSX.Element {
 
                 </div>
               </div>
+              </>
               )}
             </>
           )}
