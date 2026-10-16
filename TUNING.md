@@ -10,7 +10,7 @@ Verified 32-byte trigger fields: deadzone enable at 2, four big-endian ranges at
 
 ## Gyro
 
-Aim and Tilt have separate activation combinations, yaw/roll selection, inversion, ranges, custom curves, output mappings and sensitivities. Enabling one turns the other off while retaining its settings, matching Connect. Precision/high-speed sensor mode applies to both. Directional output supports five key assignments. Keyboard/mouse output depends on firmware and connection mode. No raw angular sensor data is assumed or displayed.
+Aim and Tilt have separate activation combinations, yaw/roll selection, inversion, ranges, custom curves, output mappings and sensitivities. Enabling one turns the other off while retaining its settings, matching Connect. Precision/high-speed sensor mode applies to both. Directional output supports five key assignments. Keyboard/mouse output depends on firmware and connection mode. Live previews show both mapped sticks and the six signed sensor words from vendor report 0x12 bytes 14–25. The layout comes from the OBS plugin reference; byte order is explicitly selectable and never guessed per sample. Values are raw counts, not verified angular units or orientation. The preview adds no mode-change commands and clears stale values. A passive check received 751 reports from the connected G7 Pro 8K with nonzero sensor words and no commands or writes. Physical axis/rotation and scale validation remain pending.
 
 Verified 41-byte motion fields: activation at 0, three activation keys at 1–3, orientation at 4, deadzone enable at 5, four ranges at 6–13, curve at 14–26, map enable at 27, inversion flags at 28–30, axis balance at 31, mouse sensitivity at 32, output at 33, directional keys at 35–39, stick sensitivity at 40. Byte 34 is preserved without exposing an unverified control. The old unused motion accessors incorrectly overlapped activation keys and deadzone flags; these have been corrected.
 
@@ -33,3 +33,11 @@ Protocol metadata was independently documented from the locally installed Connec
 ## Linear stick preset correction
 
 The former “Pure raw 1:1” action incorrectly cleared stick enable (byte 0, bit 0). Connect’s raw-mode writer keeps stick enable set and selects square/raw shape using byte 1. The replacement “Linear full range (1:1)” keeps the stick enabled, selects square shape, sets input/output windows to 0–100%, selects a linear curve, and restores equal axis balance. Mapping, inversion and unrelated flags are preserved. This corrects the configuration error; the reported sensitivity effect still needs hardware confirmation.
+
+## Preview and theme validation
+
+The stick range illustration uses received original-axis data for the identified G7 Pro 8K layout. It shows radial deadzone/anti-deadzone behavior only, separately from the actual mapped stick output; it does not model the complete firmware pipeline. Trigger gauges use actual reported output. The separate trigger test-travel slider illustrates staged range settings without sending controller input.
+
+The UI adds exact numeric values and 0.1% nudges beside range sliders, per-shape help, compact selectors and saved theme colors. Theme settings are stored locally and do not modify controller profiles. Unit tests cover range boundaries, signed sensor decoding, both byte orders, report preservation and color validation. Browser checks cover staged preview changes, Escape cancellation, saved custom colors, compact macro menus and narrow layouts.
+
+Sensor-layout reference: [gamepad-plugin hid-gyro.cpp](https://github.com/40469420/gamepad-plugin/blob/c07bc96e76458418e75898ccc7d4609b9bb88104/src/hid-gyro.cpp). This integration implements the report field layout independently; it does not import the plugin source or its per-sample endianness heuristic.

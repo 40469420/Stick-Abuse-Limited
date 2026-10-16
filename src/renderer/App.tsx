@@ -1,3 +1,6 @@
+import { ThemeSettings, useThemeRevision } from './ThemeSettings'
+import { StickRangePreview } from './TuningPreviews'
+import { RangeControl } from './RangeControl'
 import { stageCurve } from '@shared/curve-staging'
 import { LeadJoyPanel } from './LeadJoyPanel'
 import { SHIFT_SLOT, copyToShift } from '@shared/shift'
@@ -72,6 +75,7 @@ function Slider(props: {  label: string
   onChange: (v: number) => void
   format?: (v: number) => string
 }): JSX.Element {
+  if (props.unit === '%' && !props.label.includes('Outer reach')) return <RangeControl label={props.label} value={props.value} min={props.min} max={props.max} step={props.step} onChange={props.onChange} />
   return (
     <div className="slider-field">
       <div className="row spread">
@@ -97,6 +101,7 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
   overlay?: Array<{ x: number; y: number }> }): JSX.Element {
   const ref = useRef<HTMLCanvasElement | null>(null)
   const drag = useRef<number | null>(null)
+  const themeRevision = useThemeRevision()
 
   function toPx(w: number, h: number): { toX: (v: number) => number; toY: (v: number) => number } {
     const pad = 10
@@ -153,7 +158,7 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
     const pad = 10
     const toX = (v: number): number => pad + (v / 255) * (w - pad * 2)
     const toY = (v: number): number => h - pad - (v / 255) * (h - pad * 2)
-    ctx.strokeStyle = '#3a2230'
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line').trim()
     for (let i = 0; i <= 4; i++) {
       const t = (i / 4) * (w - pad * 2) + pad
       ctx.beginPath()
@@ -161,7 +166,7 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
       ctx.lineTo(t, h - pad)
       ctx.stroke()
     }
-    ctx.strokeStyle = '#552c38'
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-2').trim()
     ctx.setLineDash([4, 4])
     ctx.beginPath()
     ctx.moveTo(toX(0), toY(0))
@@ -169,7 +174,7 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
     ctx.stroke()
     ctx.setLineDash([])
     // Max X / Y boundary lines (255 edges) with labels.
-    ctx.strokeStyle = 'rgba(62,207,142,0.55)'
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--good').trim()
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(toX(255), pad)
@@ -179,7 +184,7 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
     ctx.moveTo(pad, toY(255))
     ctx.lineTo(w - pad, toY(255))
     ctx.stroke()
-    ctx.fillStyle = '#3ecf8e'
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--good').trim()
     ctx.font = '10px system-ui'
     ctx.fillText('X max 255', toX(255) - 52, pad + 11)
     ctx.fillText('Y max 255', pad + 4, toY(255) + 13)
@@ -187,7 +192,7 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
     if (points.length > 0) {
       const maxX = Math.max(...points.map((p) => p.x))
       const maxY = Math.max(...points.map((p) => p.y))
-      ctx.strokeStyle = 'rgba(245,181,68,0.8)'
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--warn').trim()
       ctx.setLineDash([5, 4])
       ctx.beginPath()
       ctx.moveTo(toX(maxX), toY(0))
@@ -198,11 +203,11 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
       ctx.lineTo(toX(255), toY(maxY))
       ctx.stroke()
       ctx.setLineDash([])
-      ctx.fillStyle = '#f5b544'
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--warn').trim()
       ctx.fillText(`max X ${maxX}`, Math.min(toX(maxX) + 5, w - 52), h - pad - 5)
       ctx.fillText(`max Y ${maxY}`, pad + 4, toY(maxY) - 5)
     }
-    ctx.strokeStyle = '#f43f52'
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
     ctx.lineWidth = 2
     ctx.beginPath()
     const line = smooth ? traceSpline(points) : points
@@ -212,7 +217,7 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
     })
     ctx.stroke()
     if (overlay) {
-      ctx.strokeStyle = 'rgba(245,181,68,0.85)'
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--warn').trim()
       ctx.setLineDash([5, 4])
       ctx.beginPath()
       overlay.forEach((p, i) => {
@@ -222,19 +227,19 @@ function CurvePlot({ points, onChange, overlay, smooth = false }: { points: Arra
       ctx.stroke()
       ctx.setLineDash([])
       overlay.forEach((p) => {
-        ctx.strokeStyle = 'rgba(245,181,68,0.9)'
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--warn').trim()
         ctx.lineWidth = 1.5
         ctx.strokeRect(toX(p.x) - 3.5, toY(p.y) - 3.5, 7, 7)
       })
       ctx.lineWidth = 2
     }
     points.forEach((p) => {
-      ctx.fillStyle = drag.current !== null ? '#f5b544' : '#ff8fa0'
+      ctx.fillStyle = drag.current !== null ? getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() : getComputedStyle(document.documentElement).getPropertyValue('--accent-2').trim()
       ctx.beginPath()
       ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI * 2)
       ctx.fill()
     })
-  }, [points, overlay, smooth])
+  }, [points, overlay, smooth, themeRevision])
   return (
     <canvas
       ref={ref}
@@ -832,6 +837,7 @@ function ProfilesPanel({ connected, activeSlot, locked, modelId, modelLen, dumpL
 }
 
 function StickCross({ lx, ly, rx, ry }: { lx: number; ly: number; rx: number; ry: number }): JSX.Element {
+  const themeRevision = useThemeRevision()
   const ref = useRef<HTMLCanvasElement | null>(null)
   useEffect(() => {
     const c = ref.current
@@ -847,7 +853,7 @@ function StickCross({ lx, ly, rx, ry }: { lx: number; ly: number; rx: number; ry
     ctx.clearRect(0, 0, w, h)
     const draw = (x: number, y: number, cx: number, label: string): void => {
       const r = 62
-      ctx.strokeStyle = '#3a2230'
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line').trim()
       ctx.beginPath()
       ctx.arc(cx, h / 2, r, 0, Math.PI * 2)
       ctx.stroke()
@@ -861,22 +867,22 @@ function StickCross({ lx, ly, rx, ry }: { lx: number; ly: number; rx: number; ry
       const ny = (y - 128) / 128
       const px = cx + nx * r
       const py = h / 2 + ny * r
-      ctx.fillStyle = '#f43f52'
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
       ctx.beginPath()
       ctx.arc(px, py, 7, 0, Math.PI * 2)
       ctx.fill()
-      ctx.fillStyle = '#c9a3ad'
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-2').trim()
       ctx.font = '11px system-ui'
       ctx.fillText(label, cx - 12, h - 8)
     }
     draw(lx, ly, w * 0.27, `L ${lx},${ly}`)
     draw(rx, ry, w * 0.73, `R ${rx},${ry}`)
-  }, [lx, ly, rx, ry])
+  }, [lx, ly, rx, ry, themeRevision])
   return <canvas ref={ref} className="plot" style={{ height: 190 }} />
 }
 
 export default function App(): JSX.Element {
-  return <><QuitWarning /><ApexWarning /><GameGuardWarning /><TermsGate><AppContent /></TermsGate></>
+  return <><QuitWarning /><ApexWarning /><GameGuardWarning /><TermsGate><AppContent /><ThemeSettings /></TermsGate></>
 }
 
 function AppContent(): JSX.Element {
@@ -1652,43 +1658,16 @@ function AppContent(): JSX.Element {
                   </div>
 
 
+                  <StickRangePreview range={dz} side={which} originalAvailable={modelId === 'G7ProCE'} enabled={stick.enabled(pkt)} />
                   <div className="card">
                     <div className="section-title"><h3>Dead zone + anti-deadzone — 0.1% steps</h3><Help title="Dead zone + anti-deadzone — 0.1% steps">Stored ×10 (50 = 5%). <strong>Start/End</strong> bound the input: below Start = no output, past End = already full. <strong>Anti-deadzone</strong> is the output floor/ceiling: raising Anti-start lifts the minimum output so small deflections bite sooner — the snap setting for FPS.</Help></div>
                     <div className="stack" style={{ gap: 12, marginTop: 8 }}>
-                      <Slider label="Start (input below = 0)" value={dz.begin / 10} min={0} max={20} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-                      <Slider label="End (input above = full)" value={dz.end / 10} min={10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-                      <Slider label="Anti-deadzone start (output floor — snap)" value={dz.beginAnti / 10} min={0} max={50} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
-                      <Slider label="Anti-deadzone end (output ceiling)" value={dz.endAnti / 10} min={50} max={100} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), endAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                      <Slider label="Start (input below = 0)" value={dz.begin / 10} min={0} max={(dz.end-1)/10} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), begin: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                      <Slider label="End (input above = full)" value={dz.end / 10} min={(dz.begin+1)/10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), end: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                      <Slider label="Anti-deadzone start (output floor — snap)" value={dz.beginAnti / 10} min={0} max={dz.endAnti/10} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), beginAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
+                      <Slider label="Anti-deadzone end (output ceiling)" value={dz.endAnti / 10} min={dz.beginAnti/10} max={100} step={0.1} unit="%" onChange={(v) => edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), endAnti: Math.round(v * 10) }))} format={(v) => `${v.toFixed(1)}%`} />
                     </div>
-                    <details className="disclosure"><summary>Enter exact deadzone values</summary><div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
-                      {(
-                        [
-                          { label: 'Start', key: 'begin', value: dz.begin / 10 },
-                          { label: 'End', key: 'end', value: dz.end / 10 },
-                          { label: 'Anti-start', key: 'beginAnti', value: dz.beginAnti / 10 },
-                          { label: 'Anti-end', key: 'endAnti', value: dz.endAnti / 10 }
-                        ] as const
-                      ).map((f) => (
-                        <label key={f.key} className="row" style={{ gap: 6, fontSize: 12 }}>
-                          <span className="label">{f.label}</span>
-                          <input
-                            className="input"
-                            style={{ width: 76 }}
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.1}
-                            value={Number(f.value.toFixed(1))}
-                            onChange={(e) => {
-                              const v = Math.max(0, Math.min(100, Number(e.target.value)))
-                              if (!Number.isFinite(v)) return
-                              edit(() => stick.setDeadzone(pkt, { ...stick.deadzone(pkt), [f.key]: Math.round(v * 10) }))
-                            }}
-                          />
-                          <span style={{ color: 'var(--text-3)' }}>%</span>
-                        </label>
-                      ))}
-                    </div></details>
+
                     <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
                       <button className="btn sm" onClick={() => edit(() => stick.applyPhysics(pkt))}>Physics: 0% + linear</button>
                       <button className="btn sm ghost" onClick={() => edit(() => stick.setDeadzone(pkt, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 }))}>Factory 5%</button>
@@ -1773,7 +1752,7 @@ function AppContent(): JSX.Element {
                 </div>
                 <div className="stack" style={{ gap: 16 }}>
                   <div className="card">
-                    <div className="section-title"><h3>Custom curve designer — {design.length} points</h3><Help title="Control details">The pad stores exactly <strong>5 points</strong>, so this is a free-point canvas (2–10): <span style={{ color: '#ff8fa0' }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the 5 bytes that will be written</span>. Dual-zone presets mimic a dynamic response — the pad has no speed sensing, so this is the static LUT a dynamic curve averages to.</Help></div>
+                    <div className="section-title"><h3>Custom curve designer — {design.length} points</h3><Help title="Control details">The pad stores exactly <strong>5 points</strong>, so this is a free-point canvas (2–10): <span style={{ color: getComputedStyle(document.documentElement).getPropertyValue('--accent-2').trim() }}>● red = your design, drag it</span>, <span style={{ color: 'var(--warn)' }}>▢ orange dashed = the 5 bytes that will be written</span>. Dual-zone presets mimic a dynamic response — the pad has no speed sensing, so this is the static LUT a dynamic curve averages to.</Help></div>
                     <CurvePlot points={design.length >= 2 ? design : padCurve} onChange={(next) => stageDesign(next)} overlay={quantized} smooth={spline} />
                     <div className="row" style={{ gap: 8, margin: '8px 0' }}>
                       <span className="pill">Edits stage immediately · Write to apply</span>
@@ -1839,9 +1818,9 @@ function AppContent(): JSX.Element {
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
-                          { name: 'Round diagonals', hint: 'Uniform reach all directions (FPS aim)' },
-                          { name: 'Square gate', hint: 'Diagonals reach full deflection (hotter corners)' },
-                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' },
+                          { name: 'Round diagonals', hint: 'Uses a round diagonal boundary: the stick reaches a circular edge instead of extending into square corners. Your current deadzones and response curve are kept.' },
+                          { name: 'Square gate', hint: 'Allows full X and Y output together at the corners. Diagonal magnitude can exceed a circular gate; your current deadzones and response curve are kept.' },
+                          { name: 'Linear full range (1:1)', hint: 'Resets deadzones, output limits, curve and axis balance for linear full-range response. Stick processing stays enabled. Calibration and game settings still apply.' },
                           { name: 'True raw bypass', hint: 'Disables stick processing; preserves your tuning bytes. Firmware and game behavior may differ.' }
                         ] as const
                       ).map((s) => {
@@ -1850,8 +1829,7 @@ function AppContent(): JSX.Element {
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
                         const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'True raw bypass' && !stick.enabled(pkt))
                         return (
-                          <button
-                            key={s.name}
+                          <div key={s.name} className="shape-choice"><button
                             className={`btn sm${active ? ' primary' : ' ghost'}`}
                             title={s.hint}
                             onClick={() => {
@@ -1868,7 +1846,7 @@ function AppContent(): JSX.Element {
                             }}
                           >
                             {s.name}
-                          </button>
+                          </button><Help title={s.name}>{s.hint}</Help></div>
                         )
                       })}
                     </div>
@@ -2047,9 +2025,9 @@ function AppContent(): JSX.Element {
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
-                          { name: 'Round diagonals', hint: 'Uniform reach all directions (FPS aim)' },
-                          { name: 'Square gate', hint: 'Diagonals reach full deflection (hotter corners)' },
-                          { name: 'Linear full range (1:1)', hint: 'Zero deadzone, linear response, full output range; keeps the stick enabled' },
+                          { name: 'Round diagonals', hint: 'Uses a round diagonal boundary: the stick reaches a circular edge instead of extending into square corners. Your current deadzones and response curve are kept.' },
+                          { name: 'Square gate', hint: 'Allows full X and Y output together at the corners. Diagonal magnitude can exceed a circular gate; your current deadzones and response curve are kept.' },
+                          { name: 'Linear full range (1:1)', hint: 'Resets deadzones, output limits, curve and axis balance for linear full-range response. Stick processing stays enabled. Calibration and game settings still apply.' },
                           { name: 'True raw bypass', hint: 'Disables stick processing; preserves your tuning bytes. Firmware and game behavior may differ.' }
                         ] as const
                       ).map((s) => {
@@ -2058,8 +2036,7 @@ function AppContent(): JSX.Element {
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
                         const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'True raw bypass' && !stick.enabled(pkt))
                         return (
-                          <button
-                            key={s.name}
+                          <div key={s.name} className="shape-choice"><button
                             className={`btn sm${active ? ' primary' : ' ghost'}`}
                             title={s.hint}
                             onClick={() => {
@@ -2076,7 +2053,7 @@ function AppContent(): JSX.Element {
                             }}
                           >
                             {s.name}
-                          </button>
+                          </button><Help title={s.name}>{s.hint}</Help></div>
                         )
                       })}
                     </div>

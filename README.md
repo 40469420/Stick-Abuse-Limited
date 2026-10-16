@@ -25,11 +25,11 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 
 | Section | Controls |
 | --- | --- |
-| Sticks | Deadzones, anti-deadzones, custom response curves staged immediately with optional spline smoothing, shape, linear full-range preset and a separate true raw bypass option. |
+| Sticks | Live original-axis/range previews, precise sliders with nudges, deadzones, anti-deadzones, custom response curves staged immediately with optional spline smoothing, shape, linear full-range preset and a separate true raw bypass option. |
 | Device | Polling-rate settings, standard 8–12-bit resolution and experimental higher-bit requests. |
 | Center offsets | Independent stick-center adjustment with directional nudges, mouse dragging and live previews. |
-| Triggers | Separate LT/RT input and output ranges, adaptive/fixed hair triggers and response curves. |
-| Gyro | Aim/Tilt configurations, activation combinations, yaw/roll mapping, inversion, sensitivity and response tuning. |
+| Triggers | Live output gauges and staged range visualization. Separate LT/RT input and output ranges, adaptive/fixed hair triggers and response curves. |
+| Gyro | Live stick plots and raw gyro/accelerometer words. Aim/Tilt configurations, activation combinations, yaw/roll mapping, inversion, sensitivity and response tuning. |
 | Keybindings | Controller, keyboard and mouse outputs; up to three simultaneous outputs, toggle and turbo. |
 | Macros | Button/key recording, editable hold and delay timings, step reordering and duplication, playback preview, and reusable files. |
 | Calibration | Sticks, triggers, combined calibration, motion sensor and guided fine stick tuning. |
@@ -41,7 +41,7 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 | Firmware | G7 Pro 8K controller flashing, image validation, profile backups and logs. Original 2.1.0 and 2.2.9 images are included. |
 | Marius | Read-only board discovery and configuration preview. |
 
-Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
+The **Theme** button lets you customize backgrounds, panels, controls, borders, text, accents, status colors and preview markers. Colors are saved on your PC. Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
 
 LeadJoy Saber Plus has a dedicated workspace for button remapping, stick curves, ranges and gates, mouse output, trigger ranges and Labs. Writes read back the affected settings for verification. Main and sub-profile editing are supported; sub-profile activation is not exposed. Physical-device validation is still pending.
 

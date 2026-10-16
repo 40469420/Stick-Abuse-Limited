@@ -1,3 +1,4 @@
+import { extractImuBytes } from '../shared/ui-preview'
 /**
  * Protocol session on top of the HID transport.
  *
@@ -53,6 +54,7 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 
 export interface LiveInput {
   recordKeys?: number[]
+  imuBytes?: number[]
   centerRaw?: { lx: number; ly: number; rx: number; ry: number }
   lx: number
   ly: number
@@ -558,6 +560,7 @@ export function decodeInput(raw: Uint8Array): LiveInput | null {
   return {
     recordKeys: raw.length >= 64 ? originalButtonKeys(raw) : undefined,
     centerRaw: centerPreview(raw),
+    imuBytes: extractImuBytes(raw),
     lx,
     ly,
     rx,

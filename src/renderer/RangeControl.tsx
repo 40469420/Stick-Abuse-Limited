@@ -1,0 +1,10 @@
+import {useEffect,useRef,useState} from 'react'
+import {Help} from './Help'
+export function RangeControl({label,value,min=0,max=100,step=.1,onChange,help}:{label:string;value:number;min?:number;max?:number;step?:number;onChange:(v:number)=>void;help?:string}):JSX.Element{
+ const skipBlur=useRef(false)
+ const [draft,setDraft]=useState(String(value)),[error,setError]=useState(false)
+ useEffect(()=>{setDraft(String(Number(value.toFixed(3))));setError(false)},[value])
+ const send=(v:number):void=>{try{onChange(Number(Math.max(min,Math.min(max,v)).toFixed(3)));setError(false)}catch{setError(true)}}
+ const commit=():void=>{if(skipBlur.current){skipBlur.current=false;return}const v=Number(draft);if(!draft.trim()||!Number.isFinite(v)){setDraft(String(value));return}send(v);setDraft(String(Math.max(min,Math.min(max,v))))}
+ return <div className="range-control"><div className="row spread"><span className="row"><span>{label.split(' (')[0]}</span>{(help||label.includes(' ('))&&<Help title={label.split(' (')[0]}>{help||label}</Help>}</span><div className="range-value"><button type="button" className="btn sm ghost" aria-label={`Decrease ${label}`} disabled={value<=min} onClick={()=>send(value-step)}>−</button><input aria-label={`${label} exact value`} className="input" type="number" min={min} max={max} step={step} value={draft} aria-invalid={error} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter'){e.currentTarget.blur()}if(e.key==='Escape'){skipBlur.current=true;setDraft(String(value));e.currentTarget.blur()}}}/><span>%</span><button type="button" className="btn sm ghost" aria-label={`Increase ${label}`} disabled={value>=max} onClick={()=>send(value+step)}>+</button></div></div><input type="range" disabled={max<=min} aria-label={label} min={min} max={max} step={step} value={value} style={{background:`linear-gradient(to right,var(--accent) ${(value-min)/(max-min||1)*100}%,var(--line-2) ${(value-min)/(max-min||1)*100}%)`}} onChange={e=>send(Number(e.target.value))}/>{error&&<span className="hint" role="alert">Keep the minimum below the maximum.</span>}</div>
+}

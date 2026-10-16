@@ -3,6 +3,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { KeyIcon } from './KeyIcon'
 export interface IconOption { value: number; label: string; icon?: number; tag?: string; group?: string }
 export function IconSelect({ value, options, onChange, label, disabled = false }: { value: number; options: IconOption[]; onChange: (value: number) => void; label: string; disabled?: boolean }): JSX.Element {
+  const compact = options.length <= 8 && options.every(o => o.label.length < 18)
+  const popupMin = compact ? 160 : 240
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const root = useRef<HTMLDivElement>(null)
@@ -12,12 +14,12 @@ export function IconSelect({ value, options, onChange, label, disabled = false }
   useEffect(() => {
     if (!open) return
     const rect = root.current?.getBoundingClientRect()
-    if (rect) { const height = Math.min(330, window.innerHeight - 24); setPosition({ left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 240) - 8)), top: rect.bottom + height > window.innerHeight ? Math.max(8, rect.top - height) : rect.bottom + 4, width: Math.min(Math.max(rect.width, 240), window.innerWidth - 16), height }) }
+    if (rect) { const height = Math.min(330, window.innerHeight - 24); setPosition({ left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, popupMin) - 8)), top: rect.bottom + height > window.innerHeight ? Math.max(8, rect.top - height) : rect.bottom + 4, width: Math.min(Math.max(rect.width, popupMin), window.innerWidth - 16), height }) }
     const close = (e: Event): void => { if (!popup.current?.contains(e.target as Node)) setOpen(false) }
     window.addEventListener('scroll', close, true)
     window.addEventListener('resize', close)
     return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
-  }, [open])
+  }, [open, popupMin])
   const selected = options.find(o => o.value === value)
   useEffect(() => {
     const close = (e: PointerEvent): void => { if (!root.current?.contains(e.target as Node) && !popup.current?.contains(e.target as Node)) setOpen(false) }
@@ -26,7 +28,7 @@ export function IconSelect({ value, options, onChange, label, disabled = false }
   }, [])
   useEffect(() => { if (disabled) setOpen(false) }, [disabled])
   const filtered = options.filter(o => `${o.label} ${o.group ?? ''}`.toLowerCase().includes(query.toLowerCase()))
-  return <div className="icon-select" ref={root} onKeyDown={e => {
+  return <div className={`icon-select${compact ? ' is-short' : ''}`} ref={root} onKeyDown={e => {
     if (e.key === 'Escape') { setOpen(false); root.current?.querySelector<HTMLButtonElement>('.icon-select-trigger')?.focus() }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()

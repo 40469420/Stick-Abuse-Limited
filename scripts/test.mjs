@@ -46,6 +46,7 @@ const entry =
         'tests/deeppoll.ts',
         'tests/linearity.ts',
         'tests/labs-additions.ts',
+        'tests/ui-preview.ts',
         'tests/tuning.ts',
         'tests/firmware.ts',
         'tests/marius.ts'
