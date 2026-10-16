@@ -7,7 +7,7 @@ Controller profiles and configurations shared by @Machixo.
 | File | Type | Notes |
 | --- | --- | --- |
 | [Main Apex (All rounder)](https://github.com/40469420/Stick-Abuse-Limited/raw/refs/heads/main/community/profiles/Main%20Apex%20%28All%20rounder%29.sticklab.bin) | Single profile · 1070 bytes | Uploaded by Machixo. Use a matching controller model and firmware. |
-| [profile-1.machi111626.bin](https://github.com/40469420/Stick-Abuse-Limited/raw/refs/heads/main/community/profiles/profile-1.machi111626.bin) | Profile binary · 1070 bytes | Uploaded by Machixo. Use a matching controller model and firmware. |
+| [Machis main apex](https://github.com/40469420/Stick-Abuse-Limited/raw/refs/heads/main/community/profiles/Machis%20main%20apex.bin) | Profile binary · 1070 bytes | Uploaded by Machixo. Use a matching controller model and firmware. |
 
 Browse [profile backups](profiles/) or [configs](configs/).
 
