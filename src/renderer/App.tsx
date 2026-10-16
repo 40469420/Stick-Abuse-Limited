@@ -1932,6 +1932,7 @@ function AppContent(): JSX.Element {
 
                   <div className="card">
                     <SectionTitle title="Bit depth — 8–24">8–12 are standard settings. Higher values are experimental firmware requests and may be ignored or produce unusual quantisation. A setting label does not prove sensor resolution. Use Lab → Bit-depth verification to compare vendor original-axis data and XInput output.</SectionTitle>
+                    <p className="hint">Anything above 12 is a gimmick, but people want the options so they stay</p>
                     <div className="row wrap" style={{ gap: 8, margin: '10px 0' }}>
                       {STICK_RESOLUTION_OPTIONS.map((o) => (
                         <button
