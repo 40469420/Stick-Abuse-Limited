@@ -20,6 +20,9 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 
 ## Features
 
+- **Shift layers (G7 Pro 8K):** a shared alternate profile with hold/toggle activation and independent tuning, bindings and macros.
+
+
 | Section | Controls |
 | --- | --- |
 | Sticks | Deadzones, anti-deadzones, custom response curves with optional spline smoothing, shape, linear full-range preset and a separate true raw bypass option. |

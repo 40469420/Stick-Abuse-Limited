@@ -1,25 +1,23 @@
-Name change because pro players are illiterate and click through disclaimers, shoulda spent more time in school rather than careers in gaming.
+## Stick-Abuse-Limited 2.2.9
 
-## Stick-Abuse-Limited 2.2.8
+### Shift layers — G7 Pro 8K
+- Added the shared Shift profile in slot 5 beside P1-P4. Edit its sticks, triggers, gyro, bindings and macros using the existing pages.
+- Added Use as Shift button in Keybindings. Hold activates the layer temporarily; Toggle on press selects toggle behavior.
+- Copy a saved base profile into Shift without changing the original. Shift activation bindings are removed from the copy to avoid recursive activation.
+- Writing Shift saves and verifies the layer without permanently activating it. Return to P1-P4 and write the activation binding separately.
+- Shift support is initially limited to the G7 Pro 8K profile layout. Firmware and connection mode may affect behavior; fresh physical validation is still pending.
 
-### New name
-- Renamed the app and repository to Stick-Abuse-Limited.
-- Updated window/tray labels, setup and portable filenames, download links, and the GitHub updater target.
-- Kept the installation identity, saved preferences, profile format, and original-project credits.
+### RC protection
+- Game guards, mandatory quit warnings and RC resets now include a reachable Shift layer, even when the base profile has neutral RC.
+- Shift activation inside the Shift layer is rejected, including enabled macros that contain Shift output.
 
-### Upstream fixes and additions
-- Improved five-point curve fitting to follow custom designs more closely. Linear and spline modes remain separate.
-- Prevented dragged or typed curve points from crossing their neighbors; fixed adding a point to a full designer.
-- Added Dynamic (CoD) and Zamilitox presets alongside the existing curves. These are static response curves, not the game's dynamic processing.
-- Remembered the selected profile slot and spline choice across restarts.
-- Added hardware-proven Tarantula 8K keybinding labels for C1-C4 and T1-T3, and Screenshot output code 37. Controller macro recording remains G7 Pro 8K only.
-
-### Kept from this fork
-RC controls and game guards, center offsets, calibration, firmware tools, custom bindings/macros, raw bypass, performance and bit-depth tests, and existing controller support remain in place. The separate compatibility inspector is not included in this release.
-
-### Downloads
-- Setup: installs the app and includes GitHub auto-updates.
-- Portable: runs without installation; update by downloading a newer portable.
+### Selected upstream fixes
+- Reload from pad now reads the controller's saved curve and transform, keeping other staged edits.
+- Real quit commits the configuration session before disconnecting. Closing to tray keeps its existing behavior.
+- Kept this fork's RC controls, raw bypass, linear/spline designer, firmware tools and performance suite. Upstream's browser build and LeadJoy additions are outside this update.
 
 ### Validation
-Typecheck, regression tests, firmware-host checks, and production build passed. Protocol tests use fixtures and simulated hardware; this release does not claim fresh physical testing on every controller.
+Typecheck, regression suite, production build and simulated Shift UI checks passed. Tests cover Shift mapping bytes, hold/toggle, copy isolation, unrelated-byte preservation, layer RC detection/reset and quit-session commit. No fresh physical Shift test was performed.
+
+### Downloads
+Setup includes GitHub auto-updates. Portable runs without installation; replace it manually when updating.
