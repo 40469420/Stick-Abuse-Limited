@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { api } from './api'
+import { api, isWebVersion } from './api'
 
 const ACCEPTANCE_KEY = 'sticklabs.unlimited.terms.v1'
 const WAIT_MS = 60_000
@@ -48,7 +48,7 @@ export function TermsGate({ children }: { children: ReactNode }): JSX.Element {
           <p>By accepting and then using or modifying anything in Stick-Abuse-Limited, you confirm that you have read and understand these risks, choose to proceed voluntarily and accept responsibility for your choices. Existing RC and firmware acknowledgments still apply. If you do not accept, do not use Stick-Abuse-Limited.</p>
         </div>
         <footer><label className="terms-check"><input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} /> I have read and understand the risks and agree to these terms before using or modifying anything.</label>
-          <div className="row wrap"><button className="btn primary" disabled={!checked || remaining > 0} onClick={accept}>{remaining > 0 ? `Read and review · ${remaining}s` : 'I understand and accept'}</button><span className="hint">Remembered on this Windows user profile. Clearing app data shows this again.</span></div>
+          <div className="row wrap"><button className="btn primary" disabled={!checked || remaining > 0} onClick={accept}>{remaining > 0 ? `Read and review · ${remaining}s` : 'I understand and accept'}</button><span className="hint">{isWebVersion() ? 'Remembered in this browser for this website. Clearing site data shows this again.' : 'Remembered on this Windows user profile. Clearing app data shows this again.'}</span></div>
           {error && <p className="note bad" role="alert">{error}</p>}
         </footer>
       </div>

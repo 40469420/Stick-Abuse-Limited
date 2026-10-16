@@ -1,3 +1,5 @@
+import { isWebVersion } from './api'
+import { DesktopRequired, WEB_DESKTOP_PAGES } from './DesktopRequired'
 import { CommunityProfiles } from './CommunityProfiles'
 import appIcon from './assets/app-icon.png'
 import { PureRawReconnect } from './PureRawReconnect'
@@ -499,7 +501,7 @@ function MariusPanel(): JSX.Element {
     }
   }
 
-  async function connect(path: string): Promise<void> {
+  async function connect(path: string, selectedCandidate?: Candidate): Promise<void> {
     setErr(null)
     setMsg(null)
     setBusy(true)
@@ -888,7 +890,7 @@ function StickCross({ lx, ly, rx, ry }: { lx: number; ly: number; rx: number; ry
 }
 
 export default function App(): JSX.Element {
-  return <><QuitWarning /><ApexWarning /><GameGuardWarning /><TermsGate><AppContent /><ThemeSettings /></TermsGate></>
+  return <>{!isWebVersion() && <><QuitWarning /><ApexWarning /><GameGuardWarning /></>}<TermsGate><AppContent /><ThemeSettings /></TermsGate></>
 }
 
 function AppContent(): JSX.Element {
@@ -988,6 +990,7 @@ function AppContent(): JSX.Element {
   useEffect(() => {
     const offPure=api().on('pure:status',v=>{const status=v as import('@shared/pure-raw').PureRawStatus;setPureRecoveryRunning(status.running);setMsg(status.message)})
     const offPureError=api().on('pure:error',v=>setErr(String(v)))
+    const offWebDisconnect = api().on('web:disconnected', () => { setConnected(false); setLive(null); setMsg('Controller disconnected. Click Connect controller to reconnect.'); })
     const offSample = api().on('input:sample', (s) => setLive(s as unknown as LiveSample))
     const offStale = api().on('device:stale', () => {
       setMsg('Pad restarted to apply the write — if the sidebar shows disconnected, hit Rescan USB + Connect again.')
@@ -1013,7 +1016,7 @@ function AppContent(): JSX.Element {
       }
     })
     return () => {
-      offPure();offPureError();offSample()
+      offWebDisconnect();offPure();offPureError();offSample()
       offStale()
       offReconnecting()
       offReconnected()
@@ -1034,10 +1037,10 @@ function AppContent(): JSX.Element {
     void api().version().then(setAppVersion).catch(() => undefined)
   }, [])
 
-  async function connect(path: string): Promise<void> {
+  async function connect(path: string, selectedCandidate?: Candidate): Promise<void> {
     setErr(null)
     try {
-      const cand = candidates.find((c) => c.path === path)
+      const cand = selectedCandidate ?? candidates.find((c) => c.path === path)
       if(cand?.productId===0x3519) { await api().disconnect();setConnected(false);setBlob(null);setLeadjoyPath(path);return }
       const pre = identifyModel(cand?.product, cand?.productId) ?? null
       if (pre && pre.support === 'unsupported') {
@@ -1400,7 +1403,8 @@ function AppContent(): JSX.Element {
           </div>
         </nav>
         <div className="stack" style={{ gap: 10 }}>
-          <button className="btn ghost sm" onClick={() => void refresh()}>Rescan USB</button>
+          {isWebVersion() && <button className="btn primary" disabled={busy || !('hid' in navigator)} onClick={() => { void api().requestController?.().then(found => { setCandidates(found); if(found[0]) return connect(found[0].path, found[0]) }).catch(e => setErr((e as Error).message)) }}>Connect controller</button>}
+          <button className="btn ghost sm" onClick={() => void refresh()}>{isWebVersion()?'Refresh controllers':'Rescan USB'}</button>
           <button
             className="btn ghost sm"
             title="Copy device + app details for support (nothing personal)"
@@ -1489,7 +1493,7 @@ function AppContent(): JSX.Element {
             <h2>{PAGE_INFO[tab][0]}</h2>
             <span className="sub">{PAGE_INFO[tab][1]}</span>
           </div>
-          {modelId !== 'Apex5' && !['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles', 'community'].includes(tab) && <div className="row profile-toolbar" style={{ gap: 8 }}>
+          {modelId !== 'Apex5' && !['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles', 'community'].includes(tab) && !(isWebVersion() && WEB_DESKTOP_PAGES.has(tab)) && <div className="row profile-toolbar" style={{ gap: 8 }}>
             <span className="label">Editing profile</span>
             {[1, 2, 3, 4].map((s) => (
               <button
@@ -1514,6 +1518,8 @@ function AppContent(): JSX.Element {
           </div>}
         </header>
         <div className="content">
+          {isWebVersion() && <div className="note">WebHID beta · desktop Chrome or Edge · close other controller apps. Game guards, tray monitoring and automatic PureRaw recovery require the local app. {!('hid' in navigator) && 'This browser does not expose WebHID. Open this page in desktop Chrome or Edge to connect.'}</div>}
+          {isWebVersion() && WEB_DESKTOP_PAGES.has(tab) ? <DesktopRequired /> : <>
           {slot === SHIFT_SLOT && <div className="card"><SectionTitle title="Editing the Shift layer">This is the shared fifth profile, used by a button assigned to Shift in P1-P4. Configure and write it here; writing does not activate it. Stick, trigger, gyro and binding changes apply only while the layer is active. Return to a base profile to assign a Shift button.</SectionTitle>
             <button className="btn ghost" disabled={busy} onClick={() => { const source = Number(window.prompt('Copy which saved controller profile into Shift? Enter 1, 2, 3 or 4.', '3')); if (![1,2,3,4].includes(source)) return; void (async () => { setBusy(true); try { const read = await api().readProfile(source, PROFILE_LENGTH); setBlob(copyToShift(b64ToBytes(read.bytes))); setDirty(true); setLoadId(n=>n+1); setMsg(`Copied saved P${source} into the working Shift layer. Write to apply.`) } catch(e) { setErr((e as Error).message) } finally { setBusy(false) } })() }}>Copy a saved base profile</button>
           </div>}
@@ -1524,7 +1530,7 @@ function AppContent(): JSX.Element {
                 <span>1. <strong>Back up first</strong> — Stick profiles card → Backup all → JSON. You can always restore.</span>
                 <span>2. <strong>Close GameSir Connect</strong> — it holds the controller and blocks this app.</span>
                 <span>3. <strong>Wired or 2.4G only</strong> — Bluetooth pads don't appear here, ever.</span>
-                <span>4. <strong>Writing the active profile reboots the pad</strong> for ~2 seconds. Normal — it reconnects by itself.</span>
+                <span>4. <strong>Writing the active profile reboots the pad</strong> for ~2 seconds. {isWebVersion() ? 'If needed, click Connect controller again.' : 'Normal — it reconnects by itself.'}</span>
                 <span>5. <strong>Tournaments</strong> — check your event's rules before competing on a tuned profile.</span>
               </div>
               <div className="row" style={{ marginTop: 10 }}>
@@ -1814,7 +1820,7 @@ function AppContent(): JSX.Element {
 
 
                   <div className="card">
-                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">{isWebVersion() ? 'Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. Calibration and game sensitivity may still affect behavior.' : 'Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.'}</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
@@ -1824,7 +1830,7 @@ function AppContent(): JSX.Element {
                           { name: 'PureRaw Deadzone (Processing)', hint: 'Keeps processing enabled with a neutral response curve. Preserves deadzones, anti-deadzones, gate, axis balance, mapping and all unrelated settings.' },
                           { name: 'PureRaw', hint: 'Clears the processing-enable flag while preserving stored tuning. Firmware may still apply deadzones and anti-deadzones. Reconnecting can cap output at about 20%; Auto reapply uses the tested Square-to-PureRaw recovery sequence.' }
                         ] as const
-                      ).map((s) => {
+                      ).filter(s => !isWebVersion() || !s.name.startsWith('PureRaw')).map((s) => {
                         const isRaw = stick.isRawLinear(pkt)
                         const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
@@ -2028,7 +2034,7 @@ function AppContent(): JSX.Element {
 
 
                   <div className="card">
-                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">{isWebVersion() ? 'Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. Calibration and game sensitivity may still affect behavior.' : 'Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.'}</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
@@ -2038,7 +2044,7 @@ function AppContent(): JSX.Element {
                           { name: 'PureRaw Deadzone (Processing)', hint: 'Keeps processing enabled with a neutral response curve. Preserves deadzones, anti-deadzones, gate, axis balance, mapping and all unrelated settings.' },
                           { name: 'PureRaw', hint: 'Clears the processing-enable flag while preserving stored tuning. Firmware may still apply deadzones and anti-deadzones. Reconnecting can cap output at about 20%; Auto reapply uses the tested Square-to-PureRaw recovery sequence.' }
                         ] as const
-                      ).map((s) => {
+                      ).filter(s => !isWebVersion() || !s.name.startsWith('PureRaw')).map((s) => {
                         const isRaw = stick.isRawLinear(pkt)
                         const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
@@ -2160,6 +2166,7 @@ function AppContent(): JSX.Element {
             mouseRate={tab === 'steam' ? vMouse : profile && stick.mouseDpi(profile.sticks[1]) !== 50 ? stick.mouseDpi(profile.sticks[1]) : null}
             fittedK={tab === 'steam' ? fitCurveExponent(vDesign) : profile ? fitCurveExponent(stick.curve(profile.sticks[1])) : null}
           />}
+          </>}
         </div>
       </main>
     </div>

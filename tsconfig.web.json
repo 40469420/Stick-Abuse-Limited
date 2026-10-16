@@ -1,5 +1,12 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "module": "ESNext", "noEmit": true },
-  "include": ["src/renderer/**/*", "src/shared/**/*"]
+  "compilerOptions": {
+    "module": "ESNext",
+    "noEmit": true
+  },
+  "include": [
+    "src/renderer/**/*",
+    "src/shared/**/*",
+    "src/web/**/*"
+  ]
 }

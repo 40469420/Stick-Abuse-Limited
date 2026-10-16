@@ -44,7 +44,8 @@ export interface LiveSample {
   timestamp: number
 }
 
-interface LabApi {
+export interface LabApi {
+  requestController?(): Promise<Candidate[]>
   pureRawStatus(): Promise<import('../shared/pure-raw').PureRawStatus>
   setPureRawReconnect(enabled:boolean): Promise<import('../shared/pure-raw').PureRawStatus>
   leadjoyJob(req: import('../shared/leadjoy-api').LjRequest): Promise<import('../shared/leadjoy-api').LjResult>
@@ -119,6 +120,7 @@ interface LabApi {
 
 declare global {
   interface Window {
+    sticklabWeb?: boolean
     sticklab: LabApi
   }
 }
@@ -139,3 +141,5 @@ export function bytesToB64(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
   return btoa(binary)
 }
+
+export const isWebVersion = (): boolean => typeof window !== 'undefined' && window.sticklabWeb === true

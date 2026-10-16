@@ -17,3 +17,6 @@ dist/
 build/private-firmware/
 
 .leadjoy-worker-test/
+
+dist-web/
+.web-test-tmp/
