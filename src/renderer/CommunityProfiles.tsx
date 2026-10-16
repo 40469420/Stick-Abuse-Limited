@@ -22,6 +22,7 @@ export function CommunityProfiles() {
     <div className="community-grid">{profiles.map(profile => <article className="card stack" key={profile.name}>
       <div className="section-title"><h3>{profile.name.replace(/\.(sticklab\.)?bin$/i, '')}</h3></div>
       <span className="hint">Shared by @Machixo · {profile.size} bytes</span>
+      {profile.name === 'Machis main apex.bin' && <p className="hint">Left stick: 5% deadzone · 95% anti-deadzone. Right stick: 0% deadzone · 0% anti-deadzone. Both input thresholds and output ceilings: 100%.</p>}
       {profile.name === 'Main Apex (All rounder).sticklab.bin' && <><p className="hint">All-rounder · L3 → D-pad Up · Capture → T · FL1/FR1 → A/B · FL2/FR2 → X/Y</p><span className="hint">RC neutral · macros and turbo disabled</span></>}
       <button className="btn" disabled={!!saving || loading} onClick={() => {
         setSaving(profile.name); setMessage('')
