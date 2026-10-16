@@ -40,7 +40,7 @@ if (!process.argv.includes('--child')) {
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel', 'guard-write', 'guard-quit', 'guard-quit-rc']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel', 'guard-write', 'guard-quit', 'guard-quit-rc', 'pure-reconnect']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -53,10 +53,40 @@ if (!process.argv.includes('--child')) {
   const m = globalThis.__m, controller = globalThis.__controller
   const call = async (channel, ...args) => m.handlers.get(channel)({}, ...args)
   const prompt = () => m.messages.filter((item) => item.channel === 'rc:quitPrompt').at(-1)?.payload
+  m.profile[916]|=1;m.profile[952]|=1
   assert.equal((await call('device:connect', 'test-pad')).ok, true)
   const guardResult = await call('games:status')
   const guardDefaults = guardResult.value ?? guardResult.data ?? guardResult.result
   assert(Object.values(guardDefaults).every(s => !s.enabled), 'additional game guards default off')
+  if(scenario==='pure-reconnect') {
+    assert.equal((await call('pure:status')).data.enabled,true,'reapply defaults on')
+    m.profile[916]&=~1;m.profile[952]|=1
+    const original=m.profile.slice(),writes=[]
+    const write=controller.writeProfileVerified.bind(controller)
+    let releaseWrite;const firstWrite=new Promise(resolve=>{releaseWrite=resolve})
+    controller.writeProfileVerified=async(slot,bytes)=>{writes.push(bytes.slice());if(writes.length===1)await firstWrite;const result=await write(slot,bytes);controller.transport.emit('reopened');return result}
+    controller.transport.isOpen=false;controller.transport.emit('disconnected',Error('test unplug'))
+    for(let i=0;i<250&&!writes.length;i++)await wait(10)
+    assert.equal(writes.length,1,'recovery began')
+    assert.equal((await call('profile:write',1,Buffer.from(original).toString('base64'),1070)).ok,false,'conflicting writes blocked during recovery')
+    assert.equal((await call('pure:set',false)).ok,false,'toggle cannot interrupt recovery')
+    releaseWrite();await wait(1300)
+    assert.equal(writes.length,2,'one reconnect performs only Square and exact restore')
+    assert.deepEqual(m.profile,original,'all tuning is preserved')
+    assert.equal(writes[0][916]&1,1);assert.equal(writes[0][917]&1,1)
+    assert.equal(writes[0][952],original[952],'processed stick is untouched')
+    await wait(700);assert.equal(writes.length,2,'recovery reopen events cannot loop')
+    assert.equal((await call('pure:set',false)).ok,true)
+    assert.equal(JSON.parse(readFileSync(join(folder,scenario,'rc-preferences.json'),'utf8')).pureRawReconnect,false)
+    controller.transport.isOpen=false;controller.transport.emit('disconnected',Error('test unplug'))
+    await wait(2200);assert.equal(writes.length,2,'disabled reconnect performs no recovery writes')
+    await call('pure:set',true)
+    controller.input({live:false,timestamp:Date.now()});controller.input({live:true,timestamp:Date.now()})
+    await wait(1600);assert.equal(writes.length,4,'receiver-only reconnect recovers once')
+    assert.deepEqual(m.profile,original)
+    console.log('PureRaw lifecycle: default-on preference, USB/receiver reconnect, exact restoration, disabled behavior and loop prevention pass.')
+    process.exit(0)
+  }
   if(scenario==='guard-quit'||scenario==='guard-quit-rc') {
     m.profile[49]=11;m.profile[50]=11
     if(scenario==='guard-quit-rc')m.profile[49]=1

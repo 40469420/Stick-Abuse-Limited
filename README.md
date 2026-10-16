@@ -25,7 +25,7 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 
 | Section | Controls |
 | --- | --- |
-| Sticks | Live original-axis/range previews, precise sliders with nudges, deadzones, anti-deadzones, custom response curves staged immediately with optional spline smoothing, shape, linear full-range preset and a separate true raw bypass option. |
+| Sticks | Live original-axis/range previews, precise sliders with nudges, deadzones, anti-deadzones, custom response curves staged immediately with optional spline smoothing, shape, linear full-range preset and separate PureRaw and PureRaw Deadzone (Processing) options. |
 | Device | Polling-rate settings, standard 8–12-bit resolution and experimental higher-bit requests. |
 | Center offsets | Independent stick-center adjustment with directional nudges, mouse dragging and live previews. |
 | Triggers | Live output gauges and staged range visualization. Separate LT/RT input and output ranges, adaptive/fixed hair triggers and response curves. |
@@ -40,6 +40,8 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 | Steam | Export stick settings to supported Steam configurations. |
 | Firmware | G7 Pro 8K controller flashing, image validation, profile backups and logs. Original 2.1.0 and 2.2.9 images are included. |
 | Marius | Read-only board discovery and configuration preview. |
+
+PureRaw has an enabled-by-default **Auto reapply on reconnect** checkbox. While the app is running, it temporarily enables Square processing for PureRaw sticks in the active G7 Pro 8K profile, verifies the write, then restores the exact original profile. Other tuning is preserved. Interrupted operations keep a local recovery backup. This is an app-assisted workaround; physical reconnect validation is pending.
 
 The **Theme** button lets you customize backgrounds, panels, controls, borders, text, accents, status colors and preview markers. Colors are saved on your PC. Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
 

@@ -1079,3 +1079,9 @@ label.stack > select.input { width: 100%; max-width: 340px; }
 .controller-readouts > div { display: grid; gap: 5px; background: var(--bg-2); border-radius: 6px; padding: 10px; }
 .controller-readouts .mono { font-size: 12px; }
 @media(max-width:1000px) { .controller-readouts { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+.range-preview-grid { grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 12px; }
+@media(min-width:1450px) { .range-preview-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+@media(max-width:500px) { .range-preview-grid { grid-template-columns: minmax(0,1fr); } }
+.shape-choice { flex-wrap: wrap; }
+.pure-reconnect { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; flex-wrap: wrap; }
+.pure-reconnect label { display: inline-flex; align-items: center; gap: 6px; }

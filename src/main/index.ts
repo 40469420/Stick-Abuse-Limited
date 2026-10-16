@@ -1,3 +1,4 @@
+import { recoverPureRaw, type PureRawJournal, type PureRawStatus } from '../shared/pure-raw'
 import { runLeadJoy } from './leadjoy-jobs'
 import { validateLeadJoyRequest, type LjRequest } from '../shared/leadjoy-api'
 import { runDeepPoll } from './deeppoll'
@@ -10,7 +11,7 @@ import { ApexGuard, listApex, killApex } from './apex-guard'
  * Stick-Abuse-Limited — controller session, background RC reset and profile editing.
  */
 import { app, BrowserWindow, dialog, ipcMain, session, shell, Tray, Menu, nativeImage } from 'electron'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { Controller, type DeviceInfo } from './controller'
 import { discover, discoverLive } from './hid'
@@ -50,6 +51,12 @@ let apexEnabled = false
 let resetEnabled = false
 let resetting = false
 let ioJobs = 0
+let pureRawEnabled = true
+let pureRawRunning = false
+let pureReceiverPending = false
+let pureRawMessage = 'PureRaw reconnect recovery is enabled.'
+let pureRawError:string|null=null
+const pureRawStatus = (): PureRawStatus => ({enabled:pureRawEnabled,running:pureRawRunning,message:pureRawMessage,error:pureRawError})
 let guardRead: Promise<boolean> | null = null
 let foregroundWaiters = 0
 let calibrationSession: { mask: number; fine: boolean; seen: boolean; started: number } | null = null
@@ -109,7 +116,23 @@ function reportReset(message: string): void {
 }
 function savePreferences(): void {
   mkdirSync(app.getPath('userData'), { recursive: true })
-  writeFileSync(join(app.getPath('userData'), 'rc-preferences.json'), JSON.stringify({ resetRc: resetEnabled, apexGuard: apexEnabled, gameGuards: gameEnabled }), 'utf8')
+  writeFileSync(join(app.getPath('userData'), 'rc-preferences.json'), JSON.stringify({ pureRawReconnect: pureRawEnabled, resetRc: resetEnabled, apexGuard: apexEnabled, gameGuards: gameEnabled }), 'utf8')
+}
+async function recoverPureRawAfterConnect():Promise<void> {
+  if(pureRawRunning||quitting||firmwareStatus.running||!controller.isOpen||reconnectModel!=='G7ProCE')return
+  const journalPath=join(app.getPath('userData'),'pure-raw-recovery.json')
+  if(!pureRawEnabled&&!existsSync(journalPath))return
+  pureRawError=null;pureRawRunning=true;ioJobs++;pureRawMessage='Reapplying PureRaw: preserving settings and verifying recovery…';send('pure:status',pureRawStatus())
+  try {
+    const slot=await controller.getCurrentProfile()
+    const recovered=await recoverPureRaw(slot,controller.transport.currentPath!,{
+      allowCycle:pureRawEnabled,settle:()=>new Promise(resolve=>setTimeout(resolve,1000)),read:()=>controller.readProfile(slot,1070),write:bytes=>controller.writeProfileVerified(slot,bytes,1070),
+      load:()=>existsSync(journalPath)?JSON.parse(readFileSync(journalPath,'utf8')) as PureRawJournal:null,
+      save:value=>{if(value){mkdirSync(app.getPath('userData'),{recursive:true});writeFileSync(journalPath+'.tmp',JSON.stringify(value),'utf8');renameSync(journalPath+'.tmp',journalPath)}else if(existsSync(journalPath))unlinkSync(journalPath)}
+    })
+    pureRawMessage=recovered?'PureRaw reapplied and verified; original tuning restored exactly.':'No PureRaw sticks in the active profile; no settings written.'
+  }catch(error){pureRawMessage=(error as Error).message;pureRawError=pureRawMessage;send('pure:error',pureRawMessage)}
+  finally{pureRawRunning=false;ioJobs--;send('pure:status',pureRawStatus())}
 }
 async function resetRcAfterConnect(force = false): Promise<boolean> {
   if ((!resetEnabled && !force) || resetting) return false
@@ -196,6 +219,7 @@ let lastSampleAt = 0
 let samplePending = false
 
 controller.onInput((input) => {
+  if(streamLive===true&&!input.live)bench.stop()
   if (bench.active) bench.push(input)
   if (calibrationSession) {
     if (!input.live) calibrationSession = null
@@ -204,6 +228,7 @@ controller.onInput((input) => {
   }
   const wasLive = streamLive
   streamLive = input.live
+  if(wasLive===false&&input.live&&pureRawEnabled&&!pureRawRunning)pureReceiverPending=true
   if (resetEnabled && !resetting) {
     if (wasLive === true && !input.live) reportReset('Controller disconnected. RC reset is pending reconnection.')
     if (wasLive === false && input.live) receiverResetPending = true
@@ -269,11 +294,14 @@ async function autoReconnect(reason: string): Promise<void> {
       if (!discover().some((c) => c.path === target.path)) continue
       try {
         const info = await controller.connect(target.path)
+        if(quitting||epoch!==sessionEpoch){controller.disconnect();return}
         connectedInfo = info
         reconnectPath = target.path
         streamLive = null
         controller.attachInputDecoder()
         controller.transport.startWatchdog(4000, () => void autoReconnect('silent'))
+        await recoverPureRawAfterConnect()
+        if(!controller.isOpen)throw new Error('Controller disconnected during PureRaw recovery.')
         await resetRcAfterConnect()
         send('device:reconnected', info)
         return
@@ -318,6 +346,7 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
         try { await guardRead } catch { /* A failed guard read must not discard the user request. */ }
       }
       if (firmwareStatus.running && (usesDevice || channel.startsWith('firmware:') && channel !== 'firmware:status')) throw new Error('Wait for the firmware operation to finish. Do not disconnect or quit.')
+      if (usesDevice && reconnecting && channel !== 'device:disconnect') throw new Error('Wait for the controller to reconnect and finish PureRaw recovery.')
       if (usesDevice && calibrationSession && !['device:calibration', 'device:disconnect'].includes(channel)) throw new Error('Finish or cancel calibration before changing controller settings.')
       if (usesDevice && (resetting || ioJobs)) throw new Error('Wait for the current controller operation to finish.')
       if (usesDevice && (closeChecking || closePrompt)) throw new Error('Finish the quit check before using the controller.')
@@ -464,6 +493,8 @@ handle('device:connect', async (path: string): Promise<DeviceInfo> => {
   reconnectModel = selectedDevice ? identifyModel(selectedDevice.product, selectedDevice.productId)?.id ?? null : null
   streamLive = null
   if (resetEnabled) savePreferences()
+  await recoverPureRawAfterConnect()
+  if(!controller.isOpen)throw new Error('Controller disconnected during PureRaw recovery.')
   await resetRcAfterConnect()
   return info
 })
@@ -479,6 +510,8 @@ handle('device:disconnect', () => {
   controller.disconnect()
   return true
 })
+handle('pure:status',()=>pureRawStatus())
+handle('pure:set',(enabled:unknown)=>{if(typeof enabled!=='boolean')throw new Error('Expected on/off');if(pureRawRunning)throw new Error('Wait for PureRaw recovery to finish.');const previous=pureRawEnabled;pureRawEnabled=enabled;try{savePreferences()}catch(error){pureRawEnabled=previous;throw error}if(!enabled)pureReceiverPending=false;pureRawMessage=enabled?'PureRaw reconnect recovery is enabled.':'PureRaw reconnect recovery is off.';send('pure:status',pureRawStatus());return pureRawStatus()})
 handle('rc:resetStatus', () => resetStatus())
 handle('rc:quitDecision', async (id: string, reset: boolean) => {
   if (!closePrompt || closePrompt !== id || typeof reset !== 'boolean') throw new Error('This quit prompt is no longer active')
@@ -771,6 +804,8 @@ app.whenReady().then(() => {
   if (!primaryInstance) return
   try {
     const prefs = JSON.parse(readFileSync(join(app.getPath('userData'), 'rc-preferences.json'), 'utf8'))
+    pureRawEnabled = prefs.pureRawReconnect !== false
+    pureRawMessage=pureRawEnabled?'PureRaw reconnect recovery is enabled.':'PureRaw reconnect recovery is off.'
     resetEnabled = prefs.resetRc === true
     apexEnabled = prefs.apexGuard === true
     for (const game of gameKeys) gameEnabled[game] = prefs.gameGuards?.[game] === true
@@ -802,9 +837,9 @@ app.whenReady().then(() => {
     void (async () => { await apexGuard.tick(); for (const game of gameKeys) { if (quitting) break; await gameGuards[game].tick() } })().finally(() => { guardTickRunning = false })
   }, 1000)
   const receiverMonitor = setInterval(() => {
-    if (!resetEnabled || !receiverResetPending || calibrationSession || resetting || ioJobs || reconnecting || recording || !controller.isOpen || !controller.latestInput?.live) return
-    receiverResetPending = false
-    void resetRcAfterConnect().then(() => { if (!quitting && controller.isOpen && connectedInfo) send('device:reconnected', connectedInfo) })
+    if (!(resetEnabled&&receiverResetPending||pureReceiverPending) || calibrationSession || resetting || ioJobs || reconnecting || recording || closeChecking || closePrompt || quitting || !controller.isOpen || !controller.latestInput?.live) return
+    receiverResetPending=false;pureReceiverPending=false;ioJobs++
+    void (async()=>{await recoverPureRawAfterConnect();await resetRcAfterConnect();if(!quitting&&controller.isOpen&&connectedInfo)send('device:reconnected',connectedInfo)})().finally(()=>{ioJobs--})
   }, 500)
   app.once('will-quit', () => { flyBridge.close(); clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); for (const game of gameKeys) gameGuards[game].setEnabled(false); bench.stop() })
 

@@ -41,3 +41,11 @@ The stick range illustration uses received original-axis data for the identified
 The UI adds exact numeric values and 0.1% nudges beside range sliders, per-shape help, compact selectors and saved theme colors. Theme settings are stored locally and do not modify controller profiles. Unit tests cover range boundaries, signed sensor decoding, both byte orders, report preservation and color validation. Browser checks cover staged preview changes, Escape cancellation, saved custom colors, compact macro menus and narrow layouts.
 
 Sensor-layout reference: [gamepad-plugin hid-gyro.cpp](https://github.com/40469420/gamepad-plugin/blob/c07bc96e76458418e75898ccc7d4609b9bb88104/src/hid-gyro.cpp). This integration implements the report field layout independently; it does not import the plugin source or its per-sample endianness heuristic.
+
+## PureRaw reconnect recovery
+
+PureRaw retains the original processing-disable flag. On the tested firmware this does not reliably bypass deadzone/anti-deadzone, and a cold reconnect can cap output near 20% despite unchanged stored profile bytes. PureRaw Deadzone (Processing) is separate: processing remains enabled, the response curve is neutralized, and deadzones/anti-deadzones plus unrelated fields are preserved.
+
+The default-on Auto reapply checkbox applies to the active G7 Pro 8K profile on connection/reconnection while the app runs. Only bypassed sticks temporarily receive enabled Square flags. The complete original profile is restored after verified readback and a one-second settling interval. Recovery blocks conflicting operations and does not recursively start on its own HID reopen events. A local atomic journal allows interrupted recovery to restore the exact original bytes; conflicting current profile bytes or a different device/profile refuse automatic restoration. Two verified writes are normally required. This workaround still needs the user's physical unplug/replug test.
+
+The stick preview now separates original axes, stored-range illustration and actual reported output. Selecting PureRaw no longer hides the stored anti-deadzone graph or claims that the illustration represents firmware output.

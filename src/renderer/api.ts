@@ -45,6 +45,8 @@ export interface LiveSample {
 }
 
 interface LabApi {
+  pureRawStatus(): Promise<import('../shared/pure-raw').PureRawStatus>
+  setPureRawReconnect(enabled:boolean): Promise<import('../shared/pure-raw').PureRawStatus>
   leadjoyJob(req: import('../shared/leadjoy-api').LjRequest): Promise<import('../shared/leadjoy-api').LjResult>
   benchStart(id: string): Promise<boolean>
   benchRenew(id: string): Promise<boolean>

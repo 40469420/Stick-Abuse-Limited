@@ -1,3 +1,5 @@
+import { PureRawReconnect } from './PureRawReconnect'
+import { applyPureRawProcessing } from '@shared/pure-raw'
 import { ControllerPreview } from './ControllerPreview'
 import { ThemeSettings, useThemeRevision } from './ThemeSettings'
 import { StickRangePreview } from './TuningPreviews'
@@ -921,6 +923,7 @@ function AppContent(): JSX.Element {
   })
   useEffect(() => { try { localStorage.setItem('sticklabs.outputLocks', JSON.stringify(outputLocks)) } catch { /* session only */ } }, [outputLocks])
   const [live, setLive] = useState<LiveSample | null>(null)
+  const [pureRecoveryRunning,setPureRecoveryRunning] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loadId, setLoadId] = useState(0)
   const [bitCustom, setBitCustom] = useState('')
@@ -980,6 +983,8 @@ function AppContent(): JSX.Element {
   }
 
   useEffect(() => {
+    const offPure=api().on('pure:status',v=>{const status=v as import('@shared/pure-raw').PureRawStatus;setPureRecoveryRunning(status.running);setMsg(status.message)})
+    const offPureError=api().on('pure:error',v=>setErr(String(v)))
     const offSample = api().on('input:sample', (s) => setLive(s as unknown as LiveSample))
     const offStale = api().on('device:stale', () => {
       setMsg('Pad restarted to apply the write — if the sidebar shows disconnected, hit Rescan USB + Connect again.')
@@ -1005,7 +1010,7 @@ function AppContent(): JSX.Element {
       }
     })
     return () => {
-      offSample()
+      offPure();offPureError();offSample()
       offStale()
       offReconnecting()
       offReconnected()
@@ -1486,15 +1491,15 @@ function AppContent(): JSX.Element {
               <button
                 key={s}
                 className={`btn sm${s === slot ? ' primary' : ' ghost'}`}
-                disabled={!connected || busy || locked}
+                disabled={!connected || busy || pureRecoveryRunning || locked}
                 onClick={() => { if(!dirty || window.confirm('Discard unsaved changes and load another profile?')) void loadSlot(s) }}
               >
                 P{s}
               </button>
             ))}
-            {modelId === 'G7ProCE' && <button className={`choice-btn${slot === SHIFT_SLOT ? ' active' : ''}`} disabled={!connected || busy || locked} onClick={() => { if (!dirty || window.confirm('Discard unsaved changes and load the Shift layer?')) void loadSlot(SHIFT_SLOT) }}><span className="choice-label">Shift</span></button>}
-            <button className="btn sm primary" disabled={!connected || !dirty || busy || locked} onClick={() => void write()}>
-              {busy ? 'Working…' : 'Write to controller'}
+            {modelId === 'G7ProCE' && <button className={`choice-btn${slot === SHIFT_SLOT ? ' active' : ''}`} disabled={!connected || busy || pureRecoveryRunning || locked} onClick={() => { if (!dirty || window.confirm('Discard unsaved changes and load the Shift layer?')) void loadSlot(SHIFT_SLOT) }}><span className="choice-label">Shift</span></button>}
+            <button className="btn sm primary" disabled={!connected || !dirty || busy || pureRecoveryRunning || locked} onClick={() => void write()}>
+              {pureRecoveryRunning?'Recovering PureRaw…':busy ? 'Working…' : 'Write to controller'}
             </button>
             {dirty && <span className="pill warn">Unsaved</span>}
             {!dirty && savedAt && savedAt.slot === slot && (
@@ -1805,20 +1810,21 @@ function AppContent(): JSX.Element {
 
 
                   <div className="card">
-                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. True raw bypass disables processing and preserves your stored tuning; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
                           { name: 'Round diagonals', hint: 'Uses a round diagonal boundary: the stick reaches a circular edge instead of extending into square corners. Your current deadzones and response curve are kept.' },
                           { name: 'Square gate', hint: 'Allows full X and Y output together at the corners. Diagonal magnitude can exceed a circular gate; your current deadzones and response curve are kept.' },
                           { name: 'Linear full range (1:1)', hint: 'Resets deadzones, output limits, curve and axis balance for linear full-range response. Stick processing stays enabled. Calibration and game settings still apply.' },
-                          { name: 'True raw bypass', hint: 'Disables stick processing; preserves your tuning bytes. Firmware and game behavior may differ.' }
+                          { name: 'PureRaw Deadzone (Processing)', hint: 'Keeps processing enabled with a neutral response curve. Preserves deadzones, anti-deadzones, gate, axis balance, mapping and all unrelated settings.' },
+                          { name: 'PureRaw', hint: 'Clears the processing-enable flag while preserving stored tuning. Firmware may still apply deadzones and anti-deadzones. Reconnecting can cap output at about 20%; Auto reapply uses the tested Square-to-PureRaw recovery sequence.' }
                         ] as const
                       ).map((s) => {
                         const isRaw = stick.isRawLinear(pkt)
                         const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
-                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'True raw bypass' && !stick.enabled(pkt))
+                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'PureRaw Deadzone (Processing)' && stick.enabled(pkt) && stick.isIdentityCurve(pkt) && !isRaw) || (s.name === 'PureRaw' && !stick.enabled(pkt))
                         return (
                           <div key={s.name} className="shape-choice"><button
                             className={`btn sm${active ? ' primary' : ' ghost'}`}
@@ -1827,17 +1833,20 @@ function AppContent(): JSX.Element {
                               edit(() => {
                                 if (s.name === 'Linear full range (1:1)') {
                                   stick.applyRawLinear(pkt)
-                                } else if (s.name === 'True raw bypass') {
+                                } else if (s.name === 'PureRaw Deadzone (Processing)') {
+                                  applyPureRawProcessing(pkt)
+                                } else if (s.name === 'PureRaw') {
                                   stick.setEnabled(pkt, false)
                                 } else {
                                   stick.setEnabled(pkt, true)
                                   stick.setSquareGate(pkt, s.name === 'Square gate')
                                 }
                               })
+                              if(s.name === 'PureRaw Deadzone (Processing)')syncDesignFromCopy()
                             }}
                           >
                             {s.name}
-                          </button><Help title={s.name}>{s.hint}</Help></div>
+                          </button><Help title={s.name}>{s.hint}</Help>{s.name==='PureRaw'&&<PureRawReconnect/>}</div>
                         )
                       })}
                     </div>
@@ -2014,20 +2023,21 @@ function AppContent(): JSX.Element {
 
 
                   <div className="card">
-                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. True raw bypass disables processing and preserves your stored tuning; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
+                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
                         [
                           { name: 'Round diagonals', hint: 'Uses a round diagonal boundary: the stick reaches a circular edge instead of extending into square corners. Your current deadzones and response curve are kept.' },
                           { name: 'Square gate', hint: 'Allows full X and Y output together at the corners. Diagonal magnitude can exceed a circular gate; your current deadzones and response curve are kept.' },
                           { name: 'Linear full range (1:1)', hint: 'Resets deadzones, output limits, curve and axis balance for linear full-range response. Stick processing stays enabled. Calibration and game settings still apply.' },
-                          { name: 'True raw bypass', hint: 'Disables stick processing; preserves your tuning bytes. Firmware and game behavior may differ.' }
+                          { name: 'PureRaw Deadzone (Processing)', hint: 'Keeps processing enabled with a neutral response curve. Preserves deadzones, anti-deadzones, gate, axis balance, mapping and all unrelated settings.' },
+                          { name: 'PureRaw', hint: 'Clears the processing-enable flag while preserving stored tuning. Firmware may still apply deadzones and anti-deadzones. Reconnecting can cap output at about 20%; Auto reapply uses the tested Square-to-PureRaw recovery sequence.' }
                         ] as const
                       ).map((s) => {
                         const isRaw = stick.isRawLinear(pkt)
                         const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
-                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'True raw bypass' && !stick.enabled(pkt))
+                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'PureRaw Deadzone (Processing)' && stick.enabled(pkt) && stick.isIdentityCurve(pkt) && !isRaw) || (s.name === 'PureRaw' && !stick.enabled(pkt))
                         return (
                           <div key={s.name} className="shape-choice"><button
                             className={`btn sm${active ? ' primary' : ' ghost'}`}
@@ -2036,17 +2046,20 @@ function AppContent(): JSX.Element {
                               edit(() => {
                                 if (s.name === 'Linear full range (1:1)') {
                                   stick.applyRawLinear(pkt)
-                                } else if (s.name === 'True raw bypass') {
+                                } else if (s.name === 'PureRaw Deadzone (Processing)') {
+                                  applyPureRawProcessing(pkt)
+                                } else if (s.name === 'PureRaw') {
                                   stick.setEnabled(pkt, false)
                                 } else {
                                   stick.setEnabled(pkt, true)
                                   stick.setSquareGate(pkt, s.name === 'Square gate')
                                 }
                               })
+                              if(s.name === 'PureRaw Deadzone (Processing)')syncDesignFromCopy()
                             }}
                           >
                             {s.name}
-                          </button><Help title={s.name}>{s.hint}</Help></div>
+                          </button><Help title={s.name}>{s.hint}</Help>{s.name==='PureRaw'&&<PureRawReconnect/>}</div>
                         )
                       })}
                     </div>
