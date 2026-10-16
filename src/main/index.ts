@@ -50,6 +50,8 @@ let apexEnabled = false
 let resetEnabled = false
 let resetting = false
 let ioJobs = 0
+let guardRead: Promise<boolean> | null = null
+let foregroundWaiters = 0
 let calibrationSession: { mask: number; fine: boolean; seen: boolean; started: number } | null = null
 let reconnectPath: string | null = null
 let reconnectModel: string | null = null
@@ -83,12 +85,14 @@ async function readRcProfiles(): Promise<Array<{ slot: number; bytes: Uint8Array
   return profiles
 }
 async function readGuardRc(): Promise<boolean | null> {
-    if (firmwareStatus.running || calibrationSession || resetting || ioJobs || reconnecting || recording || closeChecking || closePrompt || bench.active || !controller.isOpen) return null
+    if (firmwareStatus.running || calibrationSession || resetting || ioJobs || foregroundWaiters || reconnecting || recording || closeChecking || closePrompt || bench.active || !controller.isOpen) return null
     const device = discover().find(d => d.path === controller.transport.currentPath)
     if (!device || !['G7ProCE','G7ProS'].includes(identifyModel(device.product,device.productId)?.id ?? '')) return null
     ioJobs++
-    try { return (await readRcProfiles()).some(p=>neutralRcProfile(p.bytes)!==null) }
-    finally { ioJobs-- }
+    const pending = readRcProfiles().then(profiles => profiles.some(p => neutralRcProfile(p.bytes) !== null))
+    guardRead = pending
+    try { return await pending }
+    finally { if (guardRead === pending) guardRead = null; ioJobs-- }
   }
 const gameKeys = Object.keys(GUARDED_GAMES) as GuardedGame[]
 const gameAlerts: Partial<Record<GuardedGame, string | null>> = {}
@@ -298,7 +302,14 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
   ipcMain.handle(channel, async (_event, ...args) => {
     const usesDevice = (/^(profile:|device:|diag:|macro:|leadjoy:)/.test(channel) || channel === 'firmware:flash' || ['lab:vendor', 'lab:xinput', 'lab:ping', 'lab:kernel'].includes(channel)) && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
     let acquired = false
+    let waitingForGuard = false
     try {
+      // User operations get the next turn after a background RC read. Never
+      // queue behind another write, calibration, or a running Lab measurement.
+      if (usesDevice && guardRead) {
+        foregroundWaiters++; waitingForGuard = true
+        try { await guardRead } catch { /* A failed guard read must not discard the user request. */ }
+      }
       if (firmwareStatus.running && (usesDevice || channel.startsWith('firmware:') && channel !== 'firmware:status')) throw new Error('Wait for the firmware operation to finish. Do not disconnect or quit.')
       if (usesDevice && calibrationSession && !['device:calibration', 'device:disconnect'].includes(channel)) throw new Error('Finish or cancel calibration before changing controller settings.')
       if (usesDevice && (resetting || ioJobs)) throw new Error('Wait for the current controller operation to finish.')
@@ -309,6 +320,7 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
     } catch (err) {
       return { ok: false, error: (err as Error)?.message ?? String(err) }
     } finally {
+      if (waitingForGuard) foregroundWaiters--
       if (acquired) {
         ioJobs--
         if (!controller.isOpen && reconnectPath) void autoReconnect('Controller operation ended while disconnected')

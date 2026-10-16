@@ -40,7 +40,7 @@ if (!process.argv.includes('--child')) {
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel', 'guard-write']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -57,6 +57,29 @@ if (!process.argv.includes('--child')) {
   const guardResult = await call('games:status')
   const guardDefaults = guardResult.value ?? guardResult.data ?? guardResult.result
   assert(Object.values(guardDefaults).every(s => !s.enabled), 'additional game guards default off')
+  if(scenario==='guard-write') {
+    m.profile[49]=11;m.profile[50]=11
+    let finishRead
+    m.waitRead=new Promise(resolve=>{finishRead=resolve})
+    let entered=false
+    const originalRead=controller.readProfile.bind(controller)
+    controller.readProfile=async (...args)=>{entered=true;return originalRead(...args)}
+    assert.equal((await call('games:set','destiny',true)).ok,true)
+    for(let i=0;i<150&&!entered;i++)await wait(10)
+    assert.equal(entered,true,'background guard holds a controller read')
+    const bytes=m.profile.slice();bytes[100]^=1
+    let settled=false
+    const write=call('profile:write',1,Buffer.from(bytes).toString('base64'),1070).then(result=>{settled=true;return result})
+    await wait(30)
+    assert.equal(settled,false,'one click waits instead of being rejected by background work')
+    assert.equal(m.writes,0,'write never overlaps the guard read')
+    finishRead();m.waitRead=null
+    assert.equal((await write).ok,true,'same request completes once background read releases')
+    assert.equal(m.writes,1,'exactly one write; no click spam or duplicate writes')
+    assert.equal(m.profile[100],bytes[100])
+    console.log('Guard/write contention: one request waits for background RC read and writes exactly once.')
+    process.exit(0)
+  }
   if(scenario==='kernel') {
     assert.equal((await call('lab:kernel','closed')).ok,false,'kernel test requires a page lease')
     assert.equal((await call('lab:start','kernel-page')).ok,true)
