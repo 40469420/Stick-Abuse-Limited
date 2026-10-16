@@ -2111,7 +2111,7 @@ function AppContent(): JSX.Element {
             connected && modelId === 'G7ProCE' ? <CenterOffsets busy={busy} /> :
               <div className="msg"><h3>Connect a G7 Pro 8K</h3><p>Center-offset commands are currently verified against the G7 Pro 8K software path only.</p></div>
           )}
-          {tab === 'firmware' && <FirmwarePanel hasUnsavedEdits={dirty} />}
+          {tab === 'firmware' && <FirmwarePanel hasUnsavedEdits={dirty} connectedModel={connected ? modelId : null} connectedProductId={pid} />}
           {(tab === 'triggers' || tab === 'gyro') && (connected && profile && modelId === 'G7ProCE' ? (tab === 'triggers' ? <TriggerTuning key={`triggers:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <GyroTuning key={`gyro:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} />) : <div className="note">Connect an identified G7 Pro 8K and load a profile to tune triggers and gyro.</div>)}
           {tab === 'bindings' && (connected && profile && ['G7ProCE', 'T3CE'].includes(modelId) ? <Bindings key={`${slot}:${loadId}`} profile={profile} modelId={modelId} edit={edit} busy={busy} shiftLayer={slot === SHIFT_SLOT} /> : <div className="note">Connect an identified G7 Pro 8K or Tarantula 8K and load a profile to edit bindings.</div>)}
           {tab === 'macros' && (connected && profile && modelId === 'G7ProCE' ? <Macros key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit macros.</div>)}

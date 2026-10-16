@@ -38,7 +38,7 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 | Lab | Report timing, XInput state-change rates, center noise, range, snapback, trigger sweeps, guided linearity passes, elevated kernel USB completion-rate testing and saved comparisons. |
 | Bit-depth verification | Guided 12-bit versus higher-bit captures, per-axis output-step and noise comparisons, restoration and JSON export. |
 | Steam | Export stick settings to supported Steam configurations. |
-| Firmware | G7 Pro 8K controller flashing, image validation, profile backups and logs. Original 2.1.0 and 2.2.9 images are included. |
+| Firmware | G7 Pro 8K flashing plus extremely experimental Tarantula 8K flashing. Model-specific images, full-profile backups and logs. Tarantula flashing may permanently brick the device; hardware downgrade/recovery is untested. |
 | Marius | Read-only board discovery and configuration preview. |
 
 PureRaw has an enabled-by-default **Auto reapply on reconnect** checkbox. While the app is running, it temporarily enables Square processing for PureRaw sticks in the active G7 Pro 8K profile, verifies the write, then restores the exact original profile. Other tuning is preserved. Interrupted operations keep a local recovery backup. This is an app-assisted workaround; reconnect behavior was confirmed on the test G7 Pro 8K.

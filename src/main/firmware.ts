@@ -8,8 +8,8 @@ export function validateFirmware(path: string): FirmwareImage {
   const bytes = readFileSync(path)
   const sha256 = createHash('sha256').update(bytes).digest('hex')
   const known = FIRMWARE_IMAGES.find((image) => image.sha256 === sha256)
-  if (!known) throw new Error('Only the verified original G7 Pro 8K controller 2.1.0 and 2.2.9 images are accepted. Receiver and modified images are blocked.')
-  return { path, sha256, version: known.version, variant: known.variant }
+  if (!known) throw new Error('Only the verified original allowlisted G7 Pro 8K and experimental Tarantula 8K images are accepted. Receiver and unknown images are blocked.')
+  return { path, sha256, version: known.version, variant: known.variant, modelId: known.modelId, product: known.product, experimental: known.experimental, sourceWarning: known.sourceWarning }
 }
 
 export interface FirmwareProgress { event: 'progress' | 'writeStarted'; ret?: number; progress?: number; message: string }
@@ -33,7 +33,7 @@ export function runFirmwareWorker(appPath: string, workPath: string, image: Firm
   if (hostBytes.readUInt32LE(pe) !== 0x4550 || hostBytes.readUInt16LE(pe + 4) !== 0x14c || hostBytes.readUInt16LE(pe + 24) !== 0x10b || hostBytes.readUInt32LE(pe + 24 + 72) < 2 * 1024 * 1024) throw new Error('Firmware host architecture or stack reserve is invalid.')
   mkdirSync(workPath, { recursive: true })
   const request = join(workPath, `request-${action}-${Date.now()}.json`)
-  writeFileSync(request, JSON.stringify({ dll, image: image.path, sha256: image.sha256, action, devicePath: options.devicePath }))
+  writeFileSync(request, JSON.stringify({ dll, image: image.path, sha256: image.sha256, action, expectedProduct: image.product, expectedVersion: image.version, devicePath: options.devicePath }))
   const log = join(workPath, `worker-${action}-${Date.now()}.log`)
   writeFileSync(log, '')
   return new Promise((resolve, reject) => {

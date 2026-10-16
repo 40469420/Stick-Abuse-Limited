@@ -1,3 +1,4 @@
+import { FIRMWARE_IMAGES, firmwareTarget, firmwareConfirmation } from '../shared/firmware'
 import { listCommunityProfiles, downloadCommunityProfile } from './community'
 import { recoverPureRaw, type PureRawJournal, type PureRawStatus } from '../shared/pure-raw'
 import { runLeadJoy } from './leadjoy-jobs'
@@ -389,11 +390,13 @@ handle('firmware:status', () => firmwareStatus)
 handle('firmware:choose', async (version?: string) => {
   firmwareImage = null
   let path: string
-  if (version === '2.1.0' || version === '2.2.9') {
-    path = join(app.getAppPath(), 'build', 'firmware', `GS_G7_Pro_CE_DV_V${version === '2.1.0' ? '210' : '229'}_Key.ufw`)
+  if (version !== undefined) {
+    const [requestedModel, requestedVersion] = version.includes(':') ? version.split(':') : ['G7ProCE', version]
+    const bundled = FIRMWARE_IMAGES.find(v => v.modelId === requestedModel && v.version === requestedVersion && v.variant === 'Key')
+    if (!bundled?.filename) throw new Error('Unsupported bundled firmware version')
+    path = join(app.getAppPath(), 'build', 'firmware', bundled.filename)
   } else {
-    if (version !== undefined) throw new Error('Unsupported firmware version')
-    const selected = await dialog.showOpenDialog({ title: 'Choose original G7 Pro 8K controller firmware', properties: ['openFile'], filters: [{ name: 'GameSir firmware', extensions: ['ufw'] }] })
+    const selected = await dialog.showOpenDialog({ title: 'Choose an allowlisted G7 Pro 8K or Tarantula 8K firmware image', properties: ['openFile'], filters: [{ name: 'GameSir firmware', extensions: ['ufw'] }] })
     if (selected.canceled) return null
     path = selected.filePaths[0]
   }
@@ -403,16 +406,18 @@ handle('firmware:choose', async (version?: string) => {
   try {
     await runFirmwareWorker(app.getAppPath(), join(app.getPath('userData'), 'firmware-tests'), image, 'inspect')
     firmwareImage = image
-    firmwareStatus.message = `Original controller ${image.version} (${image.variant}) validated. No firmware written.`
+    firmwareStatus.message = `Image header validated: ${image.modelId} ${image.version} (${image.variant}). No firmware written. ${image.experimental ? 'Tarantula flashing is extremely experimental and can brick the controller. ' + image.sourceWarning : ''}`
     return image
   } finally { firmwareStatus.running = false }
 })
 handle('firmware:flash', async (confirmation: string) => {
   const image = firmwareImage
-  if (!image || confirmation !== `FLASH ${image.version}`) throw new Error('Validate an image and type its exact confirmation first.')
+  if (!image || confirmation !== firmwareConfirmation(image)) throw new Error('Validate an image and type its exact confirmation first.')
   validateFirmware(image.path)
   const device = discover().find((d) => d.path === controller.transport.currentPath)
-  if (!controller.isOpen || !device || ![0x10c5, 0x10c6].includes(device.productId) || identifyModel(device.product, device.productId)?.id !== 'G7ProCE') throw new Error('Connect the G7 Pro 8K directly by USB and load it in Stick-Abuse-Limited first. Receiver flashing is not supported.')
+  if (!controller.isOpen || !device) throw new Error('Connect and load a supported controller directly by USB first.')
+  const target = firmwareTarget(identifyModel(device.product, device.productId)?.id, device.productId)
+  if (image.modelId !== target.modelId || image.product !== target.product) throw new Error('Firmware belongs to a different controller model. No update command sent.')
   firmwareStatus = { running: true, message: 'Saving all four controller profiles before flashing…', backup: null }
   send('firmware:status', firmwareStatus)
   const folder = join(app.getPath('userData'), 'firmware-tests', new Date().toISOString().replace(/[:.]/g, '-'))
@@ -421,13 +426,14 @@ handle('firmware:flash', async (confirmation: string) => {
     const current = await controller.getCurrentProfile()
     const firmware = await controller.readFirmware()
     for (let slot = 1; slot <= 4; slot++) {
-      const bytes = await controller.readProfile(slot, 1070)
-      if (bytes.length !== 1070) throw new Error(`P${slot} backup incomplete. Flash cancelled.`)
+      const bytes = await controller.readProfile(slot, target.profileLength)
+      if (bytes.length !== target.profileLength) throw new Error(`P${slot} backup incomplete. Flash cancelled.`)
       writeFileSync(join(folder, `profile-${slot}.bin`), bytes)
     }
     writeFileSync(join(folder, 'session.json'), JSON.stringify({ firmware, current, device, target: image, date: new Date().toISOString() }, null, 2))
     firmwareStatus.backup = folder
-    const recovery = validateFirmware(join(app.getAppPath(), 'build', 'firmware', 'GS_G7_Pro_CE_DV_V229_Key.ufw'))
+    const recovery = validateFirmware(join(app.getAppPath(), 'build', 'firmware', target.recoveryFile))
+    if (recovery.modelId !== target.modelId) throw new Error('Recovery image belongs to another controller.')
     await runFirmwareWorker(app.getAppPath(), folder, recovery, 'inspect')
     await runFirmwareWorker(app.getAppPath(), folder, image, 'ready')
     firmwareStatus.message = 'Entering update mode. Keep USB connected and wait; do not quit.'

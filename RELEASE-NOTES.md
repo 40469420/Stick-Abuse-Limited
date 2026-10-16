@@ -1,23 +1,20 @@
-# Stick Abuse 3.1: The Beating
+# Stick Abuse 3.1.1: The Beating
 
-## PureRaw reconnect fix
-- Added **Auto reapply on reconnect**, enabled by default. While the app is running, PureRaw sticks briefly pass through Square processing before their exact original profile is restored. This resolves the slow-stick state observed after unplugging and reconnecting the test G7 Pro 8K.
-- Recovery verifies writes, preserves tuning and keeps a local backup if interrupted. The checkbox lets you disable automatic reapplication.
-- Added **PureRaw Deadzone (Processing)** as a separate option. It uses a neutral response curve with processing enabled while keeping deadzones and anti-deadzones.
-- Corrected the PureRaw preview: stored deadzone and anti-deadzone settings remain visible alongside actual reported output. PureRaw does not guarantee that firmware bypasses every processing stage.
+## Extremely experimental Tarantula firmware
+- Added desktop firmware selection for Tarantula 8K / T3CE: older 2.1.2 and newer 2.4.3 packages. Key and No_Key files are included; bundled buttons select Key.
+- When a Tarantula is connected, the firmware page prominently warns that flashing or downgrading is **extremely experimental and could permanently brick the device**. Physical Tarantula flashing, downgrade compatibility and recovery remain untested.
+- Requires acknowledgment, a per-flash risk checkbox and a model-specific typed confirmation such as `FLASH TARANTULA 2.1.2`.
+- Firmware must match the connected controller family. Native image product/version checks and pinned hashes prevent cross-model or unknown-image flashing. G7 firmware cannot be used on a Tarantula.
+- Tarantula backs up all four full 1935-byte profiles before entering update mode. G7 backups remain 1070 bytes per profile.
+- The older 2.1.2 Key file has an unresolved MD5 discrepancy against Connect metadata. The UI discloses it. GameSir's native loader accepts its container/header; this does not prove it is safe for a particular controller.
 
-## New icon
-- New red joystick icon for Windows, setup, portable and the system tray.
-- A gentle breathing animation sits beside the app name and links to this GitHub repository. Reduced-motion preferences are respected.
-- Windows executable branding identifies the app as Stick-Abuse-Limited.
-
-## Community Profiles
-- Added **Community Profiles** under **Data**, with the current public GitHub collection and a Refresh button.
-- Download profiles directly through a Save dialog, then import them through Profiles. Downloading does not change the controller.
-- No GitHub login or token is needed. No controller data or personal files are uploaded.
+## Profiles and interface
+- Combined Profiles and Community Profiles into one Profiles page: controller backup/import controls above the community collection.
+- Renamed the shared profile to **Machis main apex**, with its stored deadzone description: left 5% deadzone / 95% anti-deadzone; right 0% / 0%.
+- Added the requested bit-depth note: "Anything above 12 is a gimmick, but people want the options so they stay".
 
 ## Validation
-PureRaw recovery and lifecycle tests, community download tests, type checks and production builds passed. Reconnect recovery was confirmed on the test G7 Pro 8K. Community listing and a 1070-byte profile download were verified against the public repository.
+Type checks, production build, regression tests and fake-controller firmware lifecycle tests passed. Inspect-only native checks accepted six bundled image headers and rejected wrong products, wrong versions and changed hashes. No physical controller was flashed during development. These checks do not establish downgrade or recovery safety.
 
 ## Downloads
-Use **setup** for installation and automatic updates from this repository. Use **portable** to run without installation.
+Setup includes automatic updates from this repository. Portable runs without installation. Firmware remains a desktop-only feature; the separate WebHID website cannot flash controllers.

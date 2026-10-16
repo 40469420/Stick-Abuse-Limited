@@ -2,6 +2,8 @@ param([Parameter(Mandatory=$true)][string]$Request)
 $ErrorActionPreference = 'Stop'
 try {
   $job = Get-Content -LiteralPath $Request -Raw | ConvertFrom-Json
+  if ($job.expectedProduct -notin @('GS_G7_Pro_CE_DV','GS_T3CE')) { throw 'Unsupported expected firmware family' }
+  if ($job.expectedVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid expected firmware version' }
   if ($job.action -notin @('inspect','ready','flash')) { throw 'Invalid firmware action' }
   if ($job.action -ne 'inspect' -and @(Get-Process | Where-Object { $_.ProcessName -eq 'GameSir Connect' }).Count -gt 0) { throw 'Fully quit GameSir Connect, including its tray process, before flashing.' }
   if (-not (Test-Path -LiteralPath $job.dll)) { throw 'GameSir updater library is missing' }
@@ -46,7 +48,10 @@ public static class FirmwareNative {
   if ($ret -ne 0) { throw "Firmware identity read failed: $ret" }
   $product = [Text.Encoding]::ASCII.GetString($firmwarePid).Trim([char]0)
   $version = [Text.Encoding]::ASCII.GetString($vid).Trim([char]0)
-  if ($product -ne 'GS_G7_Pro_CE_DV') { throw "Wrong controller firmware: $product" }
+  if ($product -ne $job.expectedProduct) { throw "Wrong controller firmware: expected $($job.expectedProduct), got $product" }
+  $normalizedVersion = ($version -replace '[^0-9]','').TrimStart('0')
+  $expectedVersion = ($job.expectedVersion -replace '[^0-9]','').TrimStart('0')
+  if ($normalizedVersion -ne $expectedVersion) { throw "Firmware version mismatch: expected $($job.expectedVersion), got $version" }
   if ($job.action -eq 'ready') {
     # NUL is not a drive letter. Exercise the formerly crashing native query
     # before the app sends any update-mode command to a real controller.

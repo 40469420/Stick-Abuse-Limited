@@ -24,8 +24,8 @@ if (!process.argv.includes('--child')) {
     export class Controller{constructor(){globalThis.__controller=this;this.transport=new EventEmitter();Object.assign(this.transport,{isOpen:false,currentPath:null,startWatchdog(){},write(packet){globalThis.__m.calPackets??=[];globalThis.__m.calPackets.push(packet)}});this.latestInput={live:true,recordKeys:[],timestamp:Date.now()};this.state='disconnected';}
     get isOpen(){return this.transport.isOpen}onInput(fn){this.input=fn}attachInputDecoder(){}async connect(path){this.transport.isOpen=true;this.transport.currentPath=path;this.state='ready';return {firmware:'2.2.9',dongle:'1.3.5',currentProfile:1}}disconnect(){this.transport.isOpen=false;this.transport.currentPath=null}calibration(state,mask,mode=0){this.transport.write([15,254,state,mask,mode]);if(state!==0&&!globalThis.__m.suppressTerminal)setTimeout(()=>this.emitSample(mode?0:1,0),5)}emitSample(target,status){this.latestInput={live:true,recordKeys:[],calTarget:target,calMask:status,timestamp:Date.now()};this.input(this.latestInput)}async getCurrentProfile(){return 1}async exitConfig(save){globalThis.__m.exitSave=save}async readProfile(slot){if(globalThis.__m.waitRead)await globalThis.__m.waitRead;return (slot===5&&globalThis.__m.shiftProfile?globalThis.__m.shiftProfile:globalThis.__m.profile).slice()}async writeProfileVerified(slot,bytes){globalThis.__m.writes++;if(globalThis.__m.failWrite)throw new Error('simulated verification failure');if(slot===5&&globalThis.__m.shiftProfile)globalThis.__m.shiftProfile=bytes.slice();else globalThis.__m.profile=bytes.slice();return {verified:true,rolledBack:false}}}
   `
-  const hid = `export function discover(){return [{path:'test-pad',product:'G7 Pro 8K',productId:0x10c5,preferred:true}]}export const discoverLive=discover;`
-  const firmware = `export function validateFirmware(path){return {path,version:path.includes('210')?'2.1.0':'2.2.9',variant:'Key',sha256:'test'}}export async function runFirmwareWorker(app,folder,image,action){const m=globalThis.__m;m.firmwareCalls??=[];m.firmwareCalls.push(action);if(m.rejectFirmware)throw Error('simulated firmware rejection');if(action==='flash'){if(m.flashWait)await m.flashWait;return {message:'Updater completed; reconnect to verify'}}return {product:'GS_G7_Pro_CE_DV',version:image.version}}`
+  const hid = `export function discover(){return [{path:'test-pad',product:globalThis.__m.tarantula?'T3CE':'G7 Pro 8K',productId:globalThis.__m.tarantula?0x103d:0x10c5,preferred:true}]}export const discoverLive=discover;`
+  const firmware = `export function validateFirmware(path){return {path,modelId:path.includes('T3CE')?'T3CE':'G7ProCE',product:path.includes('T3CE')?'GS_T3CE':'GS_G7_Pro_CE_DV',experimental:path.includes('T3CE'),sourceWarning:'test',version:path.includes('T3CE')?(path.includes('212')?'2.1.2':'2.4.3'):(path.includes('210')?'2.1.0':'2.2.9'),variant:'Key',sha256:'test'}}export async function runFirmwareWorker(app,folder,image,action){const m=globalThis.__m;m.firmwareCalls??=[];m.firmwareCalls.push(action);if(m.rejectFirmware)throw Error('simulated firmware rejection');if(action==='flash'){if(m.flashWait)await m.flashWait;return {message:'Updater completed; reconnect to verify'}}return {product:image.product,version:image.version}}`
   try {
     await build({ entryPoints: ['src/main/index.ts'], outfile: join(folder, 'main.cjs'), bundle: true, platform: 'node', format: 'cjs', plugins: [{ name: 'fake-hardware', setup(b) {
       b.onResolve({ filter: /^electron$/ }, () => ({ path: 'electron', namespace: 'fake' }))
@@ -40,7 +40,7 @@ if (!process.argv.includes('--child')) {
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift', 'kernel', 'guard-write', 'guard-quit', 'guard-quit-rc', 'pure-reconnect']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'tarantula-firmware', 'bench', 'shift', 'kernel', 'guard-write', 'guard-quit', 'guard-quit-rc', 'pure-reconnect']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -193,6 +193,29 @@ if (!process.argv.includes('--child')) {
     assert.equal(m.writes,0,'all bench operations are read-only');
     console.log('Bench integration: page-only collection, conflicting-write guard, cancellation, hide/minimize and stale cleanup passed.');
     process.exit(0);
+  }
+  if (scenario === 'tarantula-firmware') {
+    m.app.getAppPath=()=>folder;controller.readFirmware=async()=> '2.4.3'
+    await call('firmware:choose','T3CE:2.1.2')
+    assert.equal((await call('firmware:flash','FLASH TARANTULA 2.1.2')).ok,false,'Tarantula image cannot flash the connected G7')
+    assert.equal((m.calPackets??[]).length,0,'wrong family sends no update command')
+    m.tarantula=true;m.profile=new Uint8Array(1935)
+    await call('firmware:choose','2.1.0')
+    assert.equal((await call('firmware:flash','FLASH 2.1.0')).ok,false,'G7 image cannot flash a Tarantula')
+    await call('firmware:choose','T3CE:2.1.2')
+    assert.equal((await call('firmware:flash','FLASH 2.1.2')).ok,false,'Tarantula requires the model-specific confirmation')
+    const read=controller.readProfile.bind(controller)
+    controller.readProfile=async()=>new Uint8Array(1070)
+    assert.equal((await call('firmware:flash','FLASH TARANTULA 2.1.2')).ok,false,'a G7-sized backup is rejected')
+    assert.equal((m.calPackets??[]).length,0,'incomplete Tarantula backup sends no command')
+    controller.readProfile=read
+    assert.equal((await call('firmware:flash','FLASH TARANTULA 2.1.2')).ok,true)
+    const state=(await call('firmware:status')).data
+    for(let slot=1;slot<=4;slot++)assert.equal(readFileSync(join(state.backup,`profile-${slot}.bin`)).length,1935)
+    const session=JSON.parse(readFileSync(join(state.backup,'session.json'),'utf8'));assert.equal(session.target.modelId,'T3CE')
+    assert.deepEqual(m.calPackets.filter(p=>p[1]===23),[[15,23,85,136]])
+    assert.equal(m.writes,0,'no profile restoration after flash')
+    console.log('Tarantula firmware: cross-family rejection, explicit confirmation, full backups and handoff passed with fake hardware.');process.exit(0)
   }
   if (scenario === 'firmware') {
     m.app.getAppPath = () => folder
