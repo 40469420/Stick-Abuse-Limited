@@ -1,3 +1,4 @@
+import { SHIFT_SLOT, copyToShift } from '@shared/shift'
 import { AIM_CURVES } from '@shared/aim-curves'
 import { KeyIcon } from './KeyIcon'
 import { resampleSpline, traceSpline } from '@shared/sticklab'
@@ -897,8 +898,9 @@ function AppContent(): JSX.Element {
     try { const saved = Number(localStorage.getItem('sticklabs.slot')); if (Number.isInteger(saved) && saved >= 1 && saved <= 4) return saved } catch { /* session default */ }
     return 3
   })
-  useEffect(() => { try { localStorage.setItem('sticklabs.slot', String(slot)) } catch { /* session only */ } }, [slot])
+  useEffect(() => { try { localStorage.setItem('sticklabs.slot', String(slot === SHIFT_SLOT ? 3 : slot)) } catch { /* session only */ } }, [slot])
   const [blob, setBlob] = useState<Uint8Array | null>(null)
+  const currentBlob = useRef(blob); currentBlob.current = blob
   const [dirty, setDirty] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -1148,6 +1150,7 @@ function AppContent(): JSX.Element {
       if (profile && stick.lockStickOutput(profile.sticks, outputLocks)) syncBlob()
       const res = await api().writeProfile(slot, bytesToB64(blob), modelLen)
       if (res.verified) {
+        if (slot === SHIFT_SLOT) { setSavedAt({ slot, at: Date.now() }); setDirty(false); setMsg('Shift layer written and verified. Use your assigned Shift button from P1-P4 to activate it.'); return true }
         const liveNow = info?.currentProfile
         setSavedAt({ slot, at: Date.now() })
         setDirty(false)
@@ -1298,8 +1301,23 @@ function AppContent(): JSX.Element {
   const padCurve = pts
   const curvePending = quantized.length === padCurve.length && quantized.some((q, i) => q.x !== padCurve[i].x || q.y !== padCurve[i].y)
 
-  function reloadDesignFromPad(): void {
-    if (pkt) setDesign(stick.curve(pkt).map((p) => ({ ...p })))
+  function syncDesignFromCopy(): void { if(pkt) setDesign(stick.curve(pkt).map(p=>({...p}))) }
+
+  async function reloadDesignFromPad(): Promise<void> {
+    if (!profile || !connected || busy) return
+    const requestedSlot=slot, requestedSide=which
+    setBusy(true); setErr(null)
+    try {
+      const read=await api().readProfile(requestedSlot,modelLen)
+      if(slotRef.current!==requestedSlot || currentBlob.current!==blob) return
+      const fresh=parseProfile(b64ToBytes(read.bytes),modelId)
+      profile.sticks[requestedSide].bytes.set(fresh.sticks[requestedSide].bytes.slice(11,24),11)
+      const next=serializeProfile(profile)
+      const saved=b64ToBytes(read.bytes)
+      setBlob(next); setDirty(next.some((v,i)=>v!==saved[i]))
+      setDesign(stick.curve(fresh.sticks[requestedSide]).map(p=>({...p})))
+      setMsg('Curve reloaded from the controller; other staged settings kept.')
+    } catch(e) { setErr((e as Error).message) } finally { setBusy(false) }
   }
 
   return (
@@ -1451,11 +1469,12 @@ function AppContent(): JSX.Element {
                 key={s}
                 className={`btn sm${s === slot ? ' primary' : ' ghost'}`}
                 disabled={!connected || busy || locked}
-                onClick={() => void loadSlot(s)}
+                onClick={() => { if(!dirty || window.confirm('Discard unsaved changes and load another profile?')) void loadSlot(s) }}
               >
                 P{s}
               </button>
             ))}
+            {modelId === 'G7ProCE' && <button className={`choice-btn${slot === SHIFT_SLOT ? ' active' : ''}`} disabled={!connected || busy || locked} onClick={() => { if (!dirty || window.confirm('Discard unsaved changes and load the Shift layer?')) void loadSlot(SHIFT_SLOT) }}><span className="choice-label">Shift</span></button>}
             <button className="btn sm primary" disabled={!connected || !dirty || busy || locked} onClick={() => void write()}>
               {busy ? 'Working…' : 'Write to controller'}
             </button>
@@ -1468,6 +1487,9 @@ function AppContent(): JSX.Element {
           </div>}
         </header>
         <div className="content">
+          {slot === SHIFT_SLOT && <div className="card"><SectionTitle title="Editing the Shift layer">This is the shared fifth profile, used by a button assigned to Shift in P1-P4. Configure and write it here; writing does not activate it. Stick, trigger, gyro and binding changes apply only while the layer is active. Return to a base profile to assign a Shift button.</SectionTitle>
+            <button className="btn ghost" disabled={busy} onClick={() => { const source = Number(window.prompt('Copy which saved controller profile into Shift? Enter 1, 2, 3 or 4.', '3')); if (![1,2,3,4].includes(source)) return; void (async () => { setBusy(true); try { const read = await api().readProfile(source, PROFILE_LENGTH); setBlob(copyToShift(b64ToBytes(read.bytes))); setDirty(true); setLoadId(n=>n+1); setMsg(`Copied saved P${source} into the working Shift layer. Write to apply.`) } catch(e) { setErr((e as Error).message) } finally { setBusy(false) } })() }}>Copy a saved base profile</button>
+          </div>}
           {showSafety && (
             <div className="card" style={{ marginBottom: 16, borderColor: 'var(--warn)' }}>
               <h3>First — read this (30 seconds)</h3>
@@ -1746,7 +1768,7 @@ function AppContent(): JSX.Element {
                       <span className={curvePending ? 'pill warn' : 'pill good'}>{curvePending ? 'design ≠ pad — send it' : 'pad matches design'}</span>
                       <div style={{ flex: 1 }} />
                       <button className="btn sm primary" disabled={!curvePending} onClick={() => edit(() => { if (pkt) { stick.setCurve(pkt, quantized.map((p) => ({ ...p }))); stick.markCurveIdentity(pkt) } })}>Send 5 to pad</button>
-                      <button className="btn sm ghost" onClick={reloadDesignFromPad}>Reload from pad</button>
+                      <button className="btn sm ghost" onClick={() => void reloadDesignFromPad()}>Reload from pad</button>
                     </div>
                     <div className="row wrap" style={{ gap: 8, margin: '8px 0' }}>
                       {Object.entries(AIM_CURVES).map(([key, c]) => (
@@ -1867,7 +1889,7 @@ function AppContent(): JSX.Element {
                           fun.extend.setLsAntiJitter(fd, 11)
                           fun.extend.setRsAntiJitter(fd, 11)
                         })
-                        reloadDesignFromPad()
+                        syncDesignFromCopy()
                         setMsg('Everything reset to stock neutral — Write to apply it to the pad.')
                       }}
                     >
@@ -2074,7 +2096,7 @@ function AppContent(): JSX.Element {
                           fun.extend.setLsAntiJitter(fd, 11)
                           fun.extend.setRsAntiJitter(fd, 11)
                         })
-                        reloadDesignFromPad()
+                        syncDesignFromCopy()
                         setMsg('Everything reset to stock neutral — Write to apply it to the pad.')
                       }}
                     >
@@ -2093,7 +2115,7 @@ function AppContent(): JSX.Element {
           )}
           {tab === 'firmware' && <FirmwarePanel hasUnsavedEdits={dirty} />}
           {(tab === 'triggers' || tab === 'gyro') && (connected && profile && modelId === 'G7ProCE' ? (tab === 'triggers' ? <TriggerTuning key={`triggers:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <GyroTuning key={`gyro:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} />) : <div className="note">Connect an identified G7 Pro 8K and load a profile to tune triggers and gyro.</div>)}
-          {tab === 'bindings' && (connected && profile && ['G7ProCE', 'T3CE'].includes(modelId) ? <Bindings key={`${slot}:${loadId}`} profile={profile} modelId={modelId} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K or Tarantula 8K and load a profile to edit bindings.</div>)}
+          {tab === 'bindings' && (connected && profile && ['G7ProCE', 'T3CE'].includes(modelId) ? <Bindings key={`${slot}:${loadId}`} profile={profile} modelId={modelId} edit={edit} busy={busy} shiftLayer={slot === SHIFT_SLOT} /> : <div className="note">Connect an identified G7 Pro 8K or Tarantula 8K and load a profile to edit bindings.</div>)}
           {tab === 'macros' && (connected && profile && modelId === 'G7ProCE' ? <Macros key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit macros.</div>)}
           {tab === 'rc' && (
             connected && !locked && fd && blob ? (

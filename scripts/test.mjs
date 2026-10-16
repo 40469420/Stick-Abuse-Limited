@@ -41,6 +41,7 @@ const entry =
         'tests/xinput.ts',
         'tests/center.ts',
         'tests/custom-controls.ts',
+        'tests/shift.ts',
         'tests/tuning.ts',
         'tests/firmware.ts',
         'tests/marius.ts'

@@ -22,7 +22,7 @@ if (!process.argv.includes('--child')) {
   const controller = `
     import {EventEmitter} from 'node:events';
     export class Controller{constructor(){globalThis.__controller=this;this.transport=new EventEmitter();Object.assign(this.transport,{isOpen:false,currentPath:null,startWatchdog(){},write(packet){globalThis.__m.calPackets??=[];globalThis.__m.calPackets.push(packet)}});this.latestInput={live:true,recordKeys:[],timestamp:Date.now()};this.state='disconnected';}
-    get isOpen(){return this.transport.isOpen}onInput(fn){this.input=fn}attachInputDecoder(){}async connect(path){this.transport.isOpen=true;this.transport.currentPath=path;this.state='ready';return {firmware:'2.2.9',dongle:'1.3.5',currentProfile:1}}disconnect(){this.transport.isOpen=false;this.transport.currentPath=null}calibration(state,mask,mode=0){this.transport.write([15,254,state,mask,mode]);if(state!==0&&!globalThis.__m.suppressTerminal)setTimeout(()=>this.emitSample(mode?0:1,0),5)}emitSample(target,status){this.latestInput={live:true,recordKeys:[],calTarget:target,calMask:status,timestamp:Date.now()};this.input(this.latestInput)}async getCurrentProfile(){return 1}async readProfile(){if(globalThis.__m.waitRead)await globalThis.__m.waitRead;return globalThis.__m.profile.slice()}async writeProfileVerified(slot,bytes){globalThis.__m.writes++;if(globalThis.__m.failWrite)throw new Error('simulated verification failure');globalThis.__m.profile=bytes.slice();return {verified:true,rolledBack:false}}}
+    get isOpen(){return this.transport.isOpen}onInput(fn){this.input=fn}attachInputDecoder(){}async connect(path){this.transport.isOpen=true;this.transport.currentPath=path;this.state='ready';return {firmware:'2.2.9',dongle:'1.3.5',currentProfile:1}}disconnect(){this.transport.isOpen=false;this.transport.currentPath=null}calibration(state,mask,mode=0){this.transport.write([15,254,state,mask,mode]);if(state!==0&&!globalThis.__m.suppressTerminal)setTimeout(()=>this.emitSample(mode?0:1,0),5)}emitSample(target,status){this.latestInput={live:true,recordKeys:[],calTarget:target,calMask:status,timestamp:Date.now()};this.input(this.latestInput)}async getCurrentProfile(){return 1}async exitConfig(save){globalThis.__m.exitSave=save}async readProfile(slot){if(globalThis.__m.waitRead)await globalThis.__m.waitRead;return (slot===5&&globalThis.__m.shiftProfile?globalThis.__m.shiftProfile:globalThis.__m.profile).slice()}async writeProfileVerified(slot,bytes){globalThis.__m.writes++;if(globalThis.__m.failWrite)throw new Error('simulated verification failure');if(slot===5&&globalThis.__m.shiftProfile)globalThis.__m.shiftProfile=bytes.slice();else globalThis.__m.profile=bytes.slice();return {verified:true,rolledBack:false}}}
   `
   const hid = `export function discover(){return [{path:'test-pad',product:'G7 Pro 8K',productId:0x10c5,preferred:true}]}export const discoverLive=discover;`
   const firmware = `export function validateFirmware(path){return {path,version:path.includes('210')?'2.1.0':'2.2.9',variant:'Key',sha256:'test'}}export async function runFirmwareWorker(app,folder,image,action){const m=globalThis.__m;m.firmwareCalls??=[];m.firmwareCalls.push(action);if(m.rejectFirmware)throw Error('simulated firmware rejection');if(action==='flash'){if(m.flashWait)await m.flashWait;return {message:'Updater completed; reconnect to verify'}}return {product:'GS_G7_Pro_CE_DV',version:image.version}}`
@@ -38,7 +38,7 @@ if (!process.argv.includes('--child')) {
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench']) {
+    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'bench', 'shift']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -55,6 +55,23 @@ if (!process.argv.includes('--child')) {
   const guardResult = await call('games:status')
   const guardDefaults = guardResult.value ?? guardResult.data ?? guardResult.result
   assert(Object.values(guardDefaults).every(s => !s.enabled), 'additional game guards default off')
+  if(scenario==='shift') {
+    m.profile[49]=11;m.profile[50]=11;m.profile[66]|=1;m.profile[67]=231
+    m.shiftProfile=m.profile.slice();m.shiftProfile[67]=0;m.shiftProfile[49]=1
+    const base=m.profile.slice()
+    m.menu.find(entry=>entry.label==='Quit Stick-Abuse-Limited').click()
+    await wait(10)
+    assert.ok(prompt(),'Shift RC triggers mandatory quit warning with neutral base')
+    assert.equal(m.quits,0)
+    assert.equal((await call('rc:quitDecision',prompt().id,true)).ok,true)
+    await wait(10)
+    assert.equal(m.shiftProfile[49],11)
+    assert.deepEqual(m.profile,base,'neutral base is preserved')
+    assert.equal(m.exitSave,true,'quit commits the configuration session')
+    assert.equal(m.quits,1)
+    console.log('Shift lifecycle: reachable layer RC checked/reset and config committed before quit.')
+    process.exit(0)
+  }
   assert.equal((await call('games:set', 'unknown', true)).ok, false)
   assert.equal((await call('games:set', 'destiny', true)).ok, true)
   assert.equal(JSON.parse(readFileSync(join(folder, scenario, 'rc-preferences.json'), 'utf8')).gameGuards.destiny, true)

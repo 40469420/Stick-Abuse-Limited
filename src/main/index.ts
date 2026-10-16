@@ -1,3 +1,5 @@
+import { hasShiftBinding, SHIFT_SLOT } from '../shared/shift'
+import { parseProfile } from '../shared/profile'
 import { GUARDED_GAMES, isGuardedGame, type GuardedGame, type GameGuardStatuses } from '../shared/game-guards'
 import { listGame, killGame } from './game-guards'
 import { ApexGuard, listApex, killApex } from './apex-guard'
@@ -53,7 +55,13 @@ let receiverResetPending = false
 let closeChecking = false
 let closePrompt: string | null = null
 let quitAction: (() => void) | null = null
-function finishQuit(): void { quitting = true; if (quitAction) quitAction(); else app.quit() }
+function finishQuit(): void {
+  quitting = true
+  void (async () => {
+    try { await controller.exitConfig(true) } catch { /* device may already be disconnected */ }
+    if(quitAction) quitAction(); else app.quit()
+  })()
+}
 let resetMessage = 'Automatic RC reset is off.'
 let recording: { id: string; recorder: SequenceRecorder; started: number; error: string | null; lastReport: number } | null = null
 const resetStatus = (): RcResetStatus => ({ enabled: resetEnabled, running: resetting, message: resetMessage })
@@ -63,12 +71,20 @@ const apexGuard = new ApexGuard({
   rc: readGuardRc,
   changed: status => { send('apex:status',status); if(status.alert && status.alert !== lastApexAlert) showWindow(); lastApexAlert=status.alert }
 })
+async function readRcProfiles(): Promise<Array<{ slot: number; bytes: Uint8Array }>> {
+  const slot=await controller.getCurrentProfile()
+  const bytes=await controller.readProfile(slot,1070)
+  const profiles=[{slot,bytes}]
+  const device=discover().find(d=>d.path===controller.transport.currentPath)
+  if(slot!==SHIFT_SLOT && identifyModel(device?.product,device?.productId)?.id==='G7ProCE' && hasShiftBinding(parseProfile(bytes,'G7ProCE'))) profiles.push({slot:SHIFT_SLOT,bytes:await controller.readProfile(SHIFT_SLOT,1070)})
+  return profiles
+}
 async function readGuardRc(): Promise<boolean | null> {
     if (firmwareStatus.running || calibrationSession || resetting || ioJobs || reconnecting || recording || closeChecking || closePrompt || bench.active || !controller.isOpen) return null
     const device = discover().find(d => d.path === controller.transport.currentPath)
     if (!device || !['G7ProCE','G7ProS'].includes(identifyModel(device.product,device.productId)?.id ?? '')) return null
     ioJobs++
-    try { const slot = await controller.getCurrentProfile(); return neutralRcProfile(await controller.readProfile(slot,1070)) !== null }
+    try { return (await readRcProfiles()).some(p=>neutralRcProfile(p.bytes)!==null) }
     finally { ioJobs-- }
   }
 const gameKeys = Object.keys(GUARDED_GAMES) as GuardedGame[]
@@ -98,16 +114,13 @@ async function resetRcAfterConnect(force = false): Promise<boolean> {
   resetting = true
   reportReset('Checking active-profile RC settings…')
   try {
-    const slot = await controller.getCurrentProfile()
-    if (connectedInfo) connectedInfo.currentProfile = slot
-    const before = await controller.readProfile(slot, 1070)
-    const next = neutralRcProfile(before)
-    if (!next) reportReset(`P${slot}: both RC filters are already neutral.`)
-    else {
-      const result = await controller.writeProfileVerified(slot, next, 1070)
-      if (!result.verified) throw new Error('Reset did not verify; previous profile was restored.')
-      reportReset(`P${slot}: both RC filters reset to neutral and verified.`)
+    const profiles=await readRcProfiles()
+    if(connectedInfo) connectedInfo.currentProfile=profiles[0].slot
+    for(const {slot,bytes:before} of profiles) {
+      const next=neutralRcProfile(before)
+      if(next) { const result=await controller.writeProfileVerified(slot,next,1070); if(!result.verified) throw new Error('Reset did not verify; previous profile was restored.') }
     }
+    reportReset(`RC filters neutral and verified in ${profiles.map(p=>p.slot===SHIFT_SLOT?'Shift':`P${p.slot}`).join(' and ')}.`)
     return true
   } catch (e) { reportReset(`RC reset failed: ${(e as Error).message}`); return false }
   finally {
@@ -138,7 +151,7 @@ async function requestQuit(): Promise<void> {
       ioJobs++
       try {
         const slot = await controller.getCurrentProfile()
-        neutral = neutralRcProfile(await controller.readProfile(slot, 1070)) === null
+        neutral = (await readRcProfiles()).every(p=>neutralRcProfile(p.bytes)===null)
         detail = `Both sticks in the active profile (P${slot}) will be reset to level 0. Other profiles are kept.`
       } finally { ioJobs-- }
     }
@@ -462,6 +475,12 @@ handle('profile:read', async (profile: number, total?: number) => {
   return { bytes: b64(bytes), length: bytes.length }
 })
 handle('profile:write', async (profile: number, dataB64: string, length?: number) => {
+  if(profile===SHIFT_SLOT) {
+    const device=discover().find(d=>d.path===controller.transport.currentPath)
+    if(identifyModel(device?.product,device?.productId)?.id!=='G7ProCE') throw new Error('Shift-layer writes currently require a G7 Pro 8K.')
+    const bytes=fromB64(dataB64)
+    if(bytes.length!==1070 || hasShiftBinding(parseProfile(bytes,'G7ProCE'))) throw new Error('The Shift layer cannot contain another Shift activation binding. Remove it before writing.')
+  }
   const bytes = fromB64(dataB64)
   const total = length ?? PROFILE_LENGTH
   if (bytes.length !== total) throw new Error(`payload is ${bytes.length} bytes, expected ${total}`)

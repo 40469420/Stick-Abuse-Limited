@@ -1,3 +1,4 @@
+import { setShiftBinding, SHIFT_KEY } from '@shared/shift'
 import { IconSelect } from './IconSelect'
 import { KeyIcon } from './KeyIcon'
 import { Help } from './Help'
@@ -5,14 +6,14 @@ import { useState } from 'react'
 import { button, trigger, macro, type Profile } from '@shared/profile'
 import { BINDING_KEYS, BUTTON_LABELS, functionLabels, bindingLabel, setBinding } from '@shared/bindings'
 
-export function KeyPicker({ value, onChange, empty = true, label = 'Output key' }: { value: number; onChange: (value: number) => void; empty?: boolean; label?: string }): JSX.Element {
-  const options = BINDING_KEYS.map(k => ({ value: k.value, label: k.label, group: k.group }))
+export function KeyPicker({ value, onChange, empty = true, allowShift = true, label = 'Output key' }: { value: number; onChange: (value: number) => void; empty?: boolean; allowShift?: boolean; label?: string }): JSX.Element {
+  const options = BINDING_KEYS.filter(k => allowShift || k.value !== SHIFT_KEY).map(k => ({ value: k.value, label: k.label, group: k.group }))
   if (empty) options.unshift({ value: 0, label: 'Empty / original', group: '' })
   if (!options.some(o => o.value === value)) options.unshift({ value, label: bindingLabel(value), group: '' })
   return <IconSelect label={label} value={value} options={options} onChange={onChange} />
 }
 
-export function Bindings({ profile, modelId, edit, busy }: { profile: Profile; modelId: string; edit: (fn: () => void) => void; busy: boolean }): JSX.Element {
+export function Bindings({ profile, modelId, edit, busy, shiftLayer = false }: { profile: Profile; modelId: string; edit: (fn: () => void) => void; busy: boolean; shiftLayer?: boolean }): JSX.Element {
   const [selected, setSelected] = useState(0)
   const targets = [
     ...profile.buttons.map((packet, i) => ({ packet, label: BUTTON_LABELS[i], isTrigger: false, functionKey: false })),
@@ -23,6 +24,7 @@ export function Bindings({ profile, modelId, edit, busy }: { profile: Profile; m
   const access = target.isTrigger ? trigger : button
   const values = access.mapValues(target.packet)
   const mapped = access.mapped(target.packet)
+  const isShift = mapped && values.includes(SHIFT_KEY)
   const hasMacro = target.functionKey && macro.macroEnabled(target.packet)
   return <div className="stack" style={{ gap: 16 }}>
     <div className="card">
@@ -35,18 +37,22 @@ export function Bindings({ profile, modelId, edit, busy }: { profile: Profile; m
       <p className="hint">{hasMacro ? 'Macro overrides this button.' : mapped ? `Current outputs: ${values.filter(Boolean).map(bindingLabel).join(' + ')}` : 'Original button behavior.'}</p>
       <div className="control-grid">
         {values.map((value, i) => <label className="stack" key={i}>Output {i + 1}
-          <KeyPicker label={`Output ${i + 1}`} value={value} onChange={(next) => edit(() => { const outputs = [...values]; outputs[i] = next; setBinding(target.packet, outputs, target.isTrigger, target.functionKey) })} />
+          <KeyPicker label={`Output ${i + 1}`} allowShift={modelId === 'G7ProCE' && !shiftLayer} value={value} onChange={(next) => edit(() => { if(next === SHIFT_KEY) { setShiftBinding(target.packet, target.isTrigger, target.functionKey, false); return } const outputs = [...values]; outputs[i] = next; setBinding(target.packet, outputs, target.isTrigger, target.functionKey) })} />
         </label>)}
       </div>
       <div className="row wrap" style={{ gap: 8, marginTop: 12 }}>
         <button className="btn" onClick={() => edit(() => setBinding(target.packet, [0, 0, 0], target.isTrigger, target.functionKey))}>Original behavior</button>
         <button className="btn ghost" onClick={() => edit(() => setBinding(target.packet, [255, 0, 0], target.isTrigger, target.functionKey))}>Unbind button</button>
       </div>
+      {modelId === 'G7ProCE' && !shiftLayer && <div className="context-help">
+        <button className="btn" onClick={() => edit(() => setShiftBinding(target.packet, target.isTrigger, target.functionKey, false))}>Use as Shift button</button>
+        <Help title="Shift layer">Hold this button to use the shared Shift profile. Enable Toggle on press below for press-to-toggle behavior. Edit the layer with the Shift button beside P1-P4, write it first, then write this base profile. This replaces the selected button's outputs and disables its macro and turbo, keeping stored macro steps.</Help>
+      </div>}
       <div className="control-grid" style={{ marginTop: 20 }}>
         <label className="row" style={{ gap: 8 }}><input type="checkbox" checked={access.toggleOnPress(target.packet)} onChange={(e) => edit(() => access.setToggle(target.packet, e.target.checked))} />Toggle on press</label>
-        <label className="row" style={{ gap: 8 }}><input type="checkbox" disabled={hasMacro} checked={button.turboEnabled(target.packet)} onChange={(e) => edit(() => button.setTurbo(target.packet, e.target.checked, button.turboSpeed(target.packet) || 5))} />Turbo</label>
+        <label className="row" style={{ gap: 8 }}><input type="checkbox" disabled={hasMacro || isShift} checked={button.turboEnabled(target.packet)} onChange={(e) => edit(() => button.setTurbo(target.packet, e.target.checked, button.turboSpeed(target.packet) || 5))} />Turbo</label>
         <label className="stack">Turbo speed
-          <input className="input" type="number" min={1} max={255} step={1} disabled={hasMacro || !button.turboEnabled(target.packet)} value={button.turboSpeed(target.packet)} onChange={(e) => {
+          <input className="input" type="number" min={1} max={255} step={1} disabled={hasMacro || isShift || !button.turboEnabled(target.packet)} value={button.turboSpeed(target.packet)} onChange={(e) => {
             const v = Number(e.target.value)
             if (Number.isInteger(v) && v >= 1 && v <= 255) edit(() => button.setTurbo(target.packet, true, v))
           }} />
