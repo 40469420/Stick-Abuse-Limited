@@ -1,4 +1,4 @@
-import { CommunityProfiles } from './CommunityProfiles'
+import { ProfilesPage } from './ProfilesPage'
 import appIcon from './assets/app-icon.png'
 import { PureRawReconnect } from './PureRawReconnect'
 import { applyPureRawProcessing } from '@shared/pure-raw'
@@ -57,8 +57,7 @@ const PAGE_INFO = {
   center: ['Center offsets', 'Drag or nudge the resting center of each stick.'],
   bindings: ['Keybindings', 'Choose a physical button and assign its outputs.'],
   macros: ['Macros', 'Record, arrange and time a button sequence.'],
-  community: ['Community Profiles', 'Browse and download shared controller profiles.'],
-  profiles: ['Profiles', 'Back up, restore and transfer controller profiles.'],
+  profiles: ['Profiles', 'Manage controller backups and browse community profiles.'],
   lab: ['Performance bench', 'Measure input timing, stick behavior and bit-depth changes.'],
   steam: ['Steam export', 'Design settings and export them to installed Steam games.'],
   calibrate: ['Calibration', 'Choose a workflow and follow the controller’s progress.'],
@@ -932,7 +931,7 @@ function AppContent(): JSX.Element {
   const [bitCustom, setBitCustom] = useState('')
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
   const [flyId, setFlyId] = useState<FlyIdentity | null>(null)
-  const [tab, setTab] = useState<'sticks' | 'device' | 'triggers' | 'gyro' | 'rc' | 'center' | 'bindings' | 'macros' | 'profiles' | 'community' | 'lab' | 'steam' | 'calibrate' | 'firmware' | 'marius'>('sticks')
+  const [tab, setTab] = useState<'sticks' | 'device' | 'triggers' | 'gyro' | 'rc' | 'center' | 'bindings' | 'macros' | 'profiles' | 'lab' | 'steam' | 'calibrate' | 'firmware' | 'marius'>('sticks')
   // Virtual sticks for pad-less Steam shaping: real packets, never written
   // to hardware — the Steam exporter reads these when no profile is loaded.
   const [vSticks] = useState(() => {
@@ -1380,7 +1379,6 @@ function AppContent(): JSX.Element {
             <button type="button" className={`nav-item${tab === 'profiles' ? ' active' : ''}`} onClick={() => setTab('profiles')}>
               Profiles
             </button>
-            <button type="button" className={`nav-item${tab === 'community' ? ' active' : ''}`} onClick={() => setTab('community')}>Community Profiles</button>
             <button type="button" className={`nav-item${tab === 'lab' ? ' active' : ''}`} onClick={() => setTab('lab')}>
               Lab
             </button>
@@ -1489,7 +1487,7 @@ function AppContent(): JSX.Element {
             <h2>{PAGE_INFO[tab][0]}</h2>
             <span className="sub">{PAGE_INFO[tab][1]}</span>
           </div>
-          {modelId !== 'Apex5' && !['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles', 'community'].includes(tab) && <div className="row profile-toolbar" style={{ gap: 8 }}>
+          {modelId !== 'Apex5' && !['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles'].includes(tab) && <div className="row profile-toolbar" style={{ gap: 8 }}>
             <span className="label">Editing profile</span>
             {[1, 2, 3, 4].map((s) => (
               <button
@@ -2122,9 +2120,10 @@ function AppContent(): JSX.Element {
               <RcFilters key={modelId + ':' + slot + ':' + loadId} fd={fd} edit={edit} busy={busy} dirty={dirty} connected={connected} slot={slot} firmware={info?.firmware ?? ''} bytes={blob} />
             ) : <div className="msg"><h3>Connect and load a supported controller</h3><p>RC filters need a loaded G7 Pro 8K, G7 Pro or Tarantula 8K profile.</p></div>
           )}
-          {tab === 'community' && <CommunityProfiles />}
           {tab === 'profiles' && (
-            <ProfilesPanel connected={connected} activeSlot={info?.currentProfile ?? null} locked={locked} modelId={modelId} modelLen={modelLen} dumpLength={model?.dumpLength ?? 0} modelName={model?.marketingName ?? null} />
+            <ProfilesPage>
+              <ProfilesPanel connected={connected} activeSlot={info?.currentProfile ?? null} locked={locked} modelId={modelId} modelLen={modelLen} dumpLength={model?.dumpLength ?? 0} modelName={model?.marketingName ?? null} />
+            </ProfilesPage>
           )}
           {tab === 'calibrate' && (
             connected && modelId === 'G7ProCE' ? (

@@ -110,4 +110,4 @@ Forked by **@Machixo** · [X](https://x.com/Machixo)
 
 [MIT license](LICENSE)
 
-Community Profiles under Data lists the current GitHub collection. Download a shared profile, then use Profiles → Import to load it into a backed-up slot.
+The Community Profiles section in Profiles lists the current GitHub collection. Download a shared profile, then use Profiles → Import to load it into a backed-up slot.
