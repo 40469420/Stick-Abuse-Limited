@@ -1099,3 +1099,30 @@ label.stack > select.input { width: 100%; max-width: 340px; }
 .community-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
 .community-grid h3 { overflow-wrap:anywhere; }
 .community-grid .btn { align-self:flex-start; }
+
+/* Optional macro workspace. */
+.macro-page-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap }
+.macro-layout-switch { display:flex; gap:4px; padding:4px; background:var(--bg-1); border:1px solid var(--line); border-radius:9px }
+.macro-studio { display:grid; grid-template-columns:minmax(260px,1.3fr) minmax(260px,1fr); border:1px solid var(--line); border-radius:10px; overflow:hidden }
+.macro-pane-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px; border-bottom:1px solid var(--line); color:var(--text-2); font-size:12px }
+.macro-event-pane { background:var(--bg-1); min-width:0 }
+.macro-event-list { max-height:420px; overflow:auto; padding:8px; display:grid; gap:5px }
+.macro-event { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--text); cursor:pointer }
+.macro-event:hover { background:var(--bg-3) }
+.macro-event.selected { background:var(--bg-3); border-color:var(--accent); box-shadow:inset 3px 0 var(--accent) }
+.macro-event:focus-visible { outline:2px solid var(--accent); outline-offset:-2px }
+.macro-event-number { color:var(--text-3); font-variant-numeric:tabular-nums; font-size:11px }
+.macro-event-name { flex:1; font-weight:600 }
+.macro-event small { display:block; color:var(--text-3); font-size:11px; font-weight:400; margin-top:4px }
+.macro-event-delay { text-align:right; font-size:12px; color:var(--text-2); font-variant-numeric:tabular-nums }
+.macro-inspector { min-width:0; border-left:1px solid var(--line); background:var(--bg-2); padding-bottom:16px }
+.macro-inspector > .stack,.macro-inspector > .hint { margin:18px 16px }
+.macro-inspector .icon-select { width:100%; max-width:100% }
+.macro-timing-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 16px; margin-bottom:20px }
+.macro-timing-fields label { display:grid; gap:8px; font-size:12px; color:var(--text-2) }
+.macro-timing-fields label > div { display:flex; align-items:center; gap:7px }
+.macro-timing-fields .input { width:100%; min-width:0 }
+.macro-step-actions { display:flex; flex-wrap:wrap; gap:6px; padding:16px 16px 0; border-top:1px solid var(--line) }
+.macro-empty { display:grid; gap:8px; padding:48px 16px; text-align:center; color:var(--text-2) }
+.macro-empty span { font-size:12px; color:var(--text-3) }
+@media(max-width:850px) { .macro-studio { grid-template-columns:1fr } .macro-inspector { border-left:0; border-top:1px solid var(--line) } .macro-event-list { max-height:300px } }

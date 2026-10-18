@@ -1,6 +1,6 @@
 {
   "name": "g7-stick-lab",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Stick-Abuse-Limited - controller tuning, RC filters, bindings, macros, triggers, gyro and calibration",
   "main": "out/main/index.js",
   "author": "Kai",
@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node scripts/test.mjs && node tests/bench-native.mjs && node tests/lifecycle.mjs && node tests/terms.mjs && node tests/leadjoy-worker.mjs && node tests/deeppoll-native.mjs && node tests/firmware-native.mjs",
+    "test": "node scripts/test.mjs && node tests/bench-native.mjs && node tests/lifecycle.mjs && node tests/terms.mjs && node tests/macros-ui.mjs && node tests/leadjoy-worker.mjs && node tests/deeppoll-native.mjs && node tests/firmware-native.mjs",
     "dist": "node scripts/build-firmware-host.mjs && electron-vite build && electron-builder --win",
     "dist:portable": "node scripts/build-firmware-host.mjs && electron-vite build && electron-builder --win portable"
   },
