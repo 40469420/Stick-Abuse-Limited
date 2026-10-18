@@ -1,5 +1,6 @@
 import { IconSelect } from './IconSelect'
 import { Help } from './Help'
+import { KeyIcon } from './KeyIcon'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { Profile } from '@shared/profile'
 import { bindingLabel, FUNCTION_LABELS, keyboardCode } from '@shared/bindings'
@@ -8,6 +9,10 @@ import { api } from './api'
 import { KeyPicker } from './Bindings'
 
 export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: () => void) => void; busy: boolean }): JSX.Element {
+  const [layout, setLayout] = useState<'studio' | 'classic'>(() => {
+    try { return localStorage.getItem('macro-editor-layout') === 'classic' ? 'classic' : 'studio' } catch { return 'studio' }
+  })
+  const [activeStep, setActiveStep] = useState(0)
   const [selected, setSelected] = useState(0)
   const [message, setMessage] = useState('')
   const [recordMode, setRecordMode] = useState<'keyboard' | 'controller' | null>(null)
@@ -27,14 +32,15 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
   }
   const duration = doc.steps.reduce((sum, s) => sum + s.hold + s.delay, 0)
   const locked = busy || !!recordMode || preview !== null || !!parseError
-  function apply(next: MacroDocument): void {
+  function apply(next: MacroDocument): boolean {
     try {
       const valid = validateMacro(next)
       edit(() => writeMacro(profile.functionKeys[selected], valid))
       setMessage('Macro staged. Write this profile to apply it to the controller.')
-    } catch (e) { setMessage((e as Error).message) }
+      return true
+    } catch (e) { setMessage((e as Error).message); return false }
   }
-  function steps(next: MacroStep[]): void { apply({ ...doc, steps: next, enabled: next.length ? doc.enabled : false }) }
+  function steps(next: MacroStep[]): boolean { return apply({ ...doc, steps: next, enabled: next.length ? doc.enabled : false }) }
   function stopWithError(error: string): void {
     const active = record.current
     record.current = null
@@ -103,15 +109,24 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
     if (down) active.held.add(code); else active.held.delete(code)
     try { active.recorder.push([...active.held], performance.now()) } catch (e) { stopWithError((e as Error).message) }
   }
-  function move(index: number, direction: number): void {
+  function move(index: number, direction: number): boolean {
     const next = doc.steps.map((s) => ({ ...s }))
     ;[next[index], next[index + direction]] = [next[index + direction], next[index]]
-    steps(next)
+    return steps(next)
+  }
+  useEffect(() => { setActiveStep(0) }, [selected])
+  useEffect(() => { setActiveStep(i => Math.min(i, Math.max(0, doc.steps.length - 1))) }, [doc.steps.length])
+  const current = doc.steps[activeStep]
+  function changeLayout(next: 'studio' | 'classic'): void {
+    setLayout(next)
+    try { localStorage.setItem('macro-editor-layout', next) } catch { /* Session preference still works. */ }
   }
   let timelineAt = 0
   return <div className="stack" style={{ gap: 16 }}>
     <div className="card">
-      <div className="section-title"><h3>Macros</h3><Help title="Macros">Build a sequence for FL1, FR1, FL2 or FR2. Record controller buttons or keyboard keys, edit timings, reorder or duplicate steps, and save reusable files. Up to 32 sequential steps; each hold and delay is 0–65,535 ms. Playback on the controller starts from its assigned physical button after you write the profile. Timeline preview only animates this page. Automated gameplay may break game rules; no ban-safe claim is made. Enabling a macro clears this button’s normal mapping, turbo and toggle to avoid conflicting outputs. Disabling it keeps the steps for later editing.</Help></div>
+      <div className="macro-page-heading"><div className="section-title"><h3>Macros</h3><Help title="Macros">Build a sequence for FL1, FR1, FL2 or FR2. Record controller buttons or keyboard keys, edit timings, reorder or duplicate steps, and save reusable files. Up to 32 sequential steps; each hold and delay is 0–65,535 ms. Playback on the controller starts from its assigned physical button after you write the profile. Timeline preview only animates this page. Automated gameplay may break game rules; no ban-safe claim is made. Enabling a macro clears this button’s normal mapping, turbo and toggle to avoid conflicting outputs. Disabling it keeps the steps for later editing.</Help></div><div className="macro-layout-switch" role="group" aria-label="Macro editor layout">
+        {(['studio', 'classic'] as const).map(view => <button key={view} className={`btn sm ${layout === view ? '' : 'ghost'}`} aria-pressed={layout === view} disabled={!!recordMode || preview !== null} onClick={() => changeLayout(view)}>{view === 'studio' ? 'Studio' : 'Classic'}</button>)}
+      </div></div>
     </div>
     <div className="card">
       <label className="stack">Macro button
@@ -171,7 +186,34 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
         {!doc.steps.length && <span className="hint">Add a step or record a sequence to begin.</span>}
       </div>
       <fieldset className="control-fieldset" disabled={locked}>
-        <div className="macro-table-wrap"><table className="macro-table"><thead><tr><th>Step</th><th>Output</th><th>Hold (ms)</th><th>Delay (ms)</th><th>Edit</th></tr></thead><tbody>
+        {layout === 'studio' && <div className="macro-studio">
+          <div className="macro-event-pane">
+            <div className="macro-pane-heading"><strong>Event sequence</strong><span>{doc.steps.length} / 32</span></div>
+            <div className="macro-event-list" role="group" aria-label="Macro steps">
+              {doc.steps.map((step, i) => <button key={i} className={`macro-event${i === activeStep ? ' selected' : ''}`} aria-pressed={i === activeStep} onClick={() => setActiveStep(i)}>
+                <span className="macro-event-number">{String(i + 1).padStart(2, '0')}</span><KeyIcon value={step.data} />
+                <span className="macro-event-name">{bindingLabel(step.data)}<small>Hold {step.hold} ms</small></span>
+                <span className="macro-event-delay">+ {step.delay} ms<small>wait</small></span>
+              </button>)}
+              {!doc.steps.length && <div className="macro-empty">No events yet<span>Record a sequence or add your first step.</span></div>}
+            </div>
+          </div>
+          <div className="macro-inspector">
+            <div className="macro-pane-heading"><strong>{current ? `Step ${activeStep + 1}` : 'Step editor'}</strong><Help title="Step timing">Hold is how long the output stays pressed. Delay is the wait after releasing it, before the next step. Steps run sequentially. Timeline preview sends no inputs.</Help></div>
+            {current ? <>
+              <label className="stack">Output<KeyPicker empty={false} label={`Step ${activeStep + 1} output`} value={current.data} onChange={data => steps(doc.steps.map((s, i) => i === activeStep ? { ...s, data } : s))} /></label>
+              <div className="macro-timing-fields">{(['hold', 'delay'] as const).map(field => <label key={field}>{field === 'hold' ? 'Hold' : 'Delay'}<div><input className="input" aria-label={`Step ${activeStep + 1} ${field}`} type="number" min={0} max={65535} disabled={field === 'delay' && activeStep === 31} value={current[field]} onChange={e => steps(doc.steps.map((s, i) => i === activeStep ? { ...s, [field]: Number(e.target.value) } : s))} /><span>ms</span></div></label>)}</div>
+              <div className="macro-step-actions">
+                <button className="btn sm ghost" disabled={activeStep === 0} onClick={() => { if (move(activeStep, -1)) setActiveStep(activeStep - 1) }}>Move up</button>
+                <button className="btn sm ghost" disabled={activeStep === doc.steps.length - 1} onClick={() => { if (move(activeStep, 1)) setActiveStep(activeStep + 1) }}>Move down</button>
+                <button className="btn sm ghost" disabled={doc.steps.length >= 32} onClick={() => steps([...doc.steps.slice(0, activeStep + 1), { ...current }, ...doc.steps.slice(activeStep + 1)])}>Duplicate</button>
+                <button className="btn sm ghost" disabled={doc.steps.length >= 32} onClick={() => steps([...doc.steps.slice(0, activeStep), { data: 9, hold: 50, delay: 0 }, ...doc.steps.slice(activeStep)])}>Insert before</button>
+                <button className="btn sm ghost" onClick={() => steps(doc.steps.filter((_, i) => i !== activeStep))}>Delete step</button>
+              </div>
+            </> : <p className="hint">Select an event to edit its output and timing.</p>}
+          </div>
+        </div>}
+        {layout === 'classic' && <div className="macro-table-wrap"><table className="macro-table"><thead><tr><th>Step</th><th>Output</th><th>Hold (ms)</th><th>Delay (ms)</th><th>Edit</th></tr></thead><tbody>
           {doc.steps.map((s, i) => <tr key={i}>
             <td>{i + 1}</td>
             <td><KeyPicker empty={false} label={`Step ${i + 1} output`} value={s.data} onChange={(data) => steps(doc.steps.map((v, j) => j === i ? { ...v, data } : v))} /></td>
@@ -184,7 +226,7 @@ export function Macros({ profile, edit, busy }: { profile: Profile; edit: (fn: (
               <button className="btn sm ghost" aria-label={`Delete step ${i + 1}`} onClick={() => steps(doc.steps.filter((_, j) => j !== i))}>×</button>
             </div></td>
           </tr>)}
-        </tbody></table></div>
+        </tbody></table></div>}
         <div className="row wrap" style={{ gap: 8, marginTop: 12 }}>
           <button className="btn" disabled={doc.steps.length >= 32} onClick={() => steps([...doc.steps, { data: 9, hold: 50, delay: 0 }])}>Add step</button>
           <button className="btn ghost" disabled={!doc.steps.length} onClick={() => steps([])}>Clear steps</button>
