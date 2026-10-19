@@ -35,6 +35,8 @@ const entry =
         'tests/rawbytes.ts',
         'tests/models.ts',
         'tests/t3ce.ts',
+        'tests/t3ce-macros.ts',
+        'tests/virtual-controller.ts',
         'tests/steamcfg.ts',
         'tests/rc.ts',
         'tests/rc-capture.ts',

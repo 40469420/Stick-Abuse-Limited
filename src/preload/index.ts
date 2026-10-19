@@ -12,6 +12,17 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api = {
+  virtualModel: (model: string) => call<import('../shared/virtual-controller').VirtualStatus>('virtual:model',model),
+  virtualKeyboardRecording: (id: string, active: boolean) => call<boolean>('virtual:keyboardRecord',id,active),
+  virtualStatus: () => call<import('../shared/virtual-controller').VirtualStatus>('virtual:status'),
+  virtualCheck: () => call<import('../shared/virtual-controller').VirtualStatus>('virtual:check'),
+  virtualInstall: () => call<import('../shared/virtual-controller').VirtualStatus>('virtual:install'),
+  virtualSave: (config: import('../shared/virtual-controller').VirtualConfig) => call<import('../shared/virtual-controller').VirtualStatus>('virtual:save',config),
+  virtualStart: (acknowledged: boolean) => call<import('../shared/virtual-controller').VirtualStatus>('virtual:start',acknowledged),
+  virtualStop: () => call<import('../shared/virtual-controller').VirtualStatus>('virtual:stop'),
+  virtualSources: (detect:boolean) => call<Array<{slot:number;lx:number;ly:number;rx:number;ry:number;span:number}>>('virtual:sources',detect),
+  virtualHidHideStatus: () => call<import('../main/hidhide').HidHideStatus>('virtual:hidHideStatus'),
+  virtualHidHide: () => call<boolean>('virtual:hidHide'),
   communityProfiles: () => call<import('../shared/community').CommunityProfile[]>('community:list'),
   downloadCommunityProfile: (name: string) => call<boolean>('community:download', name),
   leadjoyJob: (req: import('../shared/leadjoy-api').LjRequest) => call<import('../shared/leadjoy-api').LjResult>('leadjoy:job',req),

@@ -1,3 +1,5 @@
+import { SimulatedController, VirtualFeatureWarning } from './SimulatedController'
+import type { VirtualConfig, VirtualStatus } from '@shared/virtual-controller'
 import { ProfilesPage } from './ProfilesPage'
 import appIcon from './assets/app-icon.png'
 import { PureRawReconnect } from './PureRawReconnect'
@@ -49,16 +51,14 @@ import type { MariusConfig, MariusIdentity } from '@shared/marius'
 import { mariusDisplayName } from '@shared/marius'
 
 const PAGE_INFO = {
-  sticks: ['Sticks', 'Choose a stick, tune its response, then write to apply.'],
-  device: ['Device', 'Report rate, resolution and controller output settings.'],
-  triggers: ['Triggers', 'Tune left and right trigger travel independently.'],
-  gyro: ['Gyro', 'Configure activation, output and motion response.'],
-  rc: ['RC filters', 'Filter controls, background resets and measured comparisons.'],
-  center: ['Center offsets', 'Drag or nudge the resting center of each stick.'],
+  sticks: ['Tuning', 'Stick and trigger tuning, device settings and gyro.'],
+  rc: ['RC Filtering', 'Filter controls, background resets and measured comparisons.'],
   bindings: ['Keybindings', 'Choose a physical button and assign its outputs.'],
   macros: ['Macros', 'Record, arrange and time a button sequence.'],
+  simulated: ['Simulated controller', 'Optional virtual output and PC-side macros.'],
   profiles: ['Profiles', 'Manage controller backups and browse community profiles.'],
-  lab: ['Performance bench', 'Measure input timing, stick behavior and bit-depth changes.'],
+  shapes: ['Stick Shapes bench', 'Experimental stick processing modes.'],
+  lab: ['Labs', 'Measure input timing, stick behavior and bit-depth changes.'],
   steam: ['Steam export', 'Design settings and export them to installed Steam games.'],
   calibrate: ['Calibration', 'Choose a workflow and follow the controller’s progress.'],
   firmware: ['Firmware', 'Firmware selection, flashing and recovery information.'],
@@ -890,7 +890,7 @@ export default function App(): JSX.Element {
   return <><QuitWarning /><ApexWarning /><GameGuardWarning /><TermsGate><AppContent /><ThemeSettings /></TermsGate></>
 }
 
-function AppContent(): JSX.Element {
+export function AppContent(): JSX.Element {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [connPath, setConnPath] = useState<string | null>(null)
   // Idle receivers (all-zero frames) are hidden; the open handle and
@@ -931,7 +931,18 @@ function AppContent(): JSX.Element {
   const [bitCustom, setBitCustom] = useState('')
   const [savedAt, setSavedAt] = useState<{ slot: number; at: number } | null>(null)
   const [flyId, setFlyId] = useState<FlyIdentity | null>(null)
-  const [tab, setTab] = useState<'sticks' | 'device' | 'triggers' | 'gyro' | 'rc' | 'center' | 'bindings' | 'macros' | 'profiles' | 'lab' | 'steam' | 'calibrate' | 'firmware' | 'marius'>('sticks')
+  const [virtualStatus,setVirtualStatus] = useState<VirtualStatus|null>(null)
+  const [virtualWarning,setVirtualWarning] = useState(false)
+  const [pcMacros,setPcMacros] = useState(false)
+  const [virtualSaving,setVirtualSaving] = useState(false)
+  const [gyroOpen, setGyroOpen] = useState(false)
+  const [calibrationView, setCalibrationView] = useState<'guided' | 'center'>('guided')
+  const [tab, setTab] = useState<'sticks' | 'rc' | 'bindings' | 'macros' | 'profiles' | 'lab' | 'steam' | 'calibrate' | 'firmware' | 'marius' | 'shapes' | 'simulated'>('sticks')
+  useEffect(()=>{let alive=true;void api().virtualStatus().then(s=>{if(alive)setVirtualStatus(s)}).catch(()=>undefined);const off=api().on('virtual:status',s=>{if(alive)setVirtualStatus(s as VirtualStatus)});return()=>{alive=false;off()}},[])
+  useEffect(()=>{if(!virtualStatus?.active)setPcMacros(false)},[virtualStatus?.active])
+  useEffect(()=>{if(model&&['G7ProCE','T3CE'].includes(model.id)&&!virtualStatus?.active){void api().virtualModel(model.id).then(setVirtualStatus).catch(()=>undefined)}},[model?.id,virtualStatus?.active])
+  async function savePcMacros(config:VirtualConfig):Promise<void>{setVirtualSaving(true);try{setVirtualStatus(await api().virtualSave(config))}finally{setVirtualSaving(false)}}
+  function choosePcMacros():void{if(virtualStatus?.active&&virtualStatus.config.model===model?.id)setPcMacros(true);else setVirtualWarning(true)}
   // Virtual sticks for pad-less Steam shaping: real packets, never written
   // to hardware — the Steam exporter reads these when no profile is loaded.
   const [vSticks] = useState(() => {
@@ -1347,54 +1358,26 @@ function AppContent(): JSX.Element {
 
   return (
     <div className="app">
+      {virtualWarning&&<VirtualFeatureWarning no={()=>setVirtualWarning(false)} yes={()=>{setVirtualWarning(false);setTab('simulated')}}/>}
       <aside className="sidebar">
         <div className="brand">
-          <h1 className="app-brand"><span>Stick-Abuse-Limited</span><button className="app-brand-link" title="Open Stick-Abuse-Limited on GitHub" aria-label="Open Stick-Abuse-Limited on GitHub" onClick={() => void api().openExternal('https://github.com/40469420/Stick-Abuse-Limited')}><img className="app-brand-icon" src={appIcon} alt="" aria-hidden="true" /></button></h1>
+          <h1 className="app-brand"><span>Stick Abuse</span><button className="app-brand-link" title="Open Stick Abuse on GitHub" aria-label="Open Stick Abuse on GitHub" onClick={() => void api().openExternal('https://github.com/40469420/Stick-Abuse-Limited')}><img className="app-brand-icon" src={appIcon} alt="" aria-hidden="true" /></button></h1>
         </div>
         <nav className="nav">
-          <div className="nav-group">
-            <h4>Tuning</h4>
-            <button type="button" className={`nav-item${tab === 'sticks' ? ' active' : ''}`} onClick={() => setTab('sticks')}>
-              Sticks
-            </button>
-            <button type="button" className={`nav-item${tab === 'device' ? ' active' : ''}`} onClick={() => setTab('device')}>
-              Device
-            </button>
-            <button type="button" className={`nav-item${tab === 'triggers' ? ' active' : ''}`} onClick={() => setTab('triggers')}>Triggers</button>
-            <button type="button" className={`nav-item${tab === 'gyro' ? ' active' : ''}`} onClick={() => setTab('gyro')}>Gyro</button>
-            <button type="button" className={`nav-item${tab === 'rc' ? ' active' : ''}`} onClick={() => setTab('rc')}>
-              RC filters
-            </button>
-            <button type="button" className={`nav-item${tab === 'calibrate' ? ' active' : ''}`} onClick={() => setTab('calibrate')}>
-              Calibrate
-            </button>
-            <button type="button" className={`nav-item${tab === 'center' ? ' active' : ''}`} onClick={() => setTab('center')}>
-              Center offsets
-            </button>
-            <button type="button" className={`nav-item${tab === 'bindings' ? ' active' : ''}`} onClick={() => setTab('bindings')}>Keybindings</button>
-            <button type="button" className={`nav-item${tab === 'macros' ? ' active' : ''}`} onClick={() => setTab('macros')}>Macros</button>
+          <div className="nav-group"><h4>Controller</h4>
+            <button className={`nav-item${tab === 'sticks' ? ' active' : ''}`} onClick={() => setTab('sticks')}>Tuning</button>
+            <button className={`nav-item${tab === 'calibrate' ? ' active' : ''}`} onClick={() => setTab('calibrate')}>Calibration</button>
+            <button className={`nav-item${tab === 'bindings' ? ' active' : ''}`} onClick={() => setTab('bindings')}>Keybindings</button>
+            <button className={`nav-item${tab === 'macros' ? ' active' : ''}`} onClick={() => setTab('macros')}>Macros</button>
           </div>
-          <div className="nav-group">
-            <h4>Data</h4>
-            <button type="button" className={`nav-item${tab === 'profiles' ? ' active' : ''}`} onClick={() => setTab('profiles')}>
-              Profiles
-            </button>
-            <button type="button" className={`nav-item${tab === 'lab' ? ' active' : ''}`} onClick={() => setTab('lab')}>
-              Lab
-            </button>
+          <div className="nav-group"><h4>Data</h4>
+            <button className={`nav-item${tab === 'simulated' ? ' active' : ''}`} onClick={()=>setTab('simulated')}>Simulated controller</button>
+            <button className={`nav-item${tab === 'profiles' ? ' active' : ''}`} onClick={() => setTab('profiles')}>Profiles</button>
+            <button className={`nav-item${['lab','shapes','steam','marius'].includes(tab) ? ' active' : ''}`} onClick={() => setTab('lab')}>Labs</button>
           </div>
-          <div className="nav-group">
-            <h4>Export</h4>
-            <button type="button" className={`nav-item${tab === 'steam' ? ' active' : ''}`} onClick={() => setTab('steam')}>
-              Steam
-            </button>
-          </div>
-          <div className="nav-group"><h4>Firmware</h4><button type="button" className={`nav-item${tab === 'firmware' ? ' active' : ''}`} onClick={() => setTab('firmware')}>Firmware</button></div>
-          <div className="nav-group">
-            <h4>Preview</h4>
-            <button type="button" className={`nav-item${tab === 'marius' ? ' active' : ''}`} onClick={() => setTab('marius')}>
-              Marius
-            </button>
+          <div className="nav-group advanced-nav"><h4>RC Filtering / Firmware</h4><p>Filter controls and experimental firmware tools.</p>
+            <button className={`nav-item${tab === 'rc' ? ' active' : ''}`} onClick={() => setTab('rc')}>RC Filtering</button>
+            <button className={`nav-item${tab === 'firmware' ? ' active' : ''}`} onClick={() => setTab('firmware')}>Firmware</button>
           </div>
         </nav>
         <div className="stack" style={{ gap: 10 }}>
@@ -1404,7 +1387,7 @@ function AppContent(): JSX.Element {
             title="Copy device + app details for support (nothing personal)"
             onClick={() => {
               const lines = [
-                `Stick-Abuse-Limited v${appVersion ?? '?'} ${new Date().toISOString()}`,
+                `Stick Abuse v${appVersion ?? '?'} ${new Date().toISOString()}`,
                 `connected=${connected} model=${model?.id ?? 'none'} pid=${pid !== null ? '0x' + pid.toString(16) : 'none'} fw=${info?.firmware ?? 'none'}`,
                 ...candidates.map(
                   (c) => `cand pid=0x${c.productId.toString(16)} live=${c.live} preferred=${c.preferred} product=${c.product ?? '?'}`
@@ -1487,7 +1470,7 @@ function AppContent(): JSX.Element {
             <h2>{PAGE_INFO[tab][0]}</h2>
             <span className="sub">{PAGE_INFO[tab][1]}</span>
           </div>
-          {modelId !== 'Apex5' && !['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles'].includes(tab) && <div className="row profile-toolbar" style={{ gap: 8 }}>
+          {modelId !== 'Apex5' && !['center', 'calibrate', 'firmware', 'marius', 'steam', 'profiles', 'simulated'].includes(tab) && !(tab === 'macros' && pcMacros) && <div className="row profile-toolbar" style={{ gap: 8 }}>
             <span className="label">Editing profile</span>
             {[1, 2, 3, 4].map((s) => (
               <button
@@ -1544,6 +1527,16 @@ function AppContent(): JSX.Element {
           )}
           {err && <div className="note bad">{err}</div>}
           {msg && <div className="note">{msg}</div>}
+          {virtualStatus?.active&&<div className="virtual-running" role="status"><span>Simulated controller running · keep Stick Abuse open</span><button className="btn sm danger" onClick={()=>void api().virtualStop().then(setVirtualStatus).catch(e=>setErr(e.message))}>Stop playback</button></div>}
+          {tab === 'simulated'&&<SimulatedController status={virtualStatus} update={setVirtualStatus} model={model?.id??null} openMacros={()=>{setPcMacros(true);setTab('macros')}}/>}
+          {tab === 'macros'&&<div className="workspace-tabs" role="group" aria-label="Macro playback mode"><button className={`btn ${pcMacros?'ghost':''}`} aria-pressed={!pcMacros} onClick={()=>setPcMacros(false)}>Controller memory</button><button className={`btn ${pcMacros?'':'ghost'}`} aria-pressed={pcMacros} onClick={choosePcMacros}>Any button · simulated controller</button></div>}
+          {['lab','shapes','steam','marius'].includes(tab) && <div className="workspace-tabs" role="group" aria-label="Labs tools">
+            {([['lab','Performance bench'],['shapes','Stick Shapes bench'],['steam','Steam export'],['marius','Marius board']] as const).map(([id,label]) => <button key={id} className={`btn ${tab === id ? '' : 'ghost'}`} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}
+          </div>}
+          {tab === 'calibrate' && <div className="workspace-tabs" role="group" aria-label="Calibration tools">
+            <button className={`btn ${calibrationView === 'guided' ? '' : 'ghost'}`} onClick={() => setCalibrationView('guided')}>Guided calibration</button>
+            <button className={`btn ${calibrationView === 'center' ? '' : 'ghost'}`} onClick={() => setCalibrationView('center')}>Center offsets</button>
+          </div>}
           {tab === 'steam' && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="section-title"><h3>Steam — no pad needed</h3><Help title="Steam — no pad needed">Tune deadzones here for export to Steam. Outer reach rides along inside Full power. Anti snap exports as Steam's on/off flag.</Help></div>
@@ -1641,13 +1634,13 @@ function AppContent(): JSX.Element {
               <div className="msg"><h3>Loading profile…</h3></div>
             )
           )}
-          {connected && modelId === 'Apex5' && (tab === 'sticks' ? <ApexSticks flyId={flyId} /> : tab === 'device' ? <ApexDevice flyId={flyId} rates={rates} /> : <div className="note">Flydigi tuning is available in Sticks and Device. Other tuning sections require a supported GameSir controller.</div>)}
+          {connected && modelId === 'Apex5' && (tab === 'sticks' ? <div className="stack"><ApexSticks flyId={flyId} /><ApexDevice flyId={flyId} rates={rates} /></div> : <div className="note">Flydigi tuning is available in Tuning. Other tuning sections require a supported GameSir controller.</div>)}
           {connected && profile && pkt && dz && fd && (
             <>
-              {(tab === 'sticks' || tab === 'device') && <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+              {(tab === 'sticks' || tab === 'shapes') && <div className="row tuning-side" role="group" aria-label="Tuning side" style={{ gap: 8, marginBottom: 12 }}>
                 {(['Left', 'Right'] as const).map((n, i) => (
-                  <button key={n} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
-                    <KeyIcon value={i === 0 ? 7 : 8} /> {n} stick
+                  <button key={n} aria-pressed={i === which} className={`btn${i === which ? ' primary' : ' ghost'}`} onClick={() => setWhich(i)}>
+                    <KeyIcon value={i === 0 ? 7 : 8} /> {n}
                   </button>
                 ))}
                 <div style={{ flex: 1 }} />
@@ -1812,6 +1805,45 @@ function AppContent(): JSX.Element {
 
 
                   <div className="card">
+                    <div className="section-title"><h3>Controller Rate</h3><Help title="Controller Rate">How fast this stick answers in Mouse mode — higher moves the cursor more per deflection. It does <strong>not</strong> change how often the pad sends inputs; that is the Polling card. Only applies while Output is Mouse. 300* stores the maximum byte value of 255; None stores the stock neutral value of 50.</Help></div>
+                    <div className="stack" style={{ gap: 12 }}>
+                      <label className="row"><input type="checkbox" checked={outputLocks[which]} onChange={e => { const next: [boolean, boolean] = [...outputLocks]; next[which] = e.target.checked; setOutputLocks(next) }} />Lock normal stick output<Help title="Output lock">On Write, prevents this stick from using Mouse output by restoring its normal left/right stick destination. Saved on this PC; it does not change your curve or sensitivity.</Help></label>
+                      <div className="row spread">
+                        <div>
+                          <div style={{ fontSize: 13.5 }}>Rate — constant per pick</div>
+                        </div>
+                        <span className="mono">stored: {stick.mouseDpi(pkt)}</span>
+                      </div>
+                      <div className="row wrap" style={{ gap: 8 }}>
+                        {[{ rate: null as number | null, label: 'None' }, ...[100, 150, 200, 250, 300].map((rate) => ({ rate: rate as number | null, label: `${rate}${rate > 255 ? '*' : ''}` }))].map((opt) => {
+                          const wire = opt.rate === null ? 50 : Math.min(opt.rate, 255)
+                          const active = stick.mouseDpi(pkt) === wire
+                          return (
+                            <button
+                              key={opt.label}
+                              className={`btn sm${active ? ' primary' : ' ghost'}`}
+                              title={opt.rate === null ? 'Stock neutral 50 — no added rate, Steam export skips it' : opt.rate > 255 ? `Firmware byte caps at 255 — stores ${wire}` : `Stores ${wire}`}
+                              onClick={() => edit(() => stick.setMouseDpi(pkt, wire))}
+                            >
+                              {opt.label}
+                            </button>
+                          )
+                        })}
+                        {stick.mapIndex(pkt) === 4 && (
+                          <button
+                            className="btn sm ghost"
+                            title="Restore this stick to normal stick output"
+                            onClick={() => edit(() => { stick.setMapIndex(pkt, which === 0 ? 1 : 2); stick.setMapped(pkt, true) })}
+                          >
+                            ← Back to {which === 0 ? 'Left' : 'Right'} stick
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <div className="card">
                     <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
                     <div className="stack" style={{ gap: 8 }}>
                       {(
@@ -1822,7 +1854,7 @@ function AppContent(): JSX.Element {
                           { name: 'PureRaw Deadzone (Processing)', hint: 'Keeps processing enabled with a neutral response curve. Preserves deadzones, anti-deadzones, gate, axis balance, mapping and all unrelated settings.' },
                           { name: 'PureRaw', hint: 'Clears the processing-enable flag while preserving stored tuning. Firmware may still apply deadzones and anti-deadzones. Reconnecting can cap output at about 20%; Auto reapply uses the tested Square-to-PureRaw recovery sequence.' }
                         ] as const
-                      ).map((s) => {
+                      ).filter(s => !s.name.startsWith('PureRaw')).map((s) => {
                         const isRaw = stick.isRawLinear(pkt)
                         const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
                         const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
@@ -1891,8 +1923,54 @@ function AppContent(): JSX.Element {
                 </div>
               </div>
               )}
-              {tab === 'device' && (
+              {tab === 'shapes' && <div className="stack">                  <div className="card">
+                    <div className="section-title"><h3>Stick Shapes bench</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
+                    <div className="stack" style={{ gap: 8 }}>
+                      {(
+                        [
+                          { name: 'Round diagonals', hint: 'Uses a round diagonal boundary: the stick reaches a circular edge instead of extending into square corners. Your current deadzones and response curve are kept.' },
+                          { name: 'Square gate', hint: 'Allows full X and Y output together at the corners. Diagonal magnitude can exceed a circular gate; your current deadzones and response curve are kept.' },
+                          { name: 'Linear full range (1:1)', hint: 'Resets deadzones, output limits, curve and axis balance for linear full-range response. Stick processing stays enabled. Calibration and game settings still apply.' },
+                          { name: 'PureRaw Deadzone (Processing)', hint: 'Keeps processing enabled with a neutral response curve. Preserves deadzones, anti-deadzones, gate, axis balance, mapping and all unrelated settings.' },
+                          { name: 'PureRaw', hint: 'Clears the processing-enable flag while preserving stored tuning. Firmware may still apply deadzones and anti-deadzones. Reconnecting can cap output at about 20%; Auto reapply uses the tested Square-to-PureRaw recovery sequence.' }
+                        ] as const
+                      ).filter(s => s.name.startsWith('PureRaw')).map((s) => {
+                        const isRaw = stick.isRawLinear(pkt)
+                        const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
+                        const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
+                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'PureRaw Deadzone (Processing)' && stick.enabled(pkt) && stick.isIdentityCurve(pkt) && !isRaw) || (s.name === 'PureRaw' && !stick.enabled(pkt))
+                        return (
+                          <div key={s.name} className="shape-choice"><button
+                            className={`btn sm${active ? ' primary' : ' ghost'}`}
+                            title={s.hint}
+                            onClick={() => {
+                              edit(() => {
+                                if (s.name === 'Linear full range (1:1)') {
+                                  stick.applyRawLinear(pkt)
+                                } else if (s.name === 'PureRaw Deadzone (Processing)') {
+                                  applyPureRawProcessing(pkt)
+                                } else if (s.name === 'PureRaw') {
+                                  stick.setEnabled(pkt, false)
+                                } else {
+                                  stick.setEnabled(pkt, true)
+                                  stick.setSquareGate(pkt, s.name === 'Square gate')
+                                }
+                              })
+                              if(s.name === 'PureRaw Deadzone (Processing)')syncDesignFromCopy()
+                            }}
+                          >
+                            {s.name}
+                          </button><Help title={s.name}>{s.hint}</Help>{s.name==='PureRaw'&&<PureRawReconnect/>}</div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+</div>}
+              {tab === 'sticks' && modelId === 'G7ProCE' && <section className="workspace-section"><div className="workspace-heading"><h3>{which === 0 ? 'Left' : 'Right'} trigger</h3><KeyIcon value={which ? 20 : 19} /></div><TriggerTuning key={`triggers:${slot}:${loadId}`} side={which} profile={profile} edit={edit} busy={busy} /></section>}
+              {tab === 'sticks' && (
               <>
+                <div className="workspace-heading"><h3>Device</h3><span>Controller-wide settings</span></div>
                 <ControllerPreview originalAvailable={modelId === 'G7ProCE'} />
               <div className="two" style={{ alignItems: 'start' }}>
                 <div className="stack" style={{ gap: 16 }}>
@@ -1985,136 +2063,19 @@ function AppContent(): JSX.Element {
 
 
                 </div>
-                <div className="stack" style={{ gap: 16 }}>
-                  <div className="card">
-                    <div className="section-title"><h3>Controller Rate</h3><Help title="Controller Rate">How fast this stick answers in Mouse mode — higher moves the cursor more per deflection. It does <strong>not</strong> change how often the pad sends inputs; that is the Polling card. Only applies while Output is Mouse. 300* stores the maximum byte value of 255; None stores the stock neutral value of 50.</Help></div>
-                    <div className="stack" style={{ gap: 12 }}>
-                      <label className="row"><input type="checkbox" checked={outputLocks[which]} onChange={e => { const next: [boolean, boolean] = [...outputLocks]; next[which] = e.target.checked; setOutputLocks(next) }} />Lock normal stick output<Help title="Output lock">On Write, prevents this stick from using Mouse output by restoring its normal left/right stick destination. Saved on this PC; it does not change your curve or sensitivity.</Help></label>
-                      <div className="row spread">
-                        <div>
-                          <div style={{ fontSize: 13.5 }}>Rate — constant per pick</div>
-                        </div>
-                        <span className="mono">stored: {stick.mouseDpi(pkt)}</span>
-                      </div>
-                      <div className="row wrap" style={{ gap: 8 }}>
-                        {[{ rate: null as number | null, label: 'None' }, ...[100, 150, 200, 250, 300].map((rate) => ({ rate: rate as number | null, label: `${rate}${rate > 255 ? '*' : ''}` }))].map((opt) => {
-                          const wire = opt.rate === null ? 50 : Math.min(opt.rate, 255)
-                          const active = stick.mouseDpi(pkt) === wire
-                          return (
-                            <button
-                              key={opt.label}
-                              className={`btn sm${active ? ' primary' : ' ghost'}`}
-                              title={opt.rate === null ? 'Stock neutral 50 — no added rate, Steam export skips it' : opt.rate > 255 ? `Firmware byte caps at 255 — stores ${wire}` : `Stores ${wire}`}
-                              onClick={() => edit(() => stick.setMouseDpi(pkt, wire))}
-                            >
-                              {opt.label}
-                            </button>
-                          )
-                        })}
-                        {stick.mapIndex(pkt) === 4 && (
-                          <button
-                            className="btn sm ghost"
-                            title="Restore this stick to normal stick output"
-                            onClick={() => edit(() => { stick.setMapIndex(pkt, which === 0 ? 1 : 2); stick.setMapped(pkt, true) })}
-                          >
-                            ← Back to {which === 0 ? 'Left' : 'Right'} stick
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-
-                  <div className="card">
-                    <div className="section-title"><h3>Shape</h3><Help title="Shape">Round and square control diagonal reach. Linear full range also resets deadzones, output limits, curve and axis balance. Linear keeps processing enabled. PureRaw clears a firmware processing flag but does not reliably bypass every stage. PureRaw Deadzone (Processing) keeps processing enabled and neutralizes only the curve; selecting another shape enables processing again. Calibration and game sensitivity may still affect behavior.</Help></div>
-                    <div className="stack" style={{ gap: 8 }}>
-                      {(
-                        [
-                          { name: 'Round diagonals', hint: 'Uses a round diagonal boundary: the stick reaches a circular edge instead of extending into square corners. Your current deadzones and response curve are kept.' },
-                          { name: 'Square gate', hint: 'Allows full X and Y output together at the corners. Diagonal magnitude can exceed a circular gate; your current deadzones and response curve are kept.' },
-                          { name: 'Linear full range (1:1)', hint: 'Resets deadzones, output limits, curve and axis balance for linear full-range response. Stick processing stays enabled. Calibration and game settings still apply.' },
-                          { name: 'PureRaw Deadzone (Processing)', hint: 'Keeps processing enabled with a neutral response curve. Preserves deadzones, anti-deadzones, gate, axis balance, mapping and all unrelated settings.' },
-                          { name: 'PureRaw', hint: 'Clears the processing-enable flag while preserving stored tuning. Firmware may still apply deadzones and anti-deadzones. Reconnecting can cap output at about 20%; Auto reapply uses the tested Square-to-PureRaw recovery sequence.' }
-                        ] as const
-                      ).map((s) => {
-                        const isRaw = stick.isRawLinear(pkt)
-                        const isSquare = stick.enabled(pkt) && stick.squareGate(pkt) && !isRaw
-                        const isRound = stick.enabled(pkt) && !stick.squareGate(pkt)
-                        const active = (s.name === 'Round diagonals' && isRound) || (s.name === 'Square gate' && isSquare) || (s.name === 'Linear full range (1:1)' && isRaw) || (s.name === 'PureRaw Deadzone (Processing)' && stick.enabled(pkt) && stick.isIdentityCurve(pkt) && !isRaw) || (s.name === 'PureRaw' && !stick.enabled(pkt))
-                        return (
-                          <div key={s.name} className="shape-choice"><button
-                            className={`btn sm${active ? ' primary' : ' ghost'}`}
-                            title={s.hint}
-                            onClick={() => {
-                              edit(() => {
-                                if (s.name === 'Linear full range (1:1)') {
-                                  stick.applyRawLinear(pkt)
-                                } else if (s.name === 'PureRaw Deadzone (Processing)') {
-                                  applyPureRawProcessing(pkt)
-                                } else if (s.name === 'PureRaw') {
-                                  stick.setEnabled(pkt, false)
-                                } else {
-                                  stick.setEnabled(pkt, true)
-                                  stick.setSquareGate(pkt, s.name === 'Square gate')
-                                }
-                              })
-                              if(s.name === 'PureRaw Deadzone (Processing)')syncDesignFromCopy()
-                            }}
-                          >
-                            {s.name}
-                          </button><Help title={s.name}>{s.hint}</Help>{s.name==='PureRaw'&&<PureRawReconnect/>}</div>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="card" style={{ borderColor: 'var(--bad)' }}>
-                    <div className="section-title"><h3>Reset everything</h3><Help title="Reset everything">Returns every byte this app can write to stock neutral — both sticks (deadzone, curve, flips, gate, axis, mouse rate, outputs), outer unlimited, 12-bit, 8K polling, RC off. Names, triggers, buttons and macros are untouched. Then Write to apply.</Help></div>
-                    <button
-                      className="btn danger"
-                      style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', marginTop: 10 }}
-                      onClick={() => {
-                        if (!profile || !fd) return
-                        if (!window.confirm('Reset EVERYTHING this app controls to stock neutral?\n\nBoth sticks, outer, detail, polling, RC. Names, triggers, buttons and macros are kept.')) return
-                        edit(() => {
-                          profile.sticks.forEach((s, i) => {
-                            stick.setDeadzone(s, { begin: 50, end: 1000, beginAnti: 0, endAnti: 1000 })
-                            stick.setCurve(s, LINEAR_CURVE.map((p) => ({ ...p })))
-                            stick.setFlipX(s, false)
-                            stick.setFlipY(s, false)
-                            stick.setSquareGate(s, false)
-                            stick.setAxisRatio(s, 50)
-                            stick.setMouseDpi(s, 50)
-                            stick.setMapIndex(s, i === 0 ? 1 : 2)
-                            stick.setMapped(s, true)
-                          })
-                          fun.extend.setStickResolutionBits(fd, 12)
-                          fun.extend.setReportRateGear(fd, 5)
-                          fun.extend.setLsAntiJitter(fd, 11)
-                          fun.extend.setRsAntiJitter(fd, 11)
-                        })
-                        syncDesignFromCopy()
-                        setMsg('Everything reset to stock neutral — Write to apply it to the pad.')
-                      }}
-                    >
-                      RESET EVERYTHING
-                    </button>
-                  </div>
-
-                </div>
               </div>
               </>
               )}
             </>
           )}
-          {tab === 'center' && (
+          {tab === 'calibrate' && calibrationView === 'center' && (
             connected && modelId === 'G7ProCE' ? <CenterOffsets busy={busy} /> :
               <div className="msg"><h3>Connect a G7 Pro 8K</h3><p>Center-offset commands are currently verified against the G7 Pro 8K software path only.</p></div>
           )}
           {tab === 'firmware' && <FirmwarePanel hasUnsavedEdits={dirty} connectedModel={connected ? modelId : null} connectedProductId={pid} />}
-          {(tab === 'triggers' || tab === 'gyro') && (connected && profile && modelId === 'G7ProCE' ? (tab === 'triggers' ? <TriggerTuning key={`triggers:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <GyroTuning key={`gyro:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} />) : <div className="note">Connect an identified G7 Pro 8K and load a profile to tune triggers and gyro.</div>)}
+          {tab === 'sticks' && connected && profile && modelId === 'G7ProCE' && <details className="card gyro-disclosure" open={gyroOpen} onToggle={event => setGyroOpen(event.currentTarget.open)}><summary>Gyro settings <span>Activation, motion response and live preview</span></summary>{gyroOpen && <GyroTuning key={`gyro:${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} />}</details>}
           {tab === 'bindings' && (connected && profile && ['G7ProCE', 'T3CE'].includes(modelId) ? <Bindings key={`${slot}:${loadId}`} profile={profile} modelId={modelId} edit={edit} busy={busy} shiftLayer={slot === SHIFT_SLOT} /> : <div className="note">Connect an identified G7 Pro 8K or Tarantula 8K and load a profile to edit bindings.</div>)}
-          {tab === 'macros' && (connected && profile && modelId === 'G7ProCE' ? <Macros key={`${slot}:${loadId}`} profile={profile} edit={edit} busy={busy} /> : <div className="note">Connect an identified G7 Pro 8K and load a profile to edit macros.</div>)}
+          {tab === 'macros' && (connected && profile && ['G7ProCE', 'T3CE'].includes(modelId) ? <Macros key={`macros:${slot}:${loadId}:${pcMacros}`} profile={profile} edit={edit} busy={busy||virtualSaving} virtual={pcMacros&&virtualStatus?.active?{config:virtualStatus.config,save:savePcMacros}:undefined} /> : <div className="note">Connect an identified G7 Pro 8K or Tarantula 8K and load a profile to edit macros.</div>)}
           {tab === 'rc' && (
             connected && !locked && fd && blob ? (
               <RcFilters key={modelId + ':' + slot + ':' + loadId} fd={fd} edit={edit} busy={busy} dirty={dirty} connected={connected} slot={slot} firmware={info?.firmware ?? ''} bytes={blob} />
@@ -2125,7 +2086,7 @@ function AppContent(): JSX.Element {
               <ProfilesPanel connected={connected} activeSlot={info?.currentProfile ?? null} locked={locked} modelId={modelId} modelLen={modelLen} dumpLength={model?.dumpLength ?? 0} modelName={model?.marketingName ?? null} />
             </ProfilesPage>
           )}
-          {tab === 'calibrate' && (
+          {tab === 'calibrate' && calibrationView === 'guided' && (
             connected && modelId === 'G7ProCE' ? (
               <CalibrationPanel />
             ) : (

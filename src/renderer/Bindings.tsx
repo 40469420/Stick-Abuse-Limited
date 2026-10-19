@@ -1,15 +1,16 @@
+import { virtualOutputSupported } from '@shared/virtual-controller'
 import { setShiftBinding, SHIFT_KEY } from '@shared/shift'
-import { IconSelect } from './IconSelect'
+import { IconSelect, type IconOption } from './IconSelect'
 import { KeyIcon } from './KeyIcon'
 import { Help } from './Help'
 import { useState } from 'react'
 import { button, trigger, macro, type Profile } from '@shared/profile'
-import { BINDING_KEYS, BUTTON_LABELS, functionLabels, bindingLabel, setBinding } from '@shared/bindings'
+import { bindingKeys, BUTTON_LABELS, functionLabels, bindingLabel, setBinding } from '@shared/bindings'
 
-export function KeyPicker({ value, onChange, empty = true, allowShift = true, label = 'Output key' }: { value: number; onChange: (value: number) => void; empty?: boolean; allowShift?: boolean; label?: string }): JSX.Element {
-  const options = BINDING_KEYS.filter(k => allowShift || k.value !== SHIFT_KEY).map(k => ({ value: k.value, label: k.label, group: k.group }))
+export function KeyPicker({ value, onChange, empty = true, allowShift = true, label = 'Output key', modelId = 'G7ProCE', virtualOnly = false }: { value: number; onChange: (value: number) => void; empty?: boolean; allowShift?: boolean; label?: string; modelId?: string; virtualOnly?: boolean }): JSX.Element {
+  const options: IconOption[] = bindingKeys(modelId).filter(k => !virtualOnly || virtualOutputSupported(k.value)).filter(k => allowShift || k.value !== SHIFT_KEY).map(k => ({ value: k.value, label: k.label, group: k.group, tag: modelId === 'T3CE' && k.value >= 31 && k.value <= 39 ? k.label : undefined, icon: modelId === 'T3CE' && k.value >= 31 && k.value <= 39 ? 17 : undefined }))
   if (empty) options.unshift({ value: 0, label: 'Empty / original', group: '' })
-  if (!options.some(o => o.value === value)) options.unshift({ value, label: bindingLabel(value), group: '' })
+  if (!options.some(o => o.value === value)) options.unshift({ value, label: bindingLabel(value, modelId), group: '' })
   return <IconSelect label={label} value={value} options={options} onChange={onChange} />
 }
 
@@ -32,12 +33,12 @@ export function Bindings({ profile, modelId, edit, busy, shiftLayer = false }: {
     </div>
     <fieldset className="card control-fieldset" disabled={busy}>
       <label className="stack">Physical button
-        <IconSelect label="Physical button" value={selected} onChange={setSelected} disabled={busy} options={targets.map((t, i) => ({ value: i, label: t.label, icon: t.isTrigger ? (t.label.startsWith('LT') ? 19 : 20) : t.functionKey ? (t.label.startsWith('FL') ? 17 : 18) : BUTTON_LABELS.indexOf(t.label) + 1, tag: t.functionKey ? t.label.split(' / ')[1] : undefined }))} />
+        <IconSelect label="Physical button" value={selected} onChange={setSelected} disabled={busy} options={targets.map((t, i) => ({ value: i, label: t.label, icon: t.isTrigger ? (t.label.startsWith('LT') ? 19 : 20) : t.functionKey ? (t.label.startsWith('FL') ? 17 : t.label.startsWith('FR') ? 18 : 17) : BUTTON_LABELS.indexOf(t.label) + 1, tag: t.functionKey ? t.label.split(' / ')[1] ?? t.label : undefined }))} />
       </label>
-      <p className="hint">{hasMacro ? 'Macro overrides this button.' : mapped ? `Current outputs: ${values.filter(Boolean).map(bindingLabel).join(' + ')}` : 'Original button behavior.'}</p>
+      <p className="hint">{hasMacro ? 'Macro overrides this button.' : mapped ? `Current outputs: ${values.filter(Boolean).map(value => bindingLabel(value, modelId)).join(' + ')}` : 'Original button behavior.'}</p>
       <div className="control-grid">
         {values.map((value, i) => <label className="stack" key={i}>Output {i + 1}
-          <KeyPicker label={`Output ${i + 1}`} allowShift={modelId === 'G7ProCE' && !shiftLayer} value={value} onChange={(next) => edit(() => { if(next === SHIFT_KEY) { setShiftBinding(target.packet, target.isTrigger, target.functionKey, false); return } const outputs = [...values]; outputs[i] = next; setBinding(target.packet, outputs, target.isTrigger, target.functionKey) })} />
+          <KeyPicker modelId={modelId} label={`Output ${i + 1}`} allowShift={modelId === 'G7ProCE' && !shiftLayer} value={value} onChange={(next) => edit(() => { if(next === SHIFT_KEY) { setShiftBinding(target.packet, target.isTrigger, target.functionKey, false); return } const outputs = [...values]; outputs[i] = next; setBinding(target.packet, outputs, target.isTrigger, target.functionKey) })} />
         </label>)}
       </div>
       <div className="row wrap" style={{ gap: 8, marginTop: 12 }}>
@@ -64,7 +65,7 @@ export function Bindings({ profile, modelId, edit, busy, shiftLayer = false }: {
       <div className="control-overview">{targets.map((t, i) => {
         const a = t.isTrigger ? trigger : button
         return <button className={`btn ghost${selected === i ? ' active' : ''}`} key={i} onClick={() => setSelected(i)}>
-          <KeyIcon value={t.isTrigger ? (t.label.startsWith('LT') ? 19 : 20) : t.functionKey ? (t.label.startsWith('FL') ? 17 : 18) : BUTTON_LABELS.indexOf(t.label) + 1} tag={t.functionKey ? t.label.split(' / ')[1] ?? t.label : undefined} /><strong>{t.label}</strong><span className="hint">{t.functionKey && macro.macroEnabled(t.packet) ? 'Macro' : a.mapped(t.packet) ? a.mapValues(t.packet).filter(Boolean).map(bindingLabel).join(' + ') : 'Original'}</span>
+          <KeyIcon value={t.isTrigger ? (t.label.startsWith('LT') ? 19 : 20) : t.functionKey ? (t.label.startsWith('FL') ? 17 : t.label.startsWith('FR') ? 18 : 17) : BUTTON_LABELS.indexOf(t.label) + 1} tag={t.functionKey ? t.label.split(' / ')[1] ?? t.label : undefined} /><strong>{t.label}</strong><span className="hint">{t.functionKey && macro.macroEnabled(t.packet) ? 'Macro' : a.mapped(t.packet) ? a.mapValues(t.packet).filter(Boolean).map(value => bindingLabel(value, modelId)).join(' + ') : 'Original'}</span>
         </button>
       })}</div>
     </details>

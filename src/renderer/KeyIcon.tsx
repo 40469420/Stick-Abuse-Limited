@@ -37,9 +37,10 @@ export function KeyIcon({ value, tag, size = 18 }: { value: number; tag?: string
       return wrap(<><rect x={2.5} y={6} width={15} height={9} rx={2} fill="#33333d" /><circle cx={10} cy={10.5} r={2.8} fill="none" stroke="#8a8a96" strokeWidth={1.5} /><rect x={8} y={4} width={4} height={2.5} rx={1} fill="#33333d" /></>)
     case 17: return paddle(tag ?? 'FL1')
     case 18: return paddle(tag ?? 'FR1')
-    case 31: return paddle('L5')
-    case 32: return paddle('R5')
+    case 31: return paddle(tag ?? 'L5')
+    case 32: return paddle(tag ?? 'R5')
     default:
+      if (tag) return pill(tag, false)
       if (value >= 21 && value <= 30) return pill(value < 25 ? 'LS' : 'RS', true)
       if (value >= 50 && value <= 155) return pill('KEY', false)
       if (value >= 200 && value <= 206) return pill('M', true)

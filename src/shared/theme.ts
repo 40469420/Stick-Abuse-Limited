@@ -1,4 +1,4 @@
-export const DEFAULT_THEME={background:'#14090d',surface:'#1e1015',controls:'#2a151c',border:'#552c38',text:'#f7ecef',muted:'#c9a3ad',accent:'#f43f52',success:'#3ecf8e',warning:'#f5b544',danger:'#ff6b6b',plot:'#a78bfa'}
+export const DEFAULT_THEME={background:'#0c1017',surface:'#141d29',controls:'#1d2b3b',border:'#34475f',text:'#f7ecef',muted:'#b5c8dd',accent:'#5ab8ff',success:'#3ecf8e',warning:'#f5b544',danger:'#ff6b6b',plot:'#e6adff'}
 export type Theme=typeof DEFAULT_THEME
 export const THEME_KEY='sal-theme-v1'
 export function sanitizeTheme(value:unknown):Theme{

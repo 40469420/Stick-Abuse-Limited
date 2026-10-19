@@ -43,11 +43,19 @@ Browse [Machixo’s profiles and configs](community/README.md) for downloadable 
 
 PureRaw has an enabled-by-default **Auto reapply on reconnect** checkbox. While the app is running, it temporarily enables Square processing for PureRaw sticks in the active G7 Pro 8K profile, verifies the write, then restores the exact original profile. Other tuning is preserved. Interrupted operations keep a local recovery backup. This is an app-assisted workaround; reconnect behavior was confirmed on the test G7 Pro 8K.
 
-The **Theme** button lets you customize backgrounds, panels, controls, borders, text, accents, status colors and preview markers. Colors are saved on your PC. Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
+Midnight is the default appearance. The **Theme** button lets you customize backgrounds, panels, controls, borders, text, accents, status colors and preview markers. Colors are saved on your PC. Explanations sit behind **?** help buttons. Closing the window keeps the app in the tray. Quitting with RC enabled prompts you to reset it first.
 
 LeadJoy Saber Plus has a dedicated workspace for button remapping, stick curves, ranges and gates, mouse output, trigger ranges and Labs. Writes read back the affected settings for verification. Main and sub-profile editing are supported; sub-profile activation is not exposed. Physical-device validation is still pending.
 
 Flydigi Apex 5 also supports stick curves, deadzones and LED brightness through a Python hidapi bridge. It requires Python with the `hidapi` package installed. Close Flydigi Space Station before connecting. Unmapped controls stay disabled.
+
+## Simulated controller (WIP)
+
+Optional desktop mode for PC macros on standard controller buttons and supported extra buttons. Install ViGEmBus from the app and HidHide from its official release, then use **Data → Simulated controller** to select the physical source and enable playback. HidHide protection is configured and verified automatically. The app preserves compatible hardware bindings and identifies conflicting assignments without rewriting the controller profile.
+
+Stick Abuse must stay running; the tray is fine. Stopping playback restores its hiding changes. PC macros are saved locally per controller model and are separate from controller backups. Macro steps support editable wait times. G7 Pro 8K has been tested live; Tarantula 8K support has code/protocol tests but still needs physical testing. Force feedback is not forwarded in this version.
+
+Tuning groups Sticks, Triggers and Device on one page, with Gyro below. Guided calibration and Center Offsets share Calibration. Labs contains the PureRaw Stick Shapes bench, Steam export and Marius.
 
 ## Getting started
 
@@ -60,7 +68,7 @@ Center offsets and calibration act immediately. Writing the active profile can b
 
 ## Before you use it
 
-The first launch shows a risk acknowledgment with a 60-second review period. Acceptance is saved locally; clearing app data shows it again. RC and firmware pages retain their separate acknowledgments.
+The first launch shows a risk acknowledgment with a 60-second review period. Acceptance is saved locally; clearing app data shows it again. RC, firmware and simulated-controller pages retain their separate acknowledgments.
 
 Macros, turbo, RC filters and other modified inputs may violate game or tournament rules and can lead to bans. Experimental settings may behave differently across firmware versions. Firmware flashing can permanently disable a controller; recovery is not guaranteed.
 

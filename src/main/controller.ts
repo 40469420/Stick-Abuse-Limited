@@ -101,6 +101,7 @@ export class Controller {
   /** Tearing down the previous decoder wiring; see `attachInputDecoder`. */
   private decoderOff: (() => void) | null = null
 
+  private inputModel = 'G7ProCE'
   state: ControllerState = 'disconnected'
 
   constructor(transport?: Transport) {
@@ -127,7 +128,8 @@ export class Controller {
    * Reads are ignored by the firmware until config mode is entered, so this
    * must happen before anything else.
    */
-  async connect(path: string): Promise<DeviceInfo> {
+  async connect(path: string, modelId = 'G7ProCE'): Promise<DeviceInfo> {
+    this.inputModel = modelId
     this.state = 'connecting'
     this.transport.open(path)
     this.transport.startHeartbeat(500)
@@ -524,7 +526,7 @@ export class Controller {
   attachInputDecoder(): () => void {
     this.decoderOff?.()
     const off = this.transport.onInput((raw) => {
-      const input = decodeInput(raw)
+      const input = decodeInput(raw, this.inputModel)
       if (!input) return
       this.lastInput = input
       for (const fn of this.inputListeners) fn(input)
@@ -548,7 +550,7 @@ export class Controller {
  *
  * `buttons` is raw[5..] so callers index it as `buttons[i] === raw[5 + i]`.
  */
-export function decodeInput(raw: Uint8Array): LiveInput | null {
+export function decodeInput(raw: Uint8Array, modelId = 'G7ProCE'): LiveInput | null {
   if (raw.length <= 60 || raw[0] !== 0x12) return null
 
   const lx = raw[1]
@@ -558,7 +560,7 @@ export function decodeInput(raw: Uint8Array): LiveInput | null {
   const battery = raw[36]
 
   return {
-    recordKeys: raw.length >= 64 ? originalButtonKeys(raw) : undefined,
+    recordKeys: raw.length >= 64 ? originalButtonKeys(raw, modelId) : undefined,
     centerRaw: centerPreview(raw),
     imuBytes: extractImuBytes(raw),
     lx,

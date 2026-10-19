@@ -1,3 +1,7 @@
+import { HidHideSession } from './hidhide-session'
+import { detectHidHide, hidHidePath, waitForHidHideScan } from './hidhide'
+import { VirtualControllerService } from './virtual-controller'
+import { validateVirtualConfig } from '../shared/virtual-controller'
 import { FIRMWARE_IMAGES, firmwareTarget, firmwareConfirmation } from '../shared/firmware'
 import { listCommunityProfiles, downloadCommunityProfile } from './community'
 import { recoverPureRaw, type PureRawJournal, type PureRawStatus } from '../shared/pure-raw'
@@ -5,12 +9,12 @@ import { runLeadJoy } from './leadjoy-jobs'
 import { validateLeadJoyRequest, type LjRequest } from '../shared/leadjoy-api'
 import { runDeepPoll } from './deeppoll'
 import { hasShiftBinding, SHIFT_SLOT } from '../shared/shift'
-import { parseProfile } from '../shared/profile'
+import { parseProfile, button, macro, trigger } from '../shared/profile'
 import { GUARDED_GAMES, isGuardedGame, type GuardedGame, type GameGuardStatuses } from '../shared/game-guards'
 import { listGame, killGame } from './game-guards'
 import { ApexGuard, listApex, killApex } from './apex-guard'
 /**
- * Stick-Abuse-Limited — controller session, background RC reset and profile editing.
+ * Stick Abuse — controller session, background RC reset and profile editing.
  */
 import { app, BrowserWindow, dialog, ipcMain, session, shell, Tray, Menu, nativeImage } from 'electron'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, renameSync } from 'node:fs'
@@ -38,6 +42,10 @@ import { flyBridge } from './flybridge'
 import { flyFrame } from '../shared/flydigi'
 
 const controller = new Controller()
+let virtualStartToken=0
+let virtualPreparing=false
+const virtualHiding = new HidHideSession(()=>join(app.getPath('userData'),'hidhide-session.json'),join(__dirname,'../../build/virtual'),process.execPath)
+const virtualController = new VirtualControllerService(join(__dirname,'../../build/virtual'),()=>app.getPath('userData'),status=>send('virtual:status',status),()=>{virtualStartToken++;return virtualHiding.restore()})
 const rcCapture = new RcCapture()
 const bench = new BenchSession(value => send('lab:live', value))
 /** MARIUS preview reader — read-only driver, no write path exists. */
@@ -72,11 +80,14 @@ let quitAction: (() => void) | null = null
 function finishQuit(): void {
   quitting = true
   void (async () => {
+    await virtualController.stop()
     try { await controller.exitConfig(true) } catch { /* device may already be disconnected */ }
     if(quitAction) quitAction(); else app.quit()
   })()
 }
 let resetMessage = 'Automatic RC reset is off.'
+let virtualKeyboardOwner:string|null=null
+const updateVirtualPause=():void=>virtualController.pause(!!recording||!!virtualKeyboardOwner)
 let recording: { id: string; recorder: SequenceRecorder; started: number; error: string | null; lastReport: number } | null = null
 const resetStatus = (): RcResetStatus => ({ enabled: resetEnabled, running: resetting, message: resetMessage })
 let lastApexAlert: string | null = null
@@ -114,7 +125,7 @@ let gameEnabled: Partial<Record<GuardedGame, boolean>> = {}
 function reportReset(message: string): void {
   resetMessage = message
   send('rc:resetStatus', resetStatus())
-  tray?.setToolTip(`Stick-Abuse-Limited — ${message}`.slice(0, 127))
+  tray?.setToolTip(`Stick Abuse — ${message}`.slice(0, 127))
 }
 function savePreferences(): void {
   mkdirSync(app.getPath('userData'), { recursive: true })
@@ -166,6 +177,15 @@ async function resetRcAfterConnect(force = false): Promise<boolean> {
 async function requestQuit(): Promise<void> {
   if (quitting || closeChecking || closePrompt) { if (closePrompt) showWindow(); return }
   showWindow()
+  if(virtualController.status.installing){send('rc:quitError','Wait for driver installation or its cancellation before quitting.');return}
+  if (virtualController.status.active) {
+    virtualController.pause(true)
+    closeChecking = true
+    try {
+      const choice = await dialog.showMessageBox({type:'warning',buttons:['Keep running','Quit and disable'],defaultId:0,cancelId:0,title:'Simulated controller is active',message:'Quitting disconnects the simulated controller.',detail:'PC-side macros and all features requiring the virtual controller will stop. Close to the tray to keep them running.'})
+      if(choice.response !== 1)return
+    } finally { closeChecking = false;updateVirtualPause() }
+  }
   // Quit needs the same priority over background RC polling as a user write.
   // Reserve the quit check before waiting so another guard cannot take the lock.
   if (guardRead) {
@@ -221,6 +241,7 @@ let lastSampleAt = 0
 let samplePending = false
 
 controller.onInput((input) => {
+  virtualController.input(input)
   if(streamLive===true&&!input.live)bench.stop()
   if (bench.active) bench.push(input)
   if (calibrationSession) {
@@ -295,7 +316,7 @@ async function autoReconnect(reason: string): Promise<void> {
       if (epoch !== sessionEpoch || controller.transport.isOpen) return
       if (!discover().some((c) => c.path === target.path)) continue
       try {
-        const info = await controller.connect(target.path)
+        const info = await controller.connect(target.path, identifyModel(target.product, target.productId)?.id)
         if(quitting||epoch!==sessionEpoch){controller.disconnect();return}
         connectedInfo = info
         reconnectPath = target.path
@@ -337,7 +358,7 @@ function fromB64(text: string): Uint8Array {
 }
 function handle(channel: string, fn: (...args: any[]) => unknown): void {
   ipcMain.handle(channel, async (_event, ...args) => {
-    const usesDevice = (/^(profile:|device:|diag:|macro:|leadjoy:)/.test(channel) || channel === 'firmware:flash' || ['lab:vendor', 'lab:xinput', 'lab:ping', 'lab:kernel'].includes(channel)) && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
+    const usesDevice = (/^(profile:|device:|diag:|macro:|leadjoy:)/.test(channel) || channel === 'virtual:start' || channel === 'firmware:flash' || ['lab:vendor', 'lab:xinput', 'lab:ping', 'lab:kernel'].includes(channel)) && !['device:discover', 'diag:xinputSlots', 'diag:rcCancel', 'macro:cancel'].includes(channel)
     let acquired = false
     let waitingForGuard = false
     try {
@@ -352,6 +373,7 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
       if (usesDevice && calibrationSession && !['device:calibration', 'device:disconnect'].includes(channel)) throw new Error('Finish or cancel calibration before changing controller settings.')
       if (usesDevice && (resetting || ioJobs)) throw new Error('Wait for the current controller operation to finish.')
       if (usesDevice && (closeChecking || closePrompt)) throw new Error('Finish the quit check before using the controller.')
+      if (usesDevice && virtualController.status.active && !['device:discover','diag:xinputSlots','macro:start','macro:stop','macro:cancel'].includes(channel)) throw new Error('Stop the simulated controller before recording, measuring or changing hardware settings.')
       if (usesDevice && recording && !['macro:stop', 'device:disconnect'].includes(channel)) throw new Error('Stop macro recording before changing controller settings.')
       if (usesDevice) { ioJobs++; acquired = true }
       return { ok: true, data: await fn(...args) }
@@ -367,6 +389,48 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
   })
 }
 
+handle('virtual:sources',(detect:unknown)=>virtualController.sources(detect===true))
+handle('virtual:hidHideStatus',()=>detectHidHide(process.execPath,join(__dirname,'../../build/virtual/virtual-host.exe')))
+handle('virtual:status',()=>virtualController.status)
+handle('virtual:check',()=>virtualController.check())
+handle('virtual:install',()=>{if(virtualPreparing)throw Error('Wait for simulated-controller setup.');return virtualController.install()})
+handle('virtual:model',(model:unknown)=>{if(virtualPreparing)throw Error('Wait for simulated-controller setup.');return virtualController.selectModel(model)})
+handle('virtual:save',(value:unknown)=>{if(virtualPreparing)throw Error('Wait for simulated-controller setup.');return virtualController.save(value)})
+handle('virtual:stop',()=>{virtualKeyboardOwner=null;return virtualController.stop()})
+handle('virtual:keyboardRecord',(id:unknown,active:unknown)=>{
+  if(typeof id!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(id)||typeof active!=='boolean')throw Error('Invalid keyboard recording lease.')
+  if(active&&virtualController.status.active){if(virtualKeyboardOwner&&virtualKeyboardOwner!==id)throw Error('Finish the current keyboard recording first.');virtualKeyboardOwner=id}
+  else if(virtualKeyboardOwner===id)virtualKeyboardOwner=null
+  updateVirtualPause();return true
+})
+handle('virtual:start',async (acknowledged:unknown)=>{
+  if(acknowledged !== true)throw Error('Confirm that the game will use only the virtual controller before enabling playback.')
+  if(recording||reconnecting||calibrationSession||firmwareStatus.running||bench.active||closeChecking||closePrompt)throw Error('Finish the current controller operation first.')
+  const device=discover().find(d=>d.path===controller.transport.currentPath), model=device?identifyModel(device.product,device.productId):null
+  if(!model||!['G7ProCE','T3CE'].includes(model.id)||!controller.isOpen)throw Error('Connect a supported G7 Pro 8K or Tarantula 8K first.')
+  const config=validateVirtualConfig(virtualController.status.config)
+  if(config.model!==model.id)throw Error('Select the connected controller model on this page.')
+  const sample=controller.latestInput
+  if(!sample?.live||Date.now()-sample.timestamp>1000)throw Error('Wait for fresh controller input before enabling playback.')
+  if(sample.recordKeys?.length)throw Error('Release all controller buttons before enabling the virtual controller.')
+  {
+    const slot=await controller.getCurrentProfile(), bytes=await controller.readProfile(slot,model.profileLength), p=parseProfile(bytes,model.id)
+    virtualController.setHardwareProfile(p)
+    const startupToken=++virtualStartToken;virtualPreparing=true
+    try {
+      await virtualHiding.apply(controller.transport.currentPath!,config.slot)
+      if(startupToken!==virtualStartToken)throw Error('Simulated controller startup cancelled.')
+      const fresh=controller.latestInput;if(!fresh?.live||Date.now()-fresh.timestamp>1000)throw Error('Controller reports stopped during hiding setup. Reconnect and retry.')
+      const status=await virtualController.start(model.marketingName,device!.productId);virtualController.input(fresh);return status
+    }catch(error){await virtualController.stop();throw error}finally{virtualPreparing=false}
+  }
+})
+handle('virtual:hidHide',async()=>{
+  await waitForHidHideScan()
+  const path=hidHidePath('HidHideClient.exe')
+  if(!path)throw Error('HidHide is not installed. Use the official setup link on this page.')
+  const error=await shell.openPath(path);if(error)throw Error(error);return true
+})
 handle('games:status', gameStatuses)
 handle('games:set', (game: unknown, enabled: unknown) => {
   if (!isGuardedGame(game) || typeof enabled !== 'boolean') throw new Error('Invalid game guard setting')
@@ -491,7 +555,8 @@ handle('leadjoy:job', async (req:LjRequest) => {
 })
 handle('device:connect', async (path: string): Promise<DeviceInfo> => {
   sessionEpoch++
-  const info = await controller.connect(path)
+  const candidate = discover().find(d => d.path === path)
+  const info = await controller.connect(path, candidate ? identifyModel(candidate.product, candidate.productId)?.id : undefined)
   connectedInfo = info
   controller.attachInputDecoder()
   controller.transport.startWatchdog(4000, () => void autoReconnect('silent'))
@@ -523,7 +588,7 @@ handle('rc:resetStatus', () => resetStatus())
 handle('rc:quitDecision', async (id: string, reset: boolean) => {
   if (!closePrompt || closePrompt !== id || typeof reset !== 'boolean') throw new Error('This quit prompt is no longer active')
   if (ioJobs || resetting || recording) throw new Error('Wait for the current controller operation before quitting.')
-  if (reset && !await resetRcAfterConnect(true)) throw new Error(resetMessage + ' Stick-Abuse-Limited is still running. You can retry or choose No to quit without resetting.')
+  if (reset && !await resetRcAfterConnect(true)) throw new Error(resetMessage + ' Stick Abuse is still running. You can retry or choose No to quit without resetting.')
   closePrompt = null
   finishQuit()
   return true
@@ -588,12 +653,13 @@ handle('diag:rcCapture', async (id: string, xinputSlot?: number) => {
 handle('diag:rcCancel', (id: string) => { captureJobs.get(id)?.(); return true })
 handle('macro:start', (id: string) => {
   const device = discover().find((d) => d.path === controller.transport.currentPath)
-  if (!device || identifyModel(device.product, device.productId)?.id !== 'G7ProCE') throw new Error('Controller recording currently requires an identified G7 Pro 8K.')
+  if (!device || !['G7ProCE', 'T3CE'].includes(identifyModel(device.product, device.productId)?.id ?? '')) throw new Error('Controller recording requires an identified G7 Pro 8K or Tarantula 8K.')
   if (typeof id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(id)) throw new Error('Invalid recording ID')
   const sample = controller.latestInput
   if (!sample?.live || !sample.recordKeys || Date.now() - sample.timestamp > 1000) throw new Error('Wait for live controller input before recording.')
   if (sample.recordKeys.length) throw new Error('Release all controller buttons before recording.')
   if (captureJobs.size || centerBusy) throw new Error('Wait for the current measurement or adjustment.')
+  virtualController.pause(true)
   recording = { id, recorder: new SequenceRecorder(), started: performance.now(), error: null, lastReport: Date.now() }
   return true
 })
@@ -601,12 +667,13 @@ handle('macro:stop', (id: string) => {
   if (!recording || recording.id !== id) throw new Error('Recording is no longer active')
   const captured = recording
   recording = null
+  updateVirtualPause()
   if (captured.error) throw new Error(captured.error)
   if (!controller.isOpen || Date.now() - captured.lastReport > 1000) throw new Error('Controller input went stale; recording discarded.')
   if (performance.now() - captured.started > 30000) throw new Error('Recording exceeded the 30-second limit')
   return captured.recorder.finish(performance.now())
 })
-handle('macro:cancel', (id: string) => { if (recording?.id === id) recording = null; return true })
+handle('macro:cancel', (id: string) => { if (recording?.id === id) { recording = null; updateVirtualPause() }; return true })
 let centerBusy = false
 handle('device:adjustCenter', async (side: number, direction: CenterDirection) => {
   const device = discover().find((d) => d.path === controller.transport.currentPath)
@@ -787,8 +854,8 @@ function createWindow(): void {
     height: 860,
     minWidth: 1000,
     minHeight: 680,
-    backgroundColor: '#14090d',
-    title: 'Stick-Abuse-Limited',
+    backgroundColor: '#0c1017',
+    title: 'Stick Abuse',
     icon: appIconPath,
     autoHideMenuBar: true,
     webPreferences: {
@@ -802,7 +869,7 @@ function createWindow(): void {
   else void window_.loadFile(join(__dirname, '../renderer/index.html'))
   window_.on('hide', () => bench.stop())
   window_.on('minimize', () => bench.stop())
-  window_.webContents.on?.('render-process-gone', () => bench.stop())
+  window_.webContents.on?.('render-process-gone', () => {bench.stop();void virtualController.stop('App renderer stopped. Virtual inputs were released.')})
   window_.on('closed', () => {
     bench.stop()
     window_ = null
@@ -830,13 +897,16 @@ app.whenReady().then(() => {
     for (const game of gameKeys) gameEnabled[game] = prefs.gameGuards?.[game] === true
     resetMessage = resetEnabled ? 'RC reset armed for the next connection/reconnection.' : 'Automatic RC reset is off.'
   } catch { /* First run uses the off default. */ }
+  virtualController.load()
+  void virtualHiding.restore().catch(error=>console.error('HidHide recovery:',error))
   app.setAppUserModelId('com.realkiyoshi.sticklabs')
   tray = new Tray(nativeImage.createFromPath(appIconPath).resize({ width: 32, height: 32 }))
-  tray.setToolTip('Stick-Abuse-Limited')
+  tray.setToolTip('Stick Abuse')
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open Stick-Abuse-Limited', click: showWindow },
+    { label: 'Open Stick Abuse', click: showWindow },
     { type: 'separator' },
-    { label: 'Quit Stick-Abuse-Limited', click: () => app.quit() }
+    { label: 'Stop simulated controller', click: () => {void virtualController.stop('Stopped from tray.')} },
+    { label: 'Quit Stick Abuse', click: () => app.quit() }
   ]))
   tray.on('double-click', showWindow)
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
@@ -854,7 +924,7 @@ app.whenReady().then(() => {
     receiverResetPending=false;pureReceiverPending=false;ioJobs++
     void (async()=>{await recoverPureRawAfterConnect();await resetRcAfterConnect();if(!quitting&&controller.isOpen&&connectedInfo)send('device:reconnected',connectedInfo)})().finally(()=>{ioJobs--})
   }, 500)
-  app.once('will-quit', () => { flyBridge.close(); clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); for (const game of gameKeys) gameGuards[game].setEnabled(false); bench.stop() })
+  app.once('will-quit', () => { void virtualController.stop(); flyBridge.close(); clearInterval(receiverMonitor); clearInterval(apexMonitor); apexGuard.setEnabled(false); for (const game of gameKeys) gameGuards[game].setEnabled(false); bench.stop() })
 
   // Self-update from GitHub Releases (packaged builds only — never in dev).
   if (app.isPackaged) {
@@ -869,7 +939,7 @@ app.whenReady().then(() => {
             type: 'info',
             buttons: ['Restart now', 'Later'],
             defaultId: 0,
-            message: 'Stick-Abuse-Limited update downloaded — restart to install it?'
+            message: 'Stick Abuse update downloaded — restart to install it?'
           })
           .then(({ response }) => {
             if (response === 0) { quitAction = () => autoUpdater.quitAndInstall(); void requestQuit() }

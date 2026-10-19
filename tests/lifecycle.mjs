@@ -17,7 +17,7 @@ if (!process.argv.includes('--child')) {
     app.quit=()=>{let prevented=false;app.emit('before-quit',{preventDefault(){prevented=true}});if(!prevented){m.quits++;app.emit('will-quit')}};
     export class BrowserWindow extends EventEmitter{constructor(){super();m.window=this;this.webContents={send:(channel,payload)=>m.messages.push({channel,payload})};}loadURL(){}loadFile(){}isDestroyed(){return false}hide(){m.hidden=true;this.emit('hide')}show(){m.hidden=false}restore(){}focus(){}static getAllWindows(){return [m.window]}}
     export class Tray extends EventEmitter{constructor(){super();m.tray=this}setToolTip(){}setContextMenu(menu){m.menu=menu}destroy(){m.trayDestroyed=true}}
-    export const Menu={buildFromTemplate:items=>items};export const nativeImage={createFromBitmap:()=>({}),createFromPath:()=>({resize(){return this}})};export const dialog={showMessageBox:async()=>({response:1})};export const ipcMain={handle:(channel,fn)=>m.handlers.set(channel,fn)};export const session={defaultSession:{setPermissionRequestHandler(){}}};export const shell={openExternal(){}};
+    export const Menu={buildFromTemplate:items=>items};export const nativeImage={createFromBitmap:()=>({}),createFromPath:()=>({resize(){return this}})};export const dialog={showMessageBox:async options=>{m.dialogs??=[];m.dialogs.push(options);return {response:m.dialogResponse??1}}};export const ipcMain={handle:(channel,fn)=>m.handlers.set(channel,fn)};export const session={defaultSession:{setPermissionRequestHandler(){}}};export const shell={openExternal(){}};
   `
   const controller = `
     import {EventEmitter} from 'node:events';
@@ -29,6 +29,8 @@ if (!process.argv.includes('--child')) {
   try {
     await build({ entryPoints: ['src/main/index.ts'], outfile: join(folder, 'main.cjs'), bundle: true, platform: 'node', format: 'cjs', plugins: [{ name: 'fake-hardware', setup(b) {
       b.onResolve({ filter: /^electron$/ }, () => ({ path: 'electron', namespace: 'fake' }))
+      b.onResolve({filter:/^\.\/virtual-controller$/},()=>({path:'virtual-service',namespace:'fake'}))
+      b.onLoad({filter:/^virtual-service$/,namespace:'fake'},()=>({contents:`export class VirtualControllerService{constructor(){globalThis.__m.virtual=this;this.status={active:false,installing:false,config:{model:'G7ProCE'}}}load(){}input(){}pause(value){globalThis.__m.virtualPaused=value}async stop(){this.status.active=false;globalThis.__m.virtualStops=(globalThis.__m.virtualStops??0)+1;return this.status}}`,loader:'js'}))
       b.onResolve({ filter: /^\.\/controller$/ }, () => ({ path: 'controller', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/hid$/ }, () => ({ path: 'hid', namespace: 'fake' }))
       b.onResolve({ filter: /^\.\/firmware$/ }, () => ({ path: 'firmware', namespace: 'fake' }))
@@ -40,7 +42,7 @@ if (!process.argv.includes('--child')) {
       b.onLoad({ filter: /^marius$/, namespace: 'fake' }, () => ({ contents: 'export class MariusReader { close() {} } export function discoverMarius() { return [] }', loader: 'js' }))
       b.onLoad({ filter: /.*/, namespace: 'fake' }, ({ path }) => ({ contents: { electron, controller, hid, firmware }[path], loader: 'js' }))
     } }], external: ['electron-updater'] })
-    for (const scenario of ['yes', 'no', 'neutral', 'disconnected', 'firmware', 'tarantula-firmware', 'bench', 'shift', 'kernel', 'guard-write', 'guard-quit', 'guard-quit-rc', 'pure-reconnect']) {
+    for (const scenario of ['virtual', 'yes', 'no', 'neutral', 'disconnected', 'firmware', 'tarantula-firmware', 'bench', 'shift', 'kernel', 'guard-write', 'guard-virtual', 'guard-quit', 'guard-quit-rc', 'pure-reconnect']) {
       const run = spawnSync(process.execPath, [resolve('tests/lifecycle.mjs'), '--child', scenario], { stdio: 'inherit', timeout: 20000 })
       assert.equal(run.status, 0, `${scenario} lifecycle scenario failed`)
     }
@@ -58,6 +60,18 @@ if (!process.argv.includes('--child')) {
   const guardResult = await call('games:status')
   const guardDefaults = guardResult.value ?? guardResult.data ?? guardResult.result
   assert(Object.values(guardDefaults).every(s => !s.enabled), 'additional game guards default off')
+  if(scenario==='virtual'){
+    m.virtual.status.active=true;m.profile[49]=11;m.profile[50]=11
+    assert.equal((await call('virtual:keyboardRecord','keyboard-lease',true)).ok,true);assert.equal(m.virtualPaused,true);await call('virtual:keyboardRecord','other-lease',false);assert.equal(m.virtualPaused,true);await call('virtual:keyboardRecord','keyboard-lease',false);assert.equal(m.virtualPaused,false)
+    let prevented=false;m.window.emit('close',{preventDefault(){prevented=true}})
+    assert(prevented&&m.virtual.status.active,'tray close keeps virtual playback active');assert.equal(m.dialogs?.length??0,0)
+    m.dialogResponse=0;m.menu.find(e=>e.label==='Quit Stick Abuse').click();await wait(20)
+    assert.equal(m.quits,0);assert(m.virtual.status.active);assert.equal(m.virtualPaused,false);assert.match(m.dialogs.at(-1).message,/disconnects the simulated controller/)
+    m.dialogResponse=1;m.menu.find(e=>e.label==='Quit Stick Abuse').click();await wait(30)
+    assert.equal(m.quits,1);assert.equal(m.virtual.status.active,false);assert(m.virtualStops>=1)
+    console.log('Virtual quit lifecycle: tray close stays active, quit warns, cancel preserves playback and confirmation stops it.')
+    process.exit(0)
+  }
   if(scenario==='pure-reconnect') {
     assert.equal((await call('pure:status')).data.enabled,true,'reapply defaults on')
     m.profile[916]&=~1;m.profile[952]|=1
@@ -98,7 +112,7 @@ if (!process.argv.includes('--child')) {
     assert.equal((await call('games:set','destiny',true)).ok,true)
     for(let i=0;i<150&&!entered;i++)await wait(10)
     assert.equal(entered,true)
-    m.menu.find(entry=>entry.label==='Quit Stick-Abuse-Limited').click()
+    m.menu.find(entry=>entry.label==='Quit Stick Abuse').click()
     await wait(30)
     assert.equal(m.quits,0,'quit cannot overlap in-progress background read')
     assert.equal(m.messages.some(item=>item.channel==='rc:quitError'),false,'background check does not reject quit')
@@ -114,6 +128,19 @@ if (!process.argv.includes('--child')) {
     assert.equal(m.writes,0,'neutral quit does not change profiles')
     console.log('Guard/quit contention: single quit waits for background read and commits configuration.')
     process.exit(0)
+  }
+  if(scenario==='guard-virtual') {
+    let release; m.waitRead=new Promise(resolve=>{release=resolve});let entered=false
+    const original=controller.readProfile.bind(controller);controller.readProfile=async(...args)=>{entered=true;return original(...args)}
+    await call('games:set','destiny',true)
+    for(let i=0;i<150&&!entered;i++)await wait(10)
+    assert(entered,'background safety read started')
+    let settled=false;const pending=call('virtual:start',true).then(result=>{settled=true;return result})
+    await wait(30);assert(!settled,'virtual start waits for background safety read')
+    release();m.waitRead=null;const result=await pending
+    assert(!/current controller operation|Wait for/.test(result.error||''),'request proceeds past operation lock after safety read')
+    assert.equal((await call('profile:read',1,1070)).ok,true,'failed virtual start releases controller lock')
+    console.log('Virtual startup waits for background safety reads and releases its operation lock.');process.exit(0)
   }
   if(scenario==='guard-write') {
     m.profile[49]=11;m.profile[50]=11
@@ -155,7 +182,7 @@ if (!process.argv.includes('--child')) {
     m.profile[49]=11;m.profile[50]=11;m.profile[66]|=1;m.profile[67]=231
     m.shiftProfile=m.profile.slice();m.shiftProfile[67]=0;m.shiftProfile[49]=1
     const base=m.profile.slice()
-    m.menu.find(entry=>entry.label==='Quit Stick-Abuse-Limited').click()
+    m.menu.find(entry=>entry.label==='Quit Stick Abuse').click()
     await wait(10)
     assert.ok(prompt(),'Shift RC triggers mandatory quit warning with neutral base')
     assert.equal(m.quits,0)
@@ -241,7 +268,7 @@ if (!process.argv.includes('--child')) {
     assert.equal((await call('firmware:flash', 'FLASH 2.1.0')).ok, false, 'overlapping firmware attempt blocked')
     assert.equal((await call('profile:read', 1)).ok, false, 'profile writes and reads blocked during flashing')
     assert.equal((await call('device:disconnect')).ok, false, 'disconnect blocked during flashing')
-    m.menu.find(entry => entry.label === 'Quit Stick-Abuse-Limited').click()
+    m.menu.find(entry => entry.label === 'Quit Stick Abuse').click()
     await wait(10)
     assert.equal(m.quits, 0, 'quit blocked during flashing')
     const state = (await call('firmware:status')).data
@@ -309,7 +336,7 @@ if (!process.argv.includes('--child')) {
   await call('rc:setReset', false)
   if (scenario !== 'neutral') m.profile[49] = 1
   if (scenario === 'disconnected') controller.disconnect()
-  m.menu.find((entry) => entry.label === 'Quit Stick-Abuse-Limited').click()
+  m.menu.find((entry) => entry.label === 'Quit Stick Abuse').click()
   await wait(10)
   if (scenario === 'neutral') assert.equal(m.quits, 1, 'neutral quits without warning')
   else {

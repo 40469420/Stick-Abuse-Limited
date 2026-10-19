@@ -61,6 +61,17 @@ interface LabApi {
   flashFirmware(confirmation: string): Promise<import('../shared/firmware').FirmwareStatus>
   openFirmwareBackup(): Promise<boolean>
   quitRcDecision(id: string, reset: boolean): Promise<boolean>
+  virtualModel(model:string): Promise<import('../shared/virtual-controller').VirtualStatus>
+  virtualKeyboardRecording(id:string,active:boolean):Promise<boolean>
+  virtualStatus(): Promise<import('../shared/virtual-controller').VirtualStatus>
+  virtualCheck(): Promise<import('../shared/virtual-controller').VirtualStatus>
+  virtualInstall(): Promise<import('../shared/virtual-controller').VirtualStatus>
+  virtualSave(config: import('../shared/virtual-controller').VirtualConfig): Promise<import('../shared/virtual-controller').VirtualStatus>
+  virtualStart(acknowledged: boolean): Promise<import('../shared/virtual-controller').VirtualStatus>
+  virtualStop(): Promise<import('../shared/virtual-controller').VirtualStatus>
+  virtualSources(detect:boolean):Promise<Array<{slot:number;lx:number;ly:number;rx:number;ry:number;span:number}>>
+  virtualHidHideStatus():Promise<import('../main/hidhide').HidHideStatus>
+  virtualHidHide(): Promise<boolean>
   startMacroRecording(id: string): Promise<boolean>
   stopMacroRecording(id: string): Promise<import('../shared/macros').MacroStep[]>
   cancelMacroRecording(id: string): Promise<boolean>
