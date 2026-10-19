@@ -1,6 +1,6 @@
 {
   "name": "g7-stick-lab",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Stick-Abuse-Limited - controller tuning, RC filters, bindings, macros, triggers, gyro and calibration",
   "main": "out/main/index.js",
   "author": "Kai",
