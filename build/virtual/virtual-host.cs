@@ -57,7 +57,7 @@ class VirtualHost {
    foreach(string d in saved.addedDevices)if(!Regex.IsMatch(d,@"^(HID|USB)\\VID_3537&PID_",RegexOptions.IgnoreCase))throw new Exception("Invalid recovery device");
    Process owner;try{owner=Process.GetProcessById(parent);}catch{owner=null;}
    Console.WriteLine("READY");Console.Out.Flush();
-   while(owner!=null&&!owner.HasExited){if(!File.Exists(file)||File.ReadAllText(file)!=original)return;Thread.Sleep(300);}
+   while(owner!=null){try{if(owner.WaitForExit(300))break;}catch{break;}if(!File.Exists(file)||File.ReadAllText(file)!=original)return;}
    for(int retry=0;retry<20;retry++){try{
      if(!File.Exists(file)||File.ReadAllText(file)!=original)return;
      string snapshot=Cli(saved.cli,new List<string>{"--cloak-state","--inv-state","--dev-list","--cancel"});
